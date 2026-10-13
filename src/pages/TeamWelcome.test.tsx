@@ -50,7 +50,7 @@ test('a manager is told where to turn on two-step sign-in later, and can skip at
   await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
   expect(
     screen.getByText(
-      'You can also turn it on later in Settings, under Team, or on your account page.',
+      'You can also turn it on later from your name at the top, under Password, two-step and Face ID, or on your account page.',
     ),
   ).toBeInTheDocument()
   expect(onOpen).not.toHaveBeenCalled()

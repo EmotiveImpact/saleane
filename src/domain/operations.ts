@@ -185,7 +185,15 @@ export const taxSchema = z.object({
 })
 export type Tax = z.infer<typeof taxSchema>
 
-export const importKinds = ['clients', 'services', 'appointments', 'balances'] as const
+export const importKinds = [
+  'clients',
+  'services',
+  'appointments',
+  'balances',
+  // Moving in, stage 3.
+  'giftCards',
+  'packages',
+] as const
 export const importBatchSchema = z.object({
   id,
   kind: z.enum(importKinds),
@@ -194,7 +202,7 @@ export const importBatchSchema = z.object({
   actor: z.string(),
   /** The records this import created, so the log can say what still stands. */
   recordIds: z.array(id).max(500),
-  /** Money the imported rows carry: visit prices, or balances held. */
+  /** Money the imported rows carry: visit prices, balances held, or what is left on cards and packages. */
   totalMinor: money,
   /** Deposits already paid to the previous system, for an appointment import. */
   depositsMinor: money.optional(),
@@ -887,6 +895,8 @@ export function can(role: Role, action: string) {
       'import-services',
       'import-appointments',
       'import-balances',
+      'import-gift-cards',
+      'import-packages',
       'reminders',
       'fee',
       'protection',

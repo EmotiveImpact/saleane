@@ -10,7 +10,7 @@ import type { Command } from '../domain/commands'
 import { Button, ErrorMessage, Modal, Checkbox } from '../design'
 import { MovingIn } from './MovingIn'
 import { CLIENT_IMPORT_MAX_BYTES, CLIENT_IMPORT_MAX_PAYLOAD_BYTES } from './clientImportCsv'
-import { SWITCH_COLUMNS, previewBalancesCsv, previewServicesCsv } from './switchingCsv'
+import { SWITCH_COLUMNS, previewServicesCsv } from './switchingCsv'
 import type { SwitchKind, SwitchPreview } from './switchingCsv'
 import './management.css'
 import './switching.css'
@@ -23,18 +23,14 @@ const KIND_COPY = {
     example:
       'name,duration,price,deposit,category,professionals\nSignature facial,60,85.00,20.00,Skin,Amara Okafor',
   },
-  balances: {
-    title: 'Balances',
-    noun: ['balance', 'balances'],
-    body: 'Credit a client holds with you, or money they still owe.',
-    example: 'email,amount,type,note\nguest@example.com,25.00,credit,Gift card from 2025',
-  },
 } as const
 const KIND_LABEL: Record<ImportBatch['kind'], string> = {
   clients: 'Clients',
   services: 'Treatments',
   appointments: 'Upcoming visits',
   balances: 'Balances',
+  giftCards: 'Gift cards',
+  packages: 'Packages',
 }
 
 function fileText(file: File) {
@@ -49,8 +45,8 @@ function fileText(file: File) {
 /** PILOT-03: the Settings section for moving a studio across from its previous system. */
 export function SwitchingSettings() {
   const { state, role, blocked } = useStore()
-  // Clients and upcoming visits come across through moving in, which reads the old system's own
-  // files; treatments and balances still use SALEANE's own CSV layout.
+  // Clients, upcoming visits, gift cards, packages and credit come across through moving in, which
+  // reads the old system's own files; treatments still use SALEANE's own CSV layout.
   const [open, setOpen] = useState<SwitchKind | 'moving' | null>(null)
   const allowed = !blocked && can(role, 'import-services')
   const imports = (operations(state).imports ?? []).slice().reverse()
@@ -68,13 +64,18 @@ export function SwitchingSettings() {
       title: 'Upcoming visits',
       body: 'Straight from your old system’s appointments list. Each visit keeps the price the guest was quoted and any deposit they already paid. Add them with your clients, or on their own.',
     },
-    { key: 'balances', opens: 'balances', ...KIND_COPY.balances },
+    {
+      key: 'money',
+      opens: 'moving',
+      title: 'Gift cards, packages and credit',
+      body: 'Straight from your old system’s own reports. Gift cards keep their codes and what is left on them, packages keep their visits left, and credit is recorded for the desk. None of it counts as takings twice.',
+    },
   ]
   return (
     <section className="surface ops-panel settings-panel">
       <header>
         <div>
-          <h2>Moving from another system</h2>
+          <h2>Moving in</h2>
           <p>Bring your studio across one checked file at a time.</p>
         </div>
         <ArrowRightLeft size={21} />
@@ -85,10 +86,10 @@ export function SwitchingSettings() {
           <div>
             <strong>Nothing already here is changed or removed.</strong>
             <p>
-              Export each list from your old system. Clients and upcoming visits can be CSV or
-              Excel, exactly as they come; treatments and balances are CSV files. You see every row
-              before it is saved, with totals to check against your old system’s own report. Add
-              your team and spaces first, so treatments and visits have somewhere to go.
+              Export each list from your old system. Everything but treatments can be CSV or Excel,
+              exactly as it comes; treatments are a CSV file. You see every row before it is saved,
+              with totals to check against your old system’s own reports. Add your team and spaces
+              first, so treatments and visits have somewhere to go.
             </p>
           </div>
         </div>
@@ -163,6 +164,20 @@ function ImportLogRow({ batch }: { batch: ImportBatch }) {
           </small>
         )}
         {batch.kind === 'services' && <small>Price list total {money2(batch.totalMinor)}.</small>}
+        {batch.kind === 'giftCards' && (
+          <small>
+            {money2(batch.totalMinor)} left to spend when carried over, paid to {batch.source}.{' '}
+            {standing.upcoming} still to spend
+            {standing.changed ? `, ${standing.changed} used up, expired or cancelled` : ''}.
+          </small>
+        )}
+        {batch.kind === 'packages' && (
+          <small>
+            Worth {money2(batch.totalMinor)} when carried over, paid to {batch.source}.{' '}
+            {standing.upcoming} with visits left
+            {standing.changed ? `, ${standing.changed} used up, ended or cancelled` : ''}.
+          </small>
+        )}
       </div>
     </li>
   )
@@ -171,23 +186,18 @@ function ImportLogRow({ batch }: { batch: ImportBatch }) {
 type AnyPreview = SwitchPreview<unknown>
 
 /** A row as the file had it, in two readable lines rather than a column per heading. */
-function summary(kind: SwitchKind, columns: string[], cells: string[]) {
+function summary(columns: string[], cells: string[]) {
   const cell = (name: string) => cells[columns.indexOf(name)] ?? ''
   const join = (...parts: string[]) => parts.filter(Boolean).join(' · ')
-  if (kind === 'services')
-    return [
-      cell('name') || 'No name',
-      join(
-        cell('duration') && `${cell('duration')} min`,
-        cell('price') && `price ${cell('price')}`,
-        cell('deposit') && `deposit ${cell('deposit')}`,
-        cell('category'),
-        cell('professionals'),
-      ),
-    ]
   return [
-    cell('name') ? `${cell('name')} (${cell('email')})` : cell('email'),
-    join(cell('amount'), cell('type') || 'credit', cell('note')),
+    cell('name') || 'No name',
+    join(
+      cell('duration') && `${cell('duration')} min`,
+      cell('price') && `price ${cell('price')}`,
+      cell('deposit') && `deposit ${cell('deposit')}`,
+      cell('category'),
+      cell('professionals'),
+    ),
   ]
 }
 
@@ -211,8 +221,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
   const review = useMemo((): { preview: AnyPreview | null; error: string } => {
     if (!source) return { preview: null, error: '' }
     try {
-      const preview =
-        kind === 'services' ? previewServicesCsv(source, state) : previewBalancesCsv(source, state)
+      const preview = previewServicesCsv(source, state)
       return { preview: preview as AnyPreview, error: '' }
     } catch (cause) {
       return {
@@ -220,18 +229,19 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
         error: cause instanceof Error ? cause.message : 'This CSV could not be read.',
       }
     }
-  }, [source, state, kind])
+  }, [source, state])
   const rows = review.preview?.rows ?? []
   const chosen = rows.filter((row) => row.status === 'ready' && !excluded.includes(row.record))
   const values = chosen.map((row) => row.value!)
   const total = chosen.reduce((sum, row) => sum + row.amountMinor, 0)
   const deposits = chosen.reduce((sum, row) => sum + row.depositMinor, 0)
   const label = provenance.trim()
-  const command = (
-    kind === 'services'
-      ? { type: 'import-services', source: label, services: values, reviewed: true }
-      : { type: 'import-balances', source: label, balances: values, reviewed: true }
-  ) as Command
+  const command = {
+    type: 'import-services',
+    source: label,
+    services: values,
+    reviewed: true,
+  } as Command
   const payloadTooLarge =
     new TextEncoder().encode(JSON.stringify({ revision: state.revision, command })).byteLength >
     CLIENT_IMPORT_MAX_PAYLOAD_BYTES
@@ -245,9 +255,6 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
     !review.error
   const format = (amount: number) => money(amount, org, true)
   const [one, many] = copy.noun
-  const credit = chosen
-    .filter((row) => (row.value as { kind?: string }).kind === 'credit')
-    .reduce((sum, row) => sum + row.amountMinor, 0)
 
   async function choose(file?: File) {
     if (!file || busy) return
@@ -366,22 +373,14 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
                   </small>
                 </div>
                 <div>
-                  <span>{kind === 'services' ? 'Price list total' : 'Credit held'}</span>
-                  <strong>{format(kind === 'balances' ? credit : total)}</strong>
-                  <small>
-                    {kind === 'balances'
-                      ? 'For clients to use or have returned'
-                      : 'Across the chosen treatments'}
-                  </small>
+                  <span>Price list total</span>
+                  <strong>{format(total)}</strong>
+                  <small>Across the chosen treatments</small>
                 </div>
                 <div>
-                  <span>{kind === 'balances' ? 'Owed to you' : 'Deposits asked'}</span>
-                  <strong>{format(kind === 'balances' ? total - credit : deposits)}</strong>
-                  <small>
-                    {kind === 'balances'
-                      ? 'Collected at the desk as usual'
-                      : 'Across the chosen treatments'}
-                  </small>
+                  <span>Deposits asked</span>
+                  <strong>{format(deposits)}</strong>
+                  <small>Across the chosen treatments</small>
                 </div>
               </div>
               {!!review.preview.ignored.length && (
@@ -428,7 +427,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
                           )}
                         </td>
                         <td className="switch-row">
-                          {summary(kind, columns, row.cells).map((line, index) =>
+                          {summary(columns, row.cells).map((line, index) =>
                             index ? <p key={index}>{line}</p> : <strong key={index}>{line}</strong>,
                           )}
                         </td>

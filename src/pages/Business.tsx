@@ -239,7 +239,7 @@ export function Business() {
               <strong>{wholeMoney(data.retail, state.organisation)}</strong>
               <small>
                 Before tax, separate from treatment takings.{' '}
-                <Link to="/business/stock">See stock</Link>
+                <Link to="/money/stock">See stock</Link>
               </small>
             </div>
             <div className="insight-figure">
@@ -252,7 +252,7 @@ export function Business() {
                 <span>Chair and room rent recorded</span>
                 <strong>{money(data.rent, state.organisation)}</strong>
                 <small>
-                  Your income from renters. <Link to="/business/pay">See rent</Link>
+                  Your income from renters. <Link to="/team/pay">See rent</Link>
                 </small>
               </div>
             )}
@@ -316,7 +316,7 @@ export function Business() {
             Treatment takings only, without renters’ own takings.
             {data.rebookRate !== null &&
               ` Rebooked means the next visit was booked at checkout; the studio as a whole rebooked ${Math.round(data.rebookRate * 100)}%.`}{' '}
-            Commission and tips per person are on <Link to="/business/pay">Pay</Link>.
+            Commission and tips per person are on <Link to="/team/pay">Pay</Link>.
           </p>
         </section>
       </div>

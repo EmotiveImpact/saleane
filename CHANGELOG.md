@@ -2,6 +2,36 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-12 · The studio's name reads properly on a practitioner's phone
+
+**Status: built locally on 12 October 2026 and checked in Chromium at 320, 390, 768 and 1440 px.** The owner said yes on 12 October 2026.
+
+- On a phone, a practitioner's day squeezed the studio's name, their own name and the location into a narrow gap beside the wordmark, so "The Linden Rooms" broke over two lines and ran into four. At 560 px and narrower the studio's name now has its own line under the wordmark and the buttons, kept to one line. The practitioner's name and location are left out there, since "Your day, Maya." says who it is. A regional manager's page keeps its area line on the same row. Laptops and tablets are unchanged.
+
+## 2026-10-11 · A tidier SALEANE: Money, Team, a shorter Settings and You
+
+**Status: built locally on 11 October 2026 and checked in Chromium at 1440px and 390px, not yet in Safari or Firefox. The owner chose "Build all" on the plan of 11 October 2026; waiting for the owner's "merge".** [Evidence](docs/evidence/TIDIER-LAYOUT.md).
+
+- Money and Team have their own places in the sidebar, after Marketing. Money holds Takings, Gift cards, Stock and Accounts; Team holds People (who does what, and who can sign in), Rota and Pay. Business keeps how the studio is doing: Overview, Feedback, Client areas and How you compare, with Branch visits and Requests once there are several locations or sign-offs. Reception has no Business and lands on Money.
+- Settings is four groups (Studio; Treatments and payments; Guests; Studio account) instead of five, with 19 sections instead of 21. On a computer, Find a setting narrows them by name or by everyday words such as "VAT", "parking" or "Google".
+- Studio details is about a quarter of its old length. Tax moved to Payments & tax; the online booking switch, the bot check, booking links, Book with Google, booking through ChatGPT or Claude and social accounts moved to Booking page & colours; notes for before and after a visit have their own section; the Google and Apple diaries joined Connected software. "Switching over" is now "Moving in".
+- You, from your name at the top, holds what is yours alone: your preferences, your password, two-step sign-in and Face ID, and your accounts and studios. The owner's switch asking everyone to use two-step sign-in stays on Team and links there.
+- The six moves from the finishing check: Inbox loses its old "Messages to clients" button (Marketing has it); the look of visit emails stays in Settings and the birthday email is shown only in Marketing; the quiet-time price sits on the Waitlist; Design language shows in the demo only and Refresh records is gone from the footer.
+- Older links still land: `/business/money`, `/business/rota` and the rest open their new pages, and `?section=staff`, `preferences` and `diaries` open Team, You and Connected software. Help's guides and every link in the app point at the new places, and a new guide explains opening or closing online booking.
+
+## 2026-10-11 · Moving in, stage 3: gift cards, packages and credit from the old system's own files
+
+**Status: built locally on 11 October 2026; the owner approved merging on 13 October 2026; nothing deployed.** [Evidence](docs/evidence/MOVING-03.md).
+
+- Moving in now brings across the money the studio already holds for its clients, from the reports the old system already gives: gift cards and vouchers with their codes and what is left on them, packages and courses with their visits left, and credit on account. Before, those files were set aside, and Settings refused a credit file unless it was rebuilt by hand with every client's email.
+- A money file adds a Money held step. It asks only what SALEANE cannot tell (which treatment a package is for, or which way round a credit file's amounts go), shows what comes across, checks each total against the old system's own (a totals row in the file, or Fresha's liability summary), and lists what stays behind and why: expired, cancelled or used up, already in SALEANE, listed twice, or left behind by choice.
+- Timely's gift voucher, package and credit details, Phorest's vouchers outstanding and client courses, Vagaro's packages, Square's gift cards and Fresha's liability summary are recognised by their headings; any other file is read by meaning. "Your files" says where to download each report in each system.
+- Gift cards keep the codes printed on them, so guests use the card they already have; Square's, which give only the last four digits, get a new code with the old digits kept for searching. A package keeps its visits left and what they are worth, and the client's page counts visits used in the old system ("4 of 6 visits left"). Credit is recorded on each client's record for the desk.
+- All of it was paid for in the old system, so none of it counts as takings: it stays out of the day's takings, Accounts, receipts, "Sold in total" on Gift cards and "Taken for plans" on Money. No card is charged, no money is given back and nobody is sent a message. Only owners and managers can bring it across.
+- Settings, Switching over has Gift cards, packages and credit, opening the same steps; the older balances CSV step is gone.
+- A package's last day in another year now shows its year ("use by 30 June 2027").
+- The help guide, now "Bring clients, visits and gift cards across from another system", describes the new step.
+
 ## 2026-10-11 · Ask's screen parts, for any app's design, and LUMANE's installer
 
 **Status: built locally on 11 October 2026 and checked in a browser; no screen in SALEANE looks different. The installer has been tried only on two pretend apps.** The owner approved stage 2 and the installer on 11 October 2026. [Evidence](docs/evidence/LUMANE-SCREENS.md).
@@ -34,6 +64,17 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A new section, The frame, describes what surrounds every staff page: the sidebar and its fold, the top bar, the two menus under the studio's name and your own, the phone menu, notices and finding a client.
 - The 44px touch rule, hints (never browser title text), notices, welcomes for a new studio, Today on a phone, view switches that keep one place, folds in where things move, the assistant's name written once and the booking page's footer are written out in full.
 - The top bar, folded sidebar, view switch and booking footer rules come from Edem's comments on the demo of 11 October; the fixes themselves arrive with the demo's own change. Phone Today in tabs and the six moves from the finishing check are listed as still waiting for a yes.
+
+## 2026-10-11 · A steadier calendar and a calmer top bar
+
+**Status: built locally on 11 October 2026 from the owner's comments on the demo, and checked in Chromium at 390, 800, 1024, 1180, 1440 and 1600px, not yet in Safari or Firefox.**
+
+- **Calendar.** Today, Week and Month sit at the far right of the calendar's toolbar and hold the same spot in every view and on every day. The date and the day layout buttons keep their room in Week and Month, so nothing beside them moves. On a phone the switch keeps its own row under the date.
+- **Top bar.** The page's name gives way before any button covers it. Below 1200px the assistant's button reads "Ask" with its icon, and Find a client, Help and your menu become round icons, each keeping its full name for screen readers. The "things to mention" words are read out but no longer shown; the dot shows them.
+- **Phone.** Your avatar sits inside its button, as far from the edge as the menu button on the left.
+- **Folded sidebar.** Hovering it swaps the S for the button that opens it, in the same spot, and a click on any empty part of the sidebar opens it. Its icons still go straight to their pages.
+- **Help.** The "All help" arrow has the same room inside its hover shade as the words.
+- **Booking page.** The footer reads "Connected by SALEANE".
 
 ## 2026-10-11 · The new photographs, on their screens
 

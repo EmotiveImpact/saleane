@@ -216,10 +216,7 @@ describe('a new studio', () => {
         <Calendar />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('link', { name: 'Add your team' })).toHaveAttribute(
-      'href',
-      '/settings?section=staff',
-    )
+    expect(screen.getByRole('link', { name: 'Add your team' })).toHaveAttribute('href', '/team')
   })
   it('keeps the sample studio’s figures and calendar as they are', () => {
     newStudio({ state: seed('UK') })

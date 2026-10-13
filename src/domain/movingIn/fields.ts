@@ -209,7 +209,8 @@ export function valueKind(value: string): ValueKind {
   if (!v) return 'empty'
   if (EMAIL.test(v)) return 'email'
   if (yesNo(v) !== null && !/^\d$/.test(v)) return 'yesno'
-  if (/^[£$€]\s?-?[\d,]+(\.\d{1,2})?$|^-?[\d,]+\.\d{2}$/.test(v)) return 'money'
+  // "£85", "-£12.50", "£-12.50", "(12.00)" and "1,250.00" are money; a bare whole number is not.
+  if (/^\(?-?[£$€]\s?-?[\d,]+(\.\d{1,2})?\)?$|^\(?-?[\d,]+\.\d{2}\)?$/.test(v)) return 'money'
   if (looksLikeDate(v)) return 'date'
   if (TIME.test(v) && (/:/.test(v) || /[ap]\.?m\.?$/i.test(v))) return 'time'
   const digits = v.replace(/\D/g, '')
@@ -319,8 +320,12 @@ export const clientVocabulary: Vocabulary<ClientField> = {
       return 'Card details never move across. Clients save their card again through a link.'
     if (/\bid\b|reference|ref\.?$/i.test(words))
       return 'The old system’s own reference. Not needed.'
-    if (/membership|package|course/i.test(words))
-      return 'Memberships and packages come across in a later step.'
+    if (/membership/i.test(words))
+      return 'Memberships come across once clients save their card again.'
+    if (/package|course/i.test(words))
+      return 'Packages come across from your old system’s list of packages.'
+    if (/credit|account balance|outstanding balance/i.test(words))
+      return 'Credit comes across in the money step.'
     if (/since|added|created|creation/i.test(words))
       return 'SALEANE keeps its own history from the day they arrive.'
     if (kind === 'money' || /total|spend|sales|paid|amount/i.test(words))

@@ -467,7 +467,7 @@ export function Stock() {
         <Empty
           photo={photos.stock}
           photoPosition="62% center"
-          eyebrow="Business"
+          eyebrow="Money"
           level={1}
           title="Your shelf starts here."
           action={
@@ -485,7 +485,7 @@ export function Stock() {
         <>
           <PageHeader
             variant="compact"
-            eyebrow="Business"
+            eyebrow="Money"
             title="What is on the shelf."
             description="Products you sell at the till and the ones you use in treatments. Selling a product at checkout takes it out of stock for you."
             actions={

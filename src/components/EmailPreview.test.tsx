@@ -56,9 +56,12 @@ describe('email previews', () => {
       within(choices)
         .getAllByRole('radio')
         .map((item) => item.textContent),
-    ).toEqual(['Booking confirmation', 'Reminder', 'After the visit', 'Birthday'])
-    await user.click(within(choices).getByRole('radio', { name: 'Birthday' }))
-    expect(await screen.findByTitle('The birthday email, as a guest sees it')).toBeInTheDocument()
+    ).toEqual(['Booking confirmation', 'Reminder', 'After the visit'])
+    // The birthday email is a Marketing automatic message, so it is shown there, not here.
+    await user.click(within(choices).getByRole('radio', { name: 'After the visit' }))
+    expect(
+      await screen.findByTitle('The after the visit email, as a guest sees it'),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Written for a made-up guest, Alex/)).toBeInTheDocument()
   })
 

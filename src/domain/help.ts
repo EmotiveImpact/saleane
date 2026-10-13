@@ -35,7 +35,7 @@ export type HelpArticle = {
   steps: readonly string[]
   /** Anything that is not live yet, said plainly. */
   note?: string
-  /** Where "Go there" opens, such as /settings?section=staff. */
+  /** Where "Go there" opens, such as /settings?section=hours. */
   to?: string
   /** The screens it is about: a path, or a path with its Settings section. */
   screens: readonly string[]

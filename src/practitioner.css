@@ -341,6 +341,28 @@
     grid-column: 2;
   }
 }
+/* On a phone the studio's name has no room beside the wordmark and buttons, so it takes its own
+   line underneath. The practitioner's own name is already in "Your day, Maya." just below. */
+@media (max-width: 560px) {
+  .practitioner-header {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .practitioner-header > span {
+    order: 3;
+    flex-basis: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+  .practitioner-header > span > * {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .practitioner-layout:not(.area-layout) .practitioner-header small {
+    display: none;
+  }
+}
 @media (max-width: 400px) {
   .practitioner-header,
   .practitioner-main {

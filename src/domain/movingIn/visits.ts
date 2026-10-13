@@ -197,7 +197,7 @@ function likeness(a: string, b: string) {
   return shared === Math.min(left.size, right.size) ? Math.max(overlap, 0.6) : overlap
 }
 
-function suggestTreatment(key: string, services: Service[]) {
+export function suggestTreatment(key: string, services: Service[]) {
   const scored = services
     .map((service) => ({ service, score: likeness(key, treatmentKey(service.name)) }))
     .sort((a, b) => b.score - a.score)
@@ -231,7 +231,7 @@ export type NameChoices = {
   professional: Record<string, string | null>
 }
 
-function matchNames<T extends { id: string; name: string }>(
+export function matchNames<T extends { id: string; name: string }>(
   names: string[],
   items: T[],
   chosen: Record<string, string | null>,
@@ -276,13 +276,27 @@ export const needsAnswer = (match: NameMatch) => match.how === 'suggested' || ma
 /** Enough to find a client coming across in the same move once the server has saved them. */
 export type ClientKey = { name: string; email: string; phone: string }
 
-type Person = ClientKey & { key: string; id?: string }
-type Who = ClientKey & { key: string }
+export type Person = ClientKey & { key: string; id?: string }
+export type Who = ClientKey & { key: string }
 
-const WALK_IN = /^(walk ?in|walkin|no client|unknown|guest|n a|none)( client| guest)?$/
+export const WALK_IN = /^(walk ?in|walkin|no client|unknown|guest|n a|none)( client| guest)?$/
 
-/** Everyone a visit could be for, found by email, phone or name. */
-class People {
+/** What to say when a row cannot be matched to one client: a visit by default. */
+export type FindWords = {
+  shared: (count: number, by: string) => string
+  otherName: (by: string, owner: string, name: string) => string
+  sameName: (count: number, name: string) => string
+}
+const VISIT_WORDS: FindWords = {
+  shared: (count, by) => `${count} clients share this ${by}. Book this visit by hand.`,
+  otherName: (by, owner, name) =>
+    `The ${by} belongs to ${owner}, but this visit is for ${name}. Book it by hand.`,
+  sameName: (count, name) =>
+    `${count} clients are called ${name}. Book this visit by hand, or add each client’s email or mobile to the file.`,
+}
+
+/** Everyone a visit, package or credit could be for, found by email, phone or name. */
+export class People {
   private byEmail = new Map<string, Person[]>()
   private byPhone = new Map<string, Person[]>()
   private byName = new Map<string, Person[]>()
@@ -295,7 +309,7 @@ class People {
     put(this.byName, person.key)
   }
   /** Which client a visit is for, by email, then phone, then name. */
-  find(who: Who): Person | { problem: string } | null {
+  find(who: Who, words: FindWords = VISIT_WORDS): Person | { problem: string } | null {
     let pool = (who.email && this.byEmail.get(who.email)) || []
     const by = pool.length ? 'email' : 'phone number'
     if (!pool.length && who.phone) pool = this.byPhone.get(who.phone) ?? []
@@ -303,8 +317,7 @@ class People {
       const named = pool.filter((p) => p.key === who.key)
       if (named.length) pool = named
     }
-    if (pool.length > 1)
-      return { problem: `${pool.length} clients share this ${by}. Book this visit by hand.` }
+    if (pool.length > 1) return { problem: words.shared(pool.length, by) }
     const named = (who.key && this.byName.get(who.key)) || []
     if (pool.length === 1) {
       const [person] = pool
@@ -314,15 +327,10 @@ class People {
       if (!who.key || person.key === who.key || firstName(person.key) === firstName(who.key))
         return person
       if (named.length === 1) return named[0]
-      return {
-        problem: `The ${by} belongs to ${person.name}, but this visit is for ${who.name}. Book it by hand.`,
-      }
+      return { problem: words.otherName(by, person.name, who.name) }
     }
     if (named.length === 1) return named[0]
-    if (named.length > 1)
-      return {
-        problem: `${named.length} clients are called ${who.name}. Book this visit by hand, or add each client’s email or mobile to the file.`,
-      }
+    if (named.length > 1) return { problem: words.sameName(named.length, who.name) }
     return null
   }
 }

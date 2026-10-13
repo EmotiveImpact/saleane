@@ -327,7 +327,7 @@ describe('memberships', () => {
     expect(
       run(plan.s, {
         type: 'plan-sell',
-        offerId: plan.holding.offerId,
+        offerId: plan.holding.offerId!,
         clientId: 'client-1',
         method: 'cash',
       }).ok,

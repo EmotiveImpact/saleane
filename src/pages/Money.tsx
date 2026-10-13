@@ -289,7 +289,7 @@ export function Money() {
     <div className="money-page">
       <PageHeader
         variant="compact"
-        eyebrow="Business"
+        eyebrow="Money"
         title="Money, clearly."
         description="Receipts, recorded funds and the deposits still held for a visit."
       />
@@ -929,7 +929,7 @@ export function Money() {
       {slipKey && (
         <ReceiptDialog receiptKey={slipKey} onClose={() => setSlipKey('')}>
           {slipKey.startsWith('walk-in:') && can(role, 'refund') && (
-            <Link className="text-link" to="/business/stock">
+            <Link className="text-link" to="/money/stock">
               Give money back from Stock
             </Link>
           )}

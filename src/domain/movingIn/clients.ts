@@ -15,7 +15,9 @@ import {
 import type { ClientField, ColumnMatch } from './fields'
 import { isVisitField, visitVocabulary } from './visitFields'
 import type { VisitField } from './visitFields'
-import { SYSTEM_NAME, guessKind, recogniseLayout } from './systems'
+import { isMoneyField, moneyVocabulary } from './moneyFields'
+import type { MoneyField } from './moneyFields'
+import { MONEY_KINDS, SYSTEM_NAME, guessKind, recogniseLayout } from './systems'
 import type { FileKind, OldSystem } from './systems'
 import type { Sheet } from './sheet'
 
@@ -40,10 +42,19 @@ export type MovingFile = {
   matches: ColumnMatch[]
   /** What each column means for a visits file; empty for any other kind. */
   visitMatches: ColumnMatch<VisitField>[]
+  /**
+   * What each column means for a gift card, package, credit or totals file, and for a client list
+   * that carries each client's credit; empty for any other kind.
+   */
+  moneyMatches: ColumnMatch<MoneyField>[]
+  /** Why a file SALEANE recognises is still not read, when it is not. */
+  unread: string | null
   /** Data rows only: heading, title and totals rows removed. */
   rows: string[][]
   /** The row number in the file of each data row, for pointing the owner at it. */
   lineNumbers: number[]
+  /** The file's own totals rows, kept to check what comes across against the old system. */
+  totals: { line: number; cells: string[] }[]
 }
 
 /** The owner's answers about a file's columns: a heading's key to a field, or null to leave it out. */
@@ -64,13 +75,21 @@ function answersFor<F extends string>(answers: ColumnAnswers, is: (v: string | n
 export function understandFile(sheet: Sheet, answers: ColumnAnswers = {}): MovingFile {
   const headingRow = findHeadingRow(
     sheet.rows,
-    (cell) => !!fieldFromHeading(cell) || !!fieldIn(visitVocabulary, cell),
+    (cell) =>
+      !!fieldFromHeading(cell) ||
+      !!fieldIn(visitVocabulary, cell) ||
+      !!fieldIn(moneyVocabulary, cell),
   )
   const headings = (sheet.rows[headingRow] ?? []).map((h, i) => h.trim() || `Column ${i + 1}`)
   const rows: string[][] = []
   const lineNumbers: number[] = []
+  const totals: MovingFile['totals'] = []
   sheet.rows.slice(headingRow + 1).forEach((row, i) => {
-    if (isSummaryRow(row)) return
+    if (isSummaryRow(row)) {
+      if (/^(grand )?totals?\b/i.test(row.find((cell) => cell.trim())?.trim() ?? ''))
+        totals.push({ line: headingRow + i + 2, cells: row })
+      return
+    }
     // A heading row repeated on each page of a report.
     if (row.every((cell, j) => cell.trim() === (headings[j] ?? '').trim())) return
     rows.push(row)
@@ -87,9 +106,25 @@ export function understandFile(sheet: Sheet, answers: ColumnAnswers = {}): Movin
     ...(layout?.visitFields ?? {}),
     ...answersFor(answers, isVisitField),
   })
-  const kind =
+  let kind =
     layout?.kind ??
     (looksLikeVisits(visitMatches, rows) ? 'visits' : guessKind(headings, hasClientColumns))
+  const unread = layout?.unread ?? null
+  const allMoney = unread
+    ? []
+    : matchColumnsIn(moneyVocabulary, headings, rows, {
+        ...(layout?.moneyFields ?? {}),
+        ...answersFor(answers, isMoneyField),
+      })
+  // A list of people with an amount each, such as "email, amount, type, note", is their credit.
+  const moneyFieldsFound = new Set(allMoney.map((m) => m.field))
+  if (
+    kind === 'unknown' &&
+    ['credit', 'balance', 'value'].some((f) => moneyFieldsFound.has(f as MoneyField)) &&
+    ['client', 'firstName', 'email', 'phone'].some((f) => moneyFieldsFound.has(f as MoneyField))
+  )
+    kind = 'credit'
+  const moneyMatches = MONEY_KINDS.includes(kind) || kind === 'clients' ? allMoney : []
   return {
     fileName: sheet.fileName,
     system: layout?.system ?? null,
@@ -98,8 +133,11 @@ export function understandFile(sheet: Sheet, answers: ColumnAnswers = {}): Movin
     headings,
     matches,
     visitMatches: kind === 'visits' ? visitMatches : [],
+    moneyMatches,
+    unread,
     rows,
     lineNumbers,
+    totals,
   }
 }
 

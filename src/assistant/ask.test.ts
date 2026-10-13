@@ -61,7 +61,7 @@ describe('Ask Saleane in test mode', () => {
 
   it('answers how to do something from the help guides, for the person asking', async () => {
     const owner = await ask('How do I refund a payment?')
-    expect(owner.text).toMatch(/^Refund a payment: 1\. Open Business, then Money/)
+    expect(owner.text).toMatch(/^Refund a payment: 1\. Open Money, then Takings/)
     expect(owner.text).toContain('The guide is also in Help')
     // Reception cannot refund, so it is given the nearest guide it can use instead.
     const desk = await ask('How do I refund a payment?', 'reception')

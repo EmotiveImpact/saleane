@@ -95,12 +95,14 @@ export function report(whole: BusinessState, days: number, locationId?: string) 
     const day = recordDay(s, at)
     return day >= from && day <= today
   }
+  // Cards and packages carried over from the old system were sold there, so they are left out.
+  const soldHere = (p: { method: string }) => p.method !== 'previous_system'
   const giftCardsSold = (s.giftCards ?? [])
-    .filter((card) => inPeriod(card.payment.recordedAt))
+    .filter((card) => soldHere(card.payment) && inPeriod(card.payment.recordedAt))
     .reduce((sum, card) => sum + card.payment.amountMinor, 0)
   const plansSold = (s.holdings ?? [])
     .flatMap((h) => h.payments)
-    .filter((p) => inPeriod(p.recordedAt))
+    .filter((p) => soldHere(p) && inPeriod(p.recordedAt))
     .reduce((sum, p) => sum + p.amountMinor, 0)
   // Stage 5: the studio's own takings on a chain's other tills, before tax, kept apart from
   // SALEANE's visits. A renter's own lines are theirs; money given back is shown in Money.

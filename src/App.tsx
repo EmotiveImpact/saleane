@@ -24,6 +24,8 @@ import {
   Globe,
   LogOut,
   UserRound,
+  Wallet,
+  IdCard,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
@@ -122,6 +124,7 @@ const ServerBooking = lazy(() =>
   import('./pages/ServerBooking').then((module) => ({ default: module.ServerBooking })),
 )
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
+const You = lazy(() => import('./pages/You').then((module) => ({ default: module.You })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
 const News = lazy(() => import('./pages/News').then((module) => ({ default: module.News })))
 const MarketingAutomatic = lazy(() =>
@@ -170,12 +173,21 @@ const navigation = [
   { to: '/inbox', label: 'Inbox', icon: Mail },
   // NEXT-14: its own section, for the people who write to clients.
   { to: '/marketing', label: 'Marketing', icon: Megaphone },
+  // The till, gift cards, the shelf and the accountant's files: everything paid, sold or counted.
+  { to: '/money', label: 'Money', icon: Wallet },
+  // The people: who they are and what they do, who is in when, and what they have earned.
+  { to: '/team', label: 'Team', icon: IdCard },
   { to: '/business', label: 'Business', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: Settings2 },
 ]
 /** Whether a sidebar section holds the page that is open, including the pages inside it. */
 const within = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`)
+/** An older address, sent on to where its page lives now, keeping what came after it. */
+function Moved({ to }: { to: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={`${to}${search}${hash}`} replace />
+}
 
 function WorkspaceApp() {
   const {
@@ -186,7 +198,6 @@ function WorkspaceApp() {
     loading,
     session,
     role,
-    reload,
     today,
     branch,
     billing,
@@ -245,16 +256,9 @@ function WorkspaceApp() {
   // Stage 4: a message to clients waits for the owner's approval, in Marketing.
   const campaignDrafts =
     role === 'owner' ? (operations(state).news ?? []).filter((m) => m.status === 'draft').length : 0
-  // The front desk opens Money, Stock, Rota and Gift cards in Business, not the studio's figures,
-  // pay, accounts or private feedback, so their Business link lands on Money.
+  // The front desk opens Money and the rota, not the studio's figures, pay, accounts or private
+  // feedback, so Business has nothing for them and is not shown.
   const desk = role === 'reception'
-  const links = navigation
-    .filter((item) => item.to !== '/marketing' || leads(role))
-    .map((item) => ({
-      ...item,
-      href: desk && item.to === '/business' ? '/business/money' : item.to,
-      active: within(location.pathname, item.to),
-    }))
   const owns = role === 'owner' || role === 'manager'
   // The studios this person can open at the desk, to move between from the studio menu.
   const studios = (session?.workspaces ?? []).filter((w) => studioRole(w.role))
@@ -264,20 +268,30 @@ function WorkspaceApp() {
   // Stage 4: Requests also shows once anything has been asked or the owner has set sign-off rules,
   // such as a refund limit for managers in a studio of one location.
   const signOffs = branches || !!operations(state).requests?.length || !!operations(state).approvals
+  const moneyTabs = [
+    { to: '/money', label: 'Takings', show: true },
+    { to: '/money/gift-cards', label: 'Gift cards', show: role !== 'practitioner' },
+    { to: '/money/stock', label: 'Stock', show: true },
+    { to: '/money/accounts', label: 'Accounts', show: owns },
+  ].filter((tab) => tab.show)
+  const teamTabs = [
+    { to: '/team', label: 'People', show: true },
+    { to: '/team/rota', label: 'Rota', show: role !== 'practitioner' },
+    { to: '/team/pay', label: 'Pay', show: owns },
+  ].filter((tab) => tab.show)
+  // Business is how the studio is doing: the figures, what guests say and where they come from.
   const businessTabs = [
     { to: '/business', label: 'Overview', show: !desk },
-    { to: '/business/money', label: 'Money', show: true },
-    { to: '/business/stock', label: 'Stock', show: true },
-    { to: '/business/rota', label: 'Rota', show: true },
-    { to: '/business/gift-cards', label: 'Gift cards', show: role !== 'practitioner' },
-    { to: '/business/pay', label: 'Pay', show: owns },
-    { to: '/business/accounts', label: 'Accounts', show: owns },
-    { to: '/business/compare', label: 'How you compare', show: owns },
     { to: '/business/feedback', label: 'Feedback', show: leads(role) },
+    { to: '/business/areas', label: 'Client areas', show: leads(role) },
+    { to: '/business/compare', label: 'How you compare', show: owns },
     { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
     { to: '/business/requests', label: 'Requests', show: leads(role) && signOffs },
-    { to: '/business/areas', label: 'Client areas', show: leads(role) },
   ].filter((tab) => tab.show)
+  const links = navigation
+    .filter((item) => item.to !== '/marketing' || leads(role))
+    .filter((item) => item.to !== '/business' || businessTabs.length > 0)
+    .map((item) => ({ ...item, href: item.to, active: within(location.pathname, item.to) }))
   // NEXT-14: the emails that go by themselves are the studio's own settings, for owners and
   // managers; a general manager writes and follows their location's campaigns.
   const marketingTabs = [
@@ -314,7 +328,9 @@ function WorkspaceApp() {
   const pageName =
     location.pathname === '/design-language'
       ? 'Design language'
-      : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
+      : location.pathname === '/you'
+        ? 'You'
+        : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
   // Stage 6: a studio that asks everyone for two-step sign-in shows "Protect your account" in
   // place of every studio page, the account page and the scoped days, until it is set up. Guest
   // and public pages are not anyone signing in, so they are never held.
@@ -378,7 +394,16 @@ function WorkspaceApp() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <aside className="sidebar" aria-label="Studio navigation">
+      <aside
+        className="sidebar"
+        aria-label="Studio navigation"
+        // Folded, a click on any empty part of the sidebar opens it in full. Links and buttons keep
+        // their own clicks, and the fold button does the same for the keyboard.
+        onClick={(event) => {
+          if (rail && !(event.target as Element).closest('a, button, input, select, textarea'))
+            setRail(false)
+        }}
+      >
         <div className="sidebar-brand">
           <Link to="/today" className="wordmark" aria-label="SALEANE, Today">
             <span className="wordmark-full" aria-hidden="true">
@@ -557,9 +582,9 @@ function WorkspaceApp() {
               <Globe size={18} />
               Your booking page
             </Link>
-            <Link to="/settings?section=preferences" onClick={() => setMobileNav(false)}>
-              <SlidersHorizontal size={18} />
-              Your preferences
+            <Link to="/you" onClick={() => setMobileNav(false)}>
+              <UserRound size={18} />
+              You
             </Link>
           </div>
         </Modal>
@@ -584,7 +609,8 @@ function WorkspaceApp() {
             <button className="ask-button" onClick={() => setAsking(true)}>
               <Sparkles size={17} />
               <span>
-                {ASK_NAME}
+                {/* On a smaller screen the button says just "Ask"; its full name stays for screen readers. */}
+                Ask <span className="ask-name-rest">{ASK_NAME.replace(/^Ask\s*/, '')}</span>
                 {noticed > 0 && (
                   <span className="ask-count">
                     , {noticed} {noticed === 1 ? 'thing' : 'things'} to mention
@@ -620,12 +646,12 @@ function WorkspaceApp() {
                 {operator}
                 <small>{roleNames[role] ?? role}</small>
               </MenuLabel>
-              <MenuItem to="/settings?section=preferences" icon={<SlidersHorizontal size={17} />}>
+              <MenuItem to="/you" icon={<SlidersHorizontal size={17} />}>
                 Your preferences
               </MenuItem>
               {mode === 'server' && (
-                <MenuItem to="/settings?section=staff" icon={<ShieldCheck size={17} />}>
-                  Password and signing in
+                <MenuItem to="/you#signing-in" icon={<ShieldCheck size={17} />}>
+                  Password, two-step and Face ID
                 </MenuItem>
               )}
               {mode === 'server' && (
@@ -704,7 +730,33 @@ function WorkspaceApp() {
               ))}
             </ScrollNav>
           )}
-          {within(location.pathname, '/business') && (
+          {within(location.pathname, '/money') && (
+            <ScrollNav
+              label="Money sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
+              {moneyTabs.map((tab) => (
+                <NavLink key={tab.to} end={tab.to === '/money'} to={tab.to}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </ScrollNav>
+          )}
+          {within(location.pathname, '/team') && (
+            <ScrollNav
+              label="Team sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
+              {teamTabs.map((tab) => (
+                <NavLink key={tab.to} end={tab.to === '/team'} to={tab.to}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </ScrollNav>
+          )}
+          {within(location.pathname, '/business') && businessTabs.length > 0 && (
             <ScrollNav
               label="Business sections"
               className="business-subnav"
@@ -744,11 +796,23 @@ function WorkspaceApp() {
                 element={leads(role) ? <MarketingResults /> : <Navigate to="/inbox" replace />}
               />
               <Route path="/waitlist" element={<Waitlist />} />
+              <Route path="/money" element={<Money />} />
+              <Route path="/money/gift-cards" element={<GiftCards />} />
+              <Route path="/money/stock" element={<Stock />} />
+              <Route
+                path="/money/accounts"
+                element={owns ? <Accounts /> : <Navigate to="/money" replace />}
+              />
+              <Route path="/team" element={<Manage only="staff" accessPanel={<AccessPanel />} />} />
+              <Route
+                path="/team/rota"
+                element={role === 'practitioner' ? <Navigate to="/today" replace /> : <Rota />}
+              />
+              <Route path="/team/pay" element={owns ? <Pay /> : <Navigate to="/team" replace />} />
               <Route
                 path="/business"
-                element={desk ? <Navigate to="/business/money" replace /> : <Business />}
+                element={desk ? <Navigate to="/money" replace /> : <Business />}
               />
-              <Route path="/business/money" element={<Money />} />
               <Route
                 path="/business/compare"
                 element={owns ? <Compare /> : <Navigate to="/business" replace />}
@@ -756,31 +820,6 @@ function WorkspaceApp() {
               <Route
                 path="/business/feedback"
                 element={leads(role) ? <Feedback /> : <Navigate to="/business" replace />}
-              />
-              <Route path="/business/stock" element={<Stock />} />
-              <Route
-                path="/business/accounts"
-                element={
-                  role === 'owner' || role === 'manager' ? (
-                    <Accounts />
-                  ) : (
-                    <Navigate to="/business" replace />
-                  )
-                }
-              />
-              <Route
-                path="/business/rota"
-                element={role === 'practitioner' ? <Navigate to="/today" replace /> : <Rota />}
-              />
-              <Route
-                path="/business/pay"
-                element={
-                  role === 'owner' || role === 'manager' ? (
-                    <Pay />
-                  ) : (
-                    <Navigate to="/business" replace />
-                  )
-                }
               />
               <Route
                 path="/business/visits"
@@ -794,7 +833,14 @@ function WorkspaceApp() {
                 path="/business/areas"
                 element={leads(role) ? <ClientAreas /> : <Navigate to="/business" replace />}
               />
-              <Route path="/business/gift-cards" element={<GiftCards />} />
+              {/* Older links still land in place. */}
+              <Route path="/business/money" element={<Moved to="/money" />} />
+              <Route path="/business/gift-cards" element={<Moved to="/money/gift-cards" />} />
+              <Route path="/business/stock" element={<Moved to="/money/stock" />} />
+              <Route path="/business/accounts" element={<Moved to="/money/accounts" />} />
+              <Route path="/business/rota" element={<Moved to="/team/rota" />} />
+              <Route path="/business/pay" element={<Moved to="/team/pay" />} />
+              <Route path="/you" element={<You />} />
               <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
               <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
               <Route path="/design-language" element={<DesignLanguage />} />
@@ -819,13 +865,11 @@ function WorkspaceApp() {
           </Suspense>
           <footer className="workspace-footer">
             <span>SALEANE</span>
-            <Link className="text-link" to="/design-language">
-              Design language
-            </Link>
-            {mode === 'server' && (
-              <button className="text-link" onClick={() => void reload().catch(() => {})}>
-                Refresh records
-              </button>
+            {/* The design language is for the people building SALEANE, so studios never see it. */}
+            {mode === 'demo' && (
+              <Link className="text-link" to="/design-language">
+                Design language
+              </Link>
             )}
             <span>
               {state.organisation.locationName} · {state.organisation.currency} ·{' '}

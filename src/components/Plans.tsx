@@ -10,9 +10,11 @@ import {
   offers,
   openCardAgreement,
   planStanding,
+  planVisits,
 } from '../domain/plans'
+import { carriedSource } from '../domain/switching'
 import type { Holding, Offer, OfferInput } from '../domain/plansSchema'
-import { dateLabel, money } from '../domain/format'
+import { dateLabel, fullDateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
 import { Button, ErrorMessage, Modal, SegmentedControl, Select, Checkbox } from '../design'
 import './management.css'
@@ -367,7 +369,12 @@ function holdingSummary(holding: Holding, today: string, locale: string) {
   if (holding.kind === 'package')
     return standing.state === 'expired'
       ? `Expired ${dateLabel(holding.endsOn!, locale)} with ${standing.visitsLeft} ${standing.visitsLeft === 1 ? 'visit' : 'visits'} unused`
-      : `${standing.visitsLeft} of ${holding.visits} visits left · use by ${dateLabel(holding.endsOn!, locale)}`
+      : `${standing.visitsLeft} of ${planVisits(holding)} visits left · use by ${
+          // A package carried over may run for years, so a last day in another year says which.
+          holding.endsOn!.slice(0, 4) === today.slice(0, 4)
+            ? dateLabel(holding.endsOn!, locale)
+            : fullDateLabel(holding.endsOn!, locale)
+        }`
   const parts = [
     standing.state === 'unpaid'
       ? `This month is not paid yet (paid until ${dateLabel(holding.paidUntil!, locale)})`
@@ -504,6 +511,12 @@ export function ClientPlans({ clientId }: { clientId: string }) {
             <div className="ops-record-copy">
               <strong>{holding.name}</strong>
               <small>{holdingSummary(holding, today, org.locale)}</small>
+              {holding.carried && (
+                <small>
+                  Carried over from {carriedSource(state, holding.carried.importId)}, where it was
+                  paid for
+                </small>
+              )}
               <span className={`ops-tag ${standing.state === 'active' ? 'is-active' : ''}`}>
                 {STATE_LABEL[standing.state]}
               </span>
@@ -606,7 +619,7 @@ export function ClientPlans({ clientId }: { clientId: string }) {
               <p className="subtle">
                 {cards.reply?.cards.length
                   ? 'Next, read the client the exact words of the agreement and confirm they agree. The first payment, taken now, is recorded here as usual.'
-                  : `${client.name} has no saved card yet. They can save one from the link to their visit, once the studio offers it in Settings, Payments. You can set this up afterwards.`}
+                  : `${client.name} has no saved card yet. They can save one from the link to their visit, once the studio offers it in Settings, Payments & tax. You can set this up afterwards.`}
               </p>
             )}
             {dialog.kind === 'renew' && openCardAgreement(dialog.holding) && (
@@ -729,7 +742,11 @@ export function PlansLedger() {
   const owed = rows
     .filter((r) => r.holding.kind === 'package' && r.standing.state === 'active')
     .reduce((sum, r) => sum + r.standing.unusedMinor, 0)
-  const taken = rows.reduce((sum, r) => sum + r.standing.paidMinor - r.standing.refundedMinor, 0)
+  // A package carried over from the old system was paid for there, so none of it was taken here.
+  const taken = rows.reduce(
+    (sum, r) => sum + (r.holding.carried ? 0 : r.standing.paidMinor) - r.standing.refundedMinor,
+    0,
+  )
   return (
     <div className="plans-ledger">
       <MembershipCardPayments />
@@ -756,8 +773,9 @@ export function PlansLedger() {
               </strong>
               <small>{holdingSummary(holding, today, org.locale)}</small>
               <small>
-                Paid {money(standing.paidMinor, org, true)} · used{' '}
-                {money(standing.usedMinor, org, true)}
+                Paid {money(standing.paidMinor, org, true)}
+                {holding.carried ? ` in ${carriedSource(state, holding.carried.importId)}` : ''} ·
+                used {money(standing.usedMinor, org, true)}
                 {standing.refundedMinor
                   ? ` · returned ${money(standing.refundedMinor, org, true)}`
                   : ''}

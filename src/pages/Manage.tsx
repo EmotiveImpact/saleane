@@ -5,17 +5,17 @@ import {
   BellRing,
   Building2,
   CalendarDays,
-  CalendarSync,
   Palette,
   Plus,
   Scissors,
   ShieldCheck,
-  SlidersHorizontal,
+  Search,
   Store,
-  Users,
   CreditCard,
   ArrowRightLeft,
   Layers,
+  NotebookText,
+  Globe,
   MapPin,
   ClipboardList,
   MessageCircle,
@@ -24,7 +24,7 @@ import {
   Receipt,
   Printer,
 } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
 import type { BusinessState } from '../domain/model'
@@ -41,11 +41,10 @@ import { StudioPrivacy } from '../components/Privacy'
 import { ChangeRecord } from '../components/ChangeRecord'
 import { PlanBilling } from '../components/PlanBilling'
 import { peopleChange, treatmentChange } from '../domain/billing'
-import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
+import { BrandSection, WorkspaceSection } from '../components/SettingsSections'
 import { MessageSettings } from '../components/AppointmentMessages'
-import { QuietOffers } from '../components/QuietOffers'
-import { EmailLook } from '../components/EmailPreview'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
+import { EmailLook } from '../components/EmailPreview'
 import { PatchTestRules } from '../components/PatchTests'
 import { ShareBookingPage } from '../components/ShareBookingPage'
 import { PaymentSettings } from '../components/CardPayments'
@@ -72,58 +71,135 @@ import { whereTheyWork } from '../domain/staffMoves'
 import '../components/management.css'
 
 /**
- * The sections of Settings, in five groups. Each keeps the id it has always had in the address
- * (`/settings?section=service` still opens Treatments), so older links still land in place.
+ * The sections of Settings, in four groups: how the studio runs, never one person's own choices
+ * (those are under "You") or the team (its own sidebar item). Each keeps the id it has always had
+ * in the address (`/settings?section=service` still opens Treatments), so older links still land.
+ * The words beside each are what "Find a setting" also matches.
  */
 const groups = [
   {
     label: 'Studio',
     sections: [
-      { id: 'business', label: 'Studio details', icon: Building2 },
-      { id: 'locations', label: 'Locations', icon: MapPin },
-      { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
-      { id: 'brand', label: 'Colours & booking page', icon: Palette },
+      {
+        id: 'business',
+        label: 'Studio details',
+        icon: Building2,
+        words: 'name address phone email review time zone currency',
+      },
+      { id: 'locations', label: 'Locations', icon: MapPin, words: 'branch house rules' },
+      {
+        id: 'hours',
+        label: 'Hours & closures',
+        icon: CalendarDays,
+        words: 'opening times holidays bank holiday closed',
+      },
+      {
+        id: 'resource',
+        label: 'Spaces & equipment',
+        icon: Armchair,
+        words: 'rooms chairs beds machines',
+      },
+      {
+        id: 'brand',
+        label: 'Booking page & colours',
+        icon: Palette,
+        words:
+          'online booking link share google instagram facebook whatsapp chatgpt claude bot check logo',
+      },
     ],
   },
   {
-    label: 'Team',
+    label: 'Treatments and payments',
     sections: [
-      { id: 'staff', label: 'Team', icon: Users },
-      { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
-      { id: 'diaries', label: 'Google & Apple diaries', icon: CalendarSync },
+      {
+        id: 'service',
+        label: 'Treatments',
+        icon: Scissors,
+        words: 'services prices menu durations patch tests',
+      },
+      {
+        id: 'plans',
+        label: 'Packages & memberships',
+        icon: Layers,
+        words: 'courses bundles subscriptions',
+      },
+      {
+        id: 'payments',
+        label: 'Payments & tax',
+        icon: CreditCard,
+        words: 'deposits cards stripe vat cancellation no-show refunds',
+      },
+      { id: 'till', label: 'Till and printer', icon: Printer, words: 'receipts cash drawer' },
     ],
   },
   {
-    label: 'Treatments and money',
+    label: 'Guests',
     sections: [
-      { id: 'service', label: 'Treatments', icon: Scissors },
-      { id: 'plans', label: 'Packages & memberships', icon: Layers },
-      { id: 'payments', label: 'Payments', icon: CreditCard },
-      { id: 'till', label: 'Till and printer', icon: Printer },
+      {
+        id: 'messages',
+        label: 'Messages to guests',
+        icon: BellRing,
+        words: 'reminders confirmations emails texts look saved replies',
+      },
+      {
+        id: 'notes',
+        label: 'Before and after a visit',
+        icon: NotebookText,
+        words: 'directions parking arrival aftercare notes',
+      },
+      {
+        id: 'forms',
+        label: 'Guest forms',
+        icon: ClipboardList,
+        words: 'consultation consent questions',
+      },
+      {
+        id: 'receptionist',
+        label: 'AI and voice',
+        icon: MessageCircle,
+        words: 'receptionist phone assistant ask calls',
+      },
     ],
   },
   {
-    label: 'Guests and messages',
+    label: 'Studio account',
     sections: [
-      { id: 'messages', label: 'Messages to guests', icon: BellRing },
-      { id: 'forms', label: 'Guest forms', icon: ClipboardList },
-      { id: 'receptionist', label: 'AI and voice', icon: MessageCircle },
-    ],
-  },
-  {
-    label: 'Your account and data',
-    sections: [
-      { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
-      { id: 'billing', label: 'Plan and billing', icon: Receipt },
-      { id: 'connections', label: 'Connected software', icon: Plug },
-      { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
-      { id: 'changes', label: 'Who changed what', icon: History },
-      { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
-      { id: 'workspace', label: 'About this version', icon: Store },
+      {
+        id: 'billing',
+        label: 'Plan and billing',
+        icon: Receipt,
+        words: 'subscription price invoice',
+      },
+      {
+        id: 'connections',
+        label: 'Connected software',
+        icon: Plug,
+        words: 'xero quickbooks access keys google apple calendar diaries',
+      },
+      {
+        id: 'privacy',
+        label: 'Data & privacy',
+        icon: ShieldCheck,
+        words: 'gdpr export delete keep records',
+      },
+      { id: 'changes', label: 'Who changed what', icon: History, words: 'history record log' },
+      {
+        id: 'switching',
+        label: 'Moving in',
+        icon: ArrowRightLeft,
+        words: 'import switching another system fresha phorest timely',
+      },
+      {
+        id: 'workspace',
+        label: 'About this version',
+        icon: Store,
+        words: 'version reset backup recovery',
+      },
     ],
   },
 ] as const
-type SectionId = (typeof groups)[number]['sections'][number]['id']
+/** The team now has its own page, which shows this section alone. */
+type SectionId = (typeof groups)[number]['sections'][number]['id'] | 'staff'
 const sectionIds: readonly string[] = groups.flatMap((group) =>
   (group.sections as readonly { id: SectionId }[]).map((item) => item.id),
 )
@@ -181,7 +257,7 @@ function TreatmentPhoto({ category, nth }: { category: string; nth: number }) {
   )
 }
 
-export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
+export function Manage({ accessPanel, only }: { accessPanel?: ReactNode; only?: 'staff' }) {
   const { state, commit, blocked, role, mode, branch } = useStore()
   // Stage 4: a general manager looks after the rooms and chairs at their own location only.
   const own = role === 'general' && branch ? branch : undefined
@@ -191,8 +267,10 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const requested = params.get('section')
   // NEXT-05 and NEXT-02: only the owner sees who changed what, and the SALEANE plan.
   const shownSection = (id: SectionId) => (id !== 'changes' && id !== 'billing') || role === 'owner'
-  const section: SectionId =
-    isSection(requested) && shownSection(requested) ? requested : 'business'
+  // The Google and Apple diaries joined Connected software.
+  const asked = requested === 'diaries' ? 'connections' : requested
+  const section: SectionId = only ?? (isSection(asked) && shownSection(asked) ? asked : 'business')
+  const [find, setFind] = useState('')
   const setSection = (id: SectionId) => setParams({ section: id }, { replace: true })
   const [editor, setEditor] = useState<Editor | null>(null)
   // Stage 4: someone being moved to another location from a date.
@@ -385,594 +463,615 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   )
   const archivedTag = (archived?: boolean) =>
     archived ? <span className="ops-tag">Archived</span> : null
-  return (
-    <div className="manage-page settings-page">
-      <PageHeader
-        variant="compact"
-        eyebrow="Settings"
-        title="Your studio, considered."
-        description="The studio, its team and treatments, and your own preferences."
-      />
-      <Tabs
-        label="Settings sections"
-        picker="Section"
-        orientation="vertical"
-        value={section}
-        disabled={pending}
-        onChange={(id) => {
-          setSection(id)
-          setError('')
-          setSaved('')
-        }}
-        groups={groups.map((group) => ({
-          label: group.label,
-          tabs: group.sections
-            .filter(({ id }) => shownSection(id))
-            .map(({ id, label, icon: Icon }) => ({
-              value: id,
-              text: label,
-              label: (
-                <>
-                  <Icon size={17} aria-hidden="true" />
-                  {label}
-                </>
-              ),
-            })),
-        }))}
-      >
-        <div className="ops-layout">
-          <div>
-            {section === 'preferences' && <PreferencesSection />}
-            {section === 'brand' && <BrandSection />}
-            {section === 'receptionist' && (
-              <>
-                <ReceptionistSettings />
-                <AiVoiceSettings />
-              </>
-            )}
-            {section === 'messages' && (
-              <>
-                <MessageSettings />
-                <QuietOffers />
-                <EmailLook />
-                <SavedReplies />
-              </>
-            )}
-            {section === 'payments' && <PaymentSettings />}
-            {section === 'till' && <TillSettings />}
-            {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
-            {section === 'privacy' && <StudioPrivacy />}
-            {section === 'changes' && <ChangeRecord />}
-            {section === 'billing' && <PlanBilling />}
-            {section === 'diaries' && (
-              <DiaryLinks workspaceId={state.organisation.id} demo={mode !== 'server'} />
-            )}
-            {section === 'connections' && (
-              <>
-                <Connections />
-                <AccessKeys />
-              </>
-            )}
-            {section === 'switching' && <SwitchingSettings />}
-            {section === 'plans' && <PlanSettings />}
-            {section === 'locations' && (
-              <>
-                <LocationsSettings />
-                <HouseRules />
-              </>
-            )}
-            {section === 'forms' && <FormSettings />}
-            {section === 'business' && (
-              <section className="surface ops-panel">
-                <header>
-                  <div>
-                    <h2>Studio details</h2>
-                    <p>The identity guests see when they book.</p>
-                  </div>
-                  <Building2 size={21} />
-                </header>
-                <form
-                  aria-busy={pending}
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    const data = new FormData(event.currentTarget)
-                    void save(
-                      {
-                        type: 'organisation',
-                        name: text(data, 'name'),
-                        locationName: text(data, 'locationName'),
-                        address: text(data, 'address'),
-                        timeZone: text(data, 'timeZone'),
-                        bookingEnabled: data.get('bookingEnabled') === 'on',
-                        botCheck: data.get('botCheck') === 'on',
-                        reviewUrl: text(data, 'reviewUrl'),
-                        phone: text(data, 'phone'),
-                        email: text(data, 'email'),
-                      },
-                      'Studio details saved.',
-                    )
-                  }}
-                >
-                  <div className="ops-fields">
-                    <label>
-                      Business name
-                      <input
-                        name="name"
-                        required
-                        minLength={2}
-                        maxLength={100}
-                        defaultValue={state.organisation.name}
-                      />
-                    </label>
-                    <label>
-                      Location name
-                      <input
-                        name="locationName"
-                        required
-                        maxLength={100}
-                        defaultValue={state.organisation.locationName}
-                      />
-                    </label>
-                    <label className="ops-wide">
-                      Address
-                      <textarea
-                        name="address"
-                        required
-                        rows={2}
-                        maxLength={300}
-                        defaultValue={state.organisation.address}
-                      />
-                    </label>
-                    <label>
-                      Phone for guests (optional)
-                      <input
-                        name="phone"
-                        type="tel"
-                        maxLength={40}
-                        autoComplete="off"
-                        placeholder={
-                          state.organisation.region === 'UK' ? '020 7946 0123' : '(212) 555-0123'
-                        }
-                        defaultValue={state.organisation.phone ?? ''}
-                      />
-                    </label>
-                    <label>
-                      Email for guests (optional)
-                      <input
-                        name="email"
-                        type="email"
-                        maxLength={254}
-                        autoComplete="off"
-                        placeholder="hello@yourstudio.com"
-                        defaultValue={state.organisation.email ?? ''}
-                      />
-                    </label>
-                    <label className="ops-wide">
-                      Public review page (optional)
-                      <input
-                        name="reviewUrl"
-                        type="url"
-                        inputMode="url"
-                        maxLength={300}
-                        placeholder="https://g.page/r/your-studio/review"
-                        defaultValue={state.organisation.reviewUrl ?? ''}
-                      />
-                      <small>
-                        Every guest is invited to leave a public review here after their visit, in
-                        the same words whatever they told you privately.
-                      </small>
-                    </label>
-                    <label>
-                      Venue time zone
-                      <Select name="timeZone" defaultValue={state.organisation.timeZone}>
-                        {Array.from(
-                          new Set([
-                            state.organisation.timeZone,
-                            'Europe/London',
-                            'America/New_York',
-                            'America/Chicago',
-                            'America/Denver',
-                            'America/Los_Angeles',
-                            'America/Phoenix',
-                            'Pacific/Honolulu',
-                            'America/Anchorage',
-                          ]),
-                        ).map((zone) => (
-                          <option key={zone}>{zone}</option>
-                        ))}
-                      </Select>
-                    </label>
-                    <div className="ops-field">
-                      <span>Market & currency</span>
-                      <p>
-                        {state.organisation.region === 'UK' ? 'United Kingdom' : 'United States'} ·{' '}
-                        {state.organisation.currency}
-                      </p>
-                      <small>Existing money keeps its recorded currency.</small>
-                    </div>
-                  </div>
-                  <label className="ops-check">
-                    <Checkbox name="bookingEnabled" defaultChecked={config.bookingEnabled} />
-                    Take bookings online
-                  </label>
-                  <label className="ops-check">
-                    <Checkbox name="botCheck" defaultChecked={!!config.botCheck} />
-                    Ask online guests to pass a quick bot check before a time is held
-                  </label>
-                  <p className="ops-help">
-                    Uses Cloudflare&rsquo;s free bot check. Whoever runs your server adds two
-                    Cloudflare keys first; until then this stays off.
+  // Your own choices are under your name now, and the team has its own page.
+  if (!only && requested === 'staff') return <Navigate to="/team" replace />
+  if (!only && requested === 'preferences') return <Navigate to="/you" replace />
+  const query = find.trim().toLowerCase()
+  const matches = (item: { label: string; words: string }) =>
+    !query || `${item.label} ${item.words}`.toLowerCase().includes(query)
+  const shownGroups = groups
+    .map((group) => ({
+      label: group.label,
+      tabs: (group.sections as readonly (typeof group.sections)[number][])
+        .filter(({ id }) => shownSection(id))
+        .filter(matches)
+        .map(({ id, label, icon: Icon }) => ({
+          value: id as SectionId,
+          text: label,
+          label: (
+            <>
+              <Icon size={17} aria-hidden="true" />
+              {label}
+            </>
+          ),
+        })),
+    }))
+    .filter((group) => group.tabs.length > 0)
+  const body = (
+    <div className="ops-layout">
+      <div>
+        {section === 'receptionist' && (
+          <>
+            <ReceptionistSettings />
+            <AiVoiceSettings />
+          </>
+        )}
+        {section === 'messages' && (
+          <>
+            <MessageSettings />
+            <EmailLook />
+            <SavedReplies />
+          </>
+        )}
+        {section === 'payments' && <PaymentSettings />}
+        {section === 'till' && <TillSettings />}
+        {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
+        {section === 'privacy' && <StudioPrivacy />}
+        {section === 'changes' && <ChangeRecord />}
+        {section === 'billing' && <PlanBilling />}
+        {section === 'connections' && (
+          <>
+            <Connections />
+            <DiaryLinks workspaceId={state.organisation.id} demo={mode !== 'server'} />
+            <AccessKeys />
+          </>
+        )}
+        {section === 'switching' && <SwitchingSettings />}
+        {section === 'plans' && <PlanSettings />}
+        {section === 'locations' && (
+          <>
+            <LocationsSettings />
+            <HouseRules />
+          </>
+        )}
+        {section === 'forms' && <FormSettings />}
+        {section === 'business' && (
+          <section className="surface ops-panel">
+            <header>
+              <div>
+                <h2>Studio details</h2>
+                <p>The identity guests see when they book.</p>
+              </div>
+              <Building2 size={21} />
+            </header>
+            <form
+              aria-busy={pending}
+              onSubmit={(event) => {
+                event.preventDefault()
+                const data = new FormData(event.currentTarget)
+                void save(
+                  {
+                    type: 'organisation',
+                    name: text(data, 'name'),
+                    locationName: text(data, 'locationName'),
+                    address: text(data, 'address'),
+                    timeZone: text(data, 'timeZone'),
+                    // Taking bookings online is set beside the booking page.
+                    bookingEnabled: config.bookingEnabled,
+                    reviewUrl: text(data, 'reviewUrl'),
+                    phone: text(data, 'phone'),
+                    email: text(data, 'email'),
+                  },
+                  'Studio details saved.',
+                )
+              }}
+            >
+              <div className="ops-fields">
+                <label>
+                  Business name
+                  <input
+                    name="name"
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    defaultValue={state.organisation.name}
+                  />
+                </label>
+                <label>
+                  Location name
+                  <input
+                    name="locationName"
+                    required
+                    maxLength={100}
+                    defaultValue={state.organisation.locationName}
+                  />
+                </label>
+                <label className="ops-wide">
+                  Address
+                  <textarea
+                    name="address"
+                    required
+                    rows={2}
+                    maxLength={300}
+                    defaultValue={state.organisation.address}
+                  />
+                </label>
+                <label>
+                  Phone for guests (optional)
+                  <input
+                    name="phone"
+                    type="tel"
+                    maxLength={40}
+                    autoComplete="off"
+                    placeholder={
+                      state.organisation.region === 'UK' ? '020 7946 0123' : '(212) 555-0123'
+                    }
+                    defaultValue={state.organisation.phone ?? ''}
+                  />
+                </label>
+                <label>
+                  Email for guests (optional)
+                  <input
+                    name="email"
+                    type="email"
+                    maxLength={254}
+                    autoComplete="off"
+                    placeholder="hello@yourstudio.com"
+                    defaultValue={state.organisation.email ?? ''}
+                  />
+                </label>
+                <label className="ops-wide">
+                  Public review page (optional)
+                  <input
+                    name="reviewUrl"
+                    type="url"
+                    inputMode="url"
+                    maxLength={300}
+                    placeholder="https://g.page/r/your-studio/review"
+                    defaultValue={state.organisation.reviewUrl ?? ''}
+                  />
+                  <small>
+                    Every guest is invited to leave a public review here after their visit, in the
+                    same words whatever they told you privately.
+                  </small>
+                </label>
+                <label>
+                  Venue time zone
+                  <Select name="timeZone" defaultValue={state.organisation.timeZone}>
+                    {Array.from(
+                      new Set([
+                        state.organisation.timeZone,
+                        'Europe/London',
+                        'America/New_York',
+                        'America/Chicago',
+                        'America/Denver',
+                        'America/Los_Angeles',
+                        'America/Phoenix',
+                        'Pacific/Honolulu',
+                        'America/Anchorage',
+                      ]),
+                    ).map((zone) => (
+                      <option key={zone}>{zone}</option>
+                    ))}
+                  </Select>
+                </label>
+                <div className="ops-field">
+                  <span>Market & currency</span>
+                  <p>
+                    {state.organisation.region === 'UK' ? 'United Kingdom' : 'United States'} ·{' '}
+                    {state.organisation.currency}
                   </p>
-                  <p className="ops-help">
-                    Card payments and message sending are not connected yet.
-                  </p>
-                  {status}
-                  <div className="ops-actions">
-                    <Button type="submit" disabled={pending || !allowed('organisation')}>
-                      {pending ? 'Saving…' : 'Save studio details'}
-                    </Button>
+                  <small>Existing money keeps its recorded currency.</small>
+                </div>
+              </div>
+              <p className="ops-help">Card payments and message sending are not connected yet.</p>
+              {status}
+              <div className="ops-actions">
+                <Button type="submit" disabled={pending || !allowed('organisation')}>
+                  {pending ? 'Saving…' : 'Save studio details'}
+                </Button>
+              </div>
+            </form>
+          </section>
+        )}
+        {section === 'payments' && (
+          <section className="surface ops-panel">
+            <header>
+              <div>
+                <h2>Checkout tax</h2>
+                <p>
+                  Configure the rate used on future checkouts. Recorded receipts retain their
+                  original amounts.
+                </p>
+              </div>
+            </header>
+            <form
+              aria-busy={pending}
+              onSubmit={(event) => {
+                event.preventDefault()
+                const data = new FormData(event.currentTarget)
+                void save(
+                  {
+                    type: 'tax',
+                    label: text(data, 'taxLabel'),
+                    rateBps: Math.round(numeric(data, 'taxRate') * 100),
+                    inclusive: data.get('taxInclusive') === 'on',
+                  },
+                  'Tax configuration saved for future checkouts.',
+                )
+              }}
+            >
+              <div className="ops-fields">
+                <label>
+                  Tax label
+                  <input
+                    name="taxLabel"
+                    maxLength={40}
+                    defaultValue={config.tax?.label ?? ''}
+                    placeholder="VAT or sales tax"
+                  />
+                </label>
+                <label>
+                  Rate (%)
+                  <input
+                    name="taxRate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    required
+                    defaultValue={(config.tax?.rateBps ?? 0) / 100}
+                  />
+                </label>
+              </div>
+              <label className="ops-check">
+                <Checkbox name="taxInclusive" defaultChecked={config.tax?.inclusive ?? false} />
+                Tax is already included in treatment prices
+              </label>
+              <p className="ops-help">
+                SALEANE does not look up tax rates or file tax returns. Choose the rate, and whether
+                prices include it, for your business.
+              </p>
+              <div className="ops-actions">
+                <Button type="submit" disabled={pending || !allowed('tax')}>
+                  {pending ? 'Saving…' : 'Save tax configuration'}
+                </Button>
+              </div>
+            </form>
+          </section>
+        )}
+        {section === 'brand' && (
+          <section className="surface ops-panel" aria-labelledby="online-booking-title">
+            <header>
+              <div>
+                <h2 id="online-booking-title">Taking bookings online</h2>
+                <p>Whether guests can book themselves, and how a held time is protected.</p>
+              </div>
+              <Globe size={21} />
+            </header>
+            <form
+              aria-busy={pending}
+              onSubmit={(event) => {
+                event.preventDefault()
+                const data = new FormData(event.currentTarget)
+                // The studio's details go back as they are; its phone, email and review page are
+                // left out, which keeps them.
+                const studio = state.organisation
+                void save(
+                  {
+                    type: 'organisation',
+                    name: studio.name,
+                    locationName: studio.locationName,
+                    address: studio.address,
+                    timeZone: studio.timeZone,
+                    bookingEnabled: data.get('bookingEnabled') === 'on',
+                    botCheck: data.get('botCheck') === 'on',
+                  },
+                  'Online booking saved.',
+                )
+              }}
+            >
+              <label className="ops-check">
+                <Checkbox name="bookingEnabled" defaultChecked={config.bookingEnabled} />
+                Take bookings online
+              </label>
+              <label className="ops-check">
+                <Checkbox name="botCheck" defaultChecked={!!config.botCheck} />
+                Ask online guests to pass a quick bot check before a time is held
+              </label>
+              <p className="ops-help">
+                Uses Cloudflare&rsquo;s free bot check. Whoever runs your server adds two Cloudflare
+                keys first; until then this stays off.
+              </p>
+              {status}
+              <div className="ops-actions">
+                <Button type="submit" disabled={pending || !allowed('organisation')}>
+                  {pending ? 'Saving…' : 'Save online booking'}
+                </Button>
+              </div>
+            </form>
+          </section>
+        )}
+        {section === 'brand' && (
+          <>
+            <ShareBookingPage />
+            <GoogleBooking />
+            <AiBooking />
+            <SocialAccounts />
+            <BrandSection />
+          </>
+        )}
+        {section === 'notes' && <GuestNotesSettings />}
+        {section === 'service' && (
+          <section className="surface ops-panel">
+            <header>
+              <div>
+                <h2>Treatments</h2>
+                <p>Clear promises, protected once a visit is booked.</p>
+              </div>
+              <Button disabled={!allowed('catalogue')} onClick={() => open('service')}>
+                <Plus size={16} />
+                Add treatment
+              </Button>
+            </header>
+            {status}
+            <div className="ops-ledger">
+              {state.services.map((item, index, all) => (
+                <div className="ops-record" key={item.id}>
+                  <TreatmentPhoto
+                    category={item.category}
+                    nth={all.slice(0, index).filter((s) => s.category === item.category).length}
+                  />
+                  <div className="ops-record-copy">
+                    <strong>{item.name}</strong>
+                    <small>
+                      {item.category} · {item.durationMinutes} min + {item.bufferMinutes} min
+                      turnaround{item.patchTest ? ' · Needs a patch test' : ''}
+                      {multiSite ? menuSummary(item) : ''}
+                    </small>
+                    <small>{item.description}</small>
                   </div>
-                </form>
-              </section>
+                  <div className="ops-record-controls">
+                    <span className="ops-record-money">
+                      {money(item.priceMinor, state.organisation)}
+                    </span>
+                    {archivedTag(item.archived)}
+                    {editButton('service', item.id, item.name)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {!state.services.length && (
+              <p className="ops-help">
+                Add a treatment, then qualify a professional and create a suitable space.
+              </p>
             )}
-            {section === 'business' && (
-              <section className="surface ops-panel">
-                <header>
-                  <div>
-                    <h2>Checkout tax</h2>
-                    <p>
-                      Configure the rate used on future checkouts. Recorded receipts retain their
-                      original amounts.
-                    </p>
-                  </div>
-                </header>
-                <form
-                  aria-busy={pending}
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    const data = new FormData(event.currentTarget)
-                    void save(
-                      {
-                        type: 'tax',
-                        label: text(data, 'taxLabel'),
-                        rateBps: Math.round(numeric(data, 'taxRate') * 100),
-                        inclusive: data.get('taxInclusive') === 'on',
-                      },
-                      'Tax configuration saved for future checkouts.',
-                    )
-                  }}
-                >
-                  <div className="ops-fields">
-                    <label>
-                      Tax label
-                      <input
-                        name="taxLabel"
-                        maxLength={40}
-                        defaultValue={config.tax?.label ?? ''}
-                        placeholder="VAT or sales tax"
-                      />
-                    </label>
-                    <label>
-                      Rate (%)
-                      <input
-                        name="taxRate"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        required
-                        defaultValue={(config.tax?.rateBps ?? 0) / 100}
-                      />
-                    </label>
-                  </div>
-                  <label className="ops-check">
-                    <Checkbox name="taxInclusive" defaultChecked={config.tax?.inclusive ?? false} />
-                    Tax is already included in treatment prices
-                  </label>
-                  <p className="ops-help">
-                    SALEANE does not look up tax rates or file tax returns. Choose the rate, and
-                    whether prices include it, for your business.
-                  </p>
-                  <div className="ops-actions">
-                    <Button type="submit" disabled={pending || !allowed('tax')}>
-                      {pending ? 'Saving…' : 'Save tax configuration'}
-                    </Button>
-                  </div>
-                </form>
-              </section>
-            )}
-            {section === 'business' && (
-              <>
-                <ShareBookingPage />
-                <GoogleBooking />
-                <AiBooking />
-                <SocialAccounts />
-                <GuestNotesSettings />
-              </>
-            )}
-            {section === 'service' && (
-              <section className="surface ops-panel">
-                <header>
-                  <div>
-                    <h2>Treatments</h2>
-                    <p>Clear promises, protected once a visit is booked.</p>
-                  </div>
-                  <Button disabled={!allowed('catalogue')} onClick={() => open('service')}>
-                    <Plus size={16} />
-                    Add treatment
-                  </Button>
-                </header>
-                {status}
-                <div className="ops-ledger">
-                  {state.services.map((item, index, all) => (
+          </section>
+        )}
+        {section === 'service' && <PatchTestRules />}
+        {section === 'staff' && (
+          <>
+            <section className="surface ops-panel">
+              <header>
+                <div>
+                  <h2>The people behind every visit</h2>
+                  <p>Professional capability is separate from account access.</p>
+                </div>
+                <Button disabled={!allowed('catalogue')} onClick={() => open('staff')}>
+                  <Plus size={16} />
+                  Add professional
+                </Button>
+              </header>
+              {status}
+              <div className="ops-ledger">
+                {state.staff
+                  .filter((item) => !own || usuallyAt(state, item.id, own, businessDate(state)))
+                  .map((item) => (
                     <div className="ops-record" key={item.id}>
-                      <TreatmentPhoto
-                        category={item.category}
-                        nth={all.slice(0, index).filter((s) => s.category === item.category).length}
-                      />
+                      <Avatar identity={item.id} name={item.name} tone={item.tone} />
                       <div className="ops-record-copy">
                         <strong>{item.name}</strong>
                         <small>
-                          {item.category} · {item.durationMinutes} min + {item.bufferMinutes} min
-                          turnaround{item.patchTest ? ' · Needs a patch test' : ''}
-                          {multiSite ? menuSummary(item) : ''}
+                          {item.role} · {item.serviceIds.length} qualified{' '}
+                          {item.serviceIds.length === 1 ? 'treatment' : 'treatments'}
                         </small>
-                        <small>{item.description}</small>
+                        {multiSite && !item.archived && (
+                          <small>{whereTheyWork(state, item.id, businessDate(state))}</small>
+                        )}
                       </div>
                       <div className="ops-record-controls">
-                        <span className="ops-record-money">
-                          {money(item.priceMinor, state.organisation)}
-                        </span>
                         {archivedTag(item.archived)}
-                        {editButton('service', item.id, item.name)}
+                        {editButton('staff', item.id, item.name)}
                       </div>
                     </div>
                   ))}
+              </div>
+            </section>
+            {accessPanel ?? (
+              <div className="ops-banner">
+                <ShieldCheck size={19} />
+                <div>
+                  <strong>Practitioners and account access are separate.</strong>
+                  <p>
+                    Adding a professional records qualifications. It does not create a login or send
+                    an invitation.
+                  </p>
                 </div>
-                {!state.services.length && (
-                  <p className="ops-help">
-                    Add a treatment, then qualify a professional and create a suitable space.
-                  </p>
-                )}
-              </section>
+              </div>
             )}
-            {section === 'service' && <PatchTestRules />}
-            {section === 'staff' && (
-              <>
-                <section className="surface ops-panel">
-                  <header>
-                    <div>
-                      <h2>The people behind every visit</h2>
-                      <p>Professional capability is separate from account access.</p>
+          </>
+        )}
+        {section === 'resource' && (
+          <section className="surface ops-panel">
+            <header>
+              <div>
+                <h2>A place for every treatment</h2>
+                <p>Spaces shared across the team, with one visit at a time.</p>
+              </div>
+              <Button disabled={!allowed('rooms')} onClick={() => open('resource')}>
+                <Plus size={16} />
+                Add resource
+              </Button>
+            </header>
+            {own && (
+              <p className="ops-help">
+                The rooms and chairs at {placeOf(state, own)?.name ?? 'your location'}. You can add,
+                rename, change and archive them here. Moving one to another location is for the
+                owner or a manager.
+              </p>
+            )}
+            {status}
+            <div className="ops-ledger">
+              {state.resources
+                .filter((item) => !own || resourceLocation(state, item) === own)
+                .map((item) => (
+                  <div className="ops-record" key={item.id}>
+                    <Armchair size={24} />
+                    <div className="ops-record-copy">
+                      <strong>{item.name}</strong>
+                      <small>
+                        {item.type === 'treatment' ? 'Treatment space' : 'Styling chair'}
+                        {multiSite
+                          ? ` · ${places(state, true).find((p) => p.id === resourceLocation(state, item))?.name ?? ''}`
+                          : ''}
+                        {item.restMinutes
+                          ? ` · rests ${item.restMinutes} minutes after each visit`
+                          : ''}
+                        {item.forTwo ? ' · room for two' : ''}
+                      </small>
                     </div>
-                    <Button disabled={!allowed('catalogue')} onClick={() => open('staff')}>
-                      <Plus size={16} />
-                      Add professional
-                    </Button>
-                  </header>
-                  {status}
-                  <div className="ops-ledger">
-                    {state.staff
-                      .filter((item) => !own || usuallyAt(state, item.id, own, businessDate(state)))
-                      .map((item) => (
-                        <div className="ops-record" key={item.id}>
-                          <Avatar identity={item.id} name={item.name} tone={item.tone} />
-                          <div className="ops-record-copy">
-                            <strong>{item.name}</strong>
-                            <small>
-                              {item.role} · {item.serviceIds.length} qualified{' '}
-                              {item.serviceIds.length === 1 ? 'treatment' : 'treatments'}
-                            </small>
-                            {multiSite && !item.archived && (
-                              <small>{whereTheyWork(state, item.id, businessDate(state))}</small>
-                            )}
-                          </div>
-                          <div className="ops-record-controls">
-                            {archivedTag(item.archived)}
-                            {editButton('staff', item.id, item.name)}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-                {accessPanel ?? (
-                  <div className="ops-banner">
-                    <ShieldCheck size={19} />
-                    <div>
-                      <strong>Practitioners and account access are separate.</strong>
-                      <p>
-                        Adding a professional records qualifications. It does not create a login or
-                        send an invitation.
-                      </p>
+                    <div className="ops-record-controls">
+                      {archivedTag(item.archived)}
+                      {editButton('resource', item.id, item.name)}
                     </div>
                   </div>
-                )}
-              </>
-            )}
-            {section === 'resource' && (
-              <section className="surface ops-panel">
-                <header>
-                  <div>
-                    <h2>A place for every treatment</h2>
-                    <p>Spaces shared across the team, with one visit at a time.</p>
-                  </div>
-                  <Button disabled={!allowed('rooms')} onClick={() => open('resource')}>
-                    <Plus size={16} />
-                    Add resource
-                  </Button>
-                </header>
-                {own && (
-                  <p className="ops-help">
-                    The rooms and chairs at {placeOf(state, own)?.name ?? 'your location'}. You can
-                    add, rename, change and archive them here. Moving one to another location is for
-                    the owner or a manager.
+                ))}
+            </div>
+          </section>
+        )}
+        {section === 'hours' && (
+          <>
+            <section className="surface ops-panel">
+              <header>
+                <div>
+                  <h2>The working week</h2>
+                  <p>
+                    Venue time · {state.organisation.timeZone}. Treatment and turnaround must fit.
                   </p>
-                )}
-                {status}
-                <div className="ops-ledger">
-                  {state.resources
-                    .filter((item) => !own || resourceLocation(state, item) === own)
-                    .map((item) => (
-                      <div className="ops-record" key={item.id}>
-                        <Armchair size={24} />
-                        <div className="ops-record-copy">
-                          <strong>{item.name}</strong>
-                          <small>
-                            {item.type === 'treatment' ? 'Treatment space' : 'Styling chair'}
-                            {multiSite
-                              ? ` · ${places(state, true).find((p) => p.id === resourceLocation(state, item))?.name ?? ''}`
-                              : ''}
-                            {item.restMinutes
-                              ? ` · rests ${item.restMinutes} minutes after each visit`
-                              : ''}
-                            {item.forTwo ? ' · room for two' : ''}
-                          </small>
-                        </div>
-                        <div className="ops-record-controls">
-                          {archivedTag(item.archived)}
-                          {editButton('resource', item.id, item.name)}
-                        </div>
+                </div>
+              </header>
+              <form
+                aria-busy={pending}
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  if (!hoursImpact.length)
+                    void save({ type: 'hours', hours }, 'Opening hours saved.')
+                }}
+              >
+                <div className="ops-hours">
+                  {weekOrder.map((weekday) => {
+                    const day = hours.find((item) => item.day === weekday)
+                    if (!day) return null
+                    const update = (patch: Partial<typeof day>) =>
+                      setHours((current) =>
+                        current.map((item) =>
+                          item.day === weekday ? { ...item, ...patch } : item,
+                        ),
+                      )
+                    return (
+                      <div className="ops-day" key={weekday}>
+                        <label>
+                          <Checkbox
+                            checked={!day.closed}
+                            onChange={(event) => update({ closed: !event.target.checked })}
+                          />
+                          {days[weekday]}
+                        </label>
+                        <label className="ops-field">
+                          Opens
+                          <TimeField
+                            locale={locale}
+                            aria-label={`${days[weekday]} opens`}
+                            required={!day.closed}
+                            disabled={day.closed}
+                            value={clock(day.open)}
+                            onChange={(time) => update({ open: minutes(time) })}
+                          />
+                        </label>
+                        <label className="ops-field">
+                          Closes
+                          <TimeField
+                            locale={locale}
+                            aria-label={`${days[weekday]} closes`}
+                            required={!day.closed}
+                            disabled={day.closed}
+                            value={clock(day.close)}
+                            onChange={(time) => update({ close: minutes(time) })}
+                          />
+                        </label>
                       </div>
-                    ))}
+                    )
+                  })}
                 </div>
-              </section>
-            )}
-            {section === 'hours' && (
-              <>
-                <section className="surface ops-panel">
-                  <header>
-                    <div>
-                      <h2>The working week</h2>
-                      <p>
-                        Venue time · {state.organisation.timeZone}. Treatment and turnaround must
-                        fit.
-                      </p>
-                    </div>
-                  </header>
-                  <form
-                    aria-busy={pending}
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      if (!hoursImpact.length)
-                        void save({ type: 'hours', hours }, 'Opening hours saved.')
+                <AffectedVisits visits={hoursImpact} locale={locale} />
+                {status}
+                <div className="ops-actions">
+                  <Button
+                    type="submit"
+                    disabled={pending || !allowed('hours') || hoursImpact.length > 0}
+                  >
+                    {pending ? 'Saving…' : 'Save opening hours'}
+                  </Button>
+                </div>
+              </form>
+            </section>
+            <section className="surface ops-panel">
+              <header>
+                <div>
+                  <h2>Time away</h2>
+                  <p>One-off closures for the venue, or a break or leave for one professional.</p>
+                </div>
+                <Button
+                  variant="secondary"
+                  disabled={!allowed('hours')}
+                  onClick={() => open('closure')}
+                >
+                  <Plus size={16} />
+                  Add closure
+                </Button>
+              </header>
+              {config.closures.map((closure) => (
+                <div className="ops-record" key={closure.id}>
+                  <div className="ops-record-copy">
+                    <strong>{closure.reason}</strong>
+                    <small>
+                      {dateLabel(closure.date, state.organisation.locale)} ·{' '}
+                      {timeLabel(closure.startMinutes, state.organisation.locale)}–
+                      {timeLabel(closure.endMinutes, state.organisation.locale)}
+                    </small>
+                    <small>
+                      {closure.staffId
+                        ? state.staff.find((item) => item.id === closure.staffId)?.name
+                        : 'Whole venue'}
+                    </small>
+                  </div>
+                  <Button
+                    variant="quiet"
+                    disabled={pending || !allowed('hours')}
+                    onClick={() => {
+                      void save(
+                        { type: 'remove-closure', closureId: closure.id },
+                        'Closure removed.',
+                      )
                     }}
                   >
-                    <div className="ops-hours">
-                      {weekOrder.map((weekday) => {
-                        const day = hours.find((item) => item.day === weekday)
-                        if (!day) return null
-                        const update = (patch: Partial<typeof day>) =>
-                          setHours((current) =>
-                            current.map((item) =>
-                              item.day === weekday ? { ...item, ...patch } : item,
-                            ),
-                          )
-                        return (
-                          <div className="ops-day" key={weekday}>
-                            <label>
-                              <Checkbox
-                                checked={!day.closed}
-                                onChange={(event) => update({ closed: !event.target.checked })}
-                              />
-                              {days[weekday]}
-                            </label>
-                            <label className="ops-field">
-                              Opens
-                              <TimeField
-                                locale={locale}
-                                aria-label={`${days[weekday]} opens`}
-                                required={!day.closed}
-                                disabled={day.closed}
-                                value={clock(day.open)}
-                                onChange={(time) => update({ open: minutes(time) })}
-                              />
-                            </label>
-                            <label className="ops-field">
-                              Closes
-                              <TimeField
-                                locale={locale}
-                                aria-label={`${days[weekday]} closes`}
-                                required={!day.closed}
-                                disabled={day.closed}
-                                value={clock(day.close)}
-                                onChange={(time) => update({ close: minutes(time) })}
-                              />
-                            </label>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <AffectedVisits visits={hoursImpact} locale={locale} />
-                    {status}
-                    <div className="ops-actions">
-                      <Button
-                        type="submit"
-                        disabled={pending || !allowed('hours') || hoursImpact.length > 0}
-                      >
-                        {pending ? 'Saving…' : 'Save opening hours'}
-                      </Button>
-                    </div>
-                  </form>
-                </section>
-                <section className="surface ops-panel">
-                  <header>
-                    <div>
-                      <h2>Time away</h2>
-                      <p>
-                        One-off closures for the venue, or a break or leave for one professional.
-                      </p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      disabled={!allowed('hours')}
-                      onClick={() => open('closure')}
-                    >
-                      <Plus size={16} />
-                      Add closure
-                    </Button>
-                  </header>
-                  {config.closures.map((closure) => (
-                    <div className="ops-record" key={closure.id}>
-                      <div className="ops-record-copy">
-                        <strong>{closure.reason}</strong>
-                        <small>
-                          {dateLabel(closure.date, state.organisation.locale)} ·{' '}
-                          {timeLabel(closure.startMinutes, state.organisation.locale)}–
-                          {timeLabel(closure.endMinutes, state.organisation.locale)}
-                        </small>
-                        <small>
-                          {closure.staffId
-                            ? state.staff.find((item) => item.id === closure.staffId)?.name
-                            : 'Whole venue'}
-                        </small>
-                      </div>
-                      <Button
-                        variant="quiet"
-                        disabled={pending || !allowed('hours')}
-                        onClick={() => {
-                          void save(
-                            { type: 'remove-closure', closureId: closure.id },
-                            'Closure removed.',
-                          )
-                        }}
-                      >
-                        Remove<span className="sr-only"> {closure.reason}</span>
-                      </Button>
-                    </div>
-                  ))}
-                  {!config.closures.length && (
-                    <p className="ops-help">No one-off closures recorded.</p>
-                  )}
-                </section>
-                <ScheduleHistory
-                  entries={config.scheduleHistory ?? []}
-                  organisation={state.organisation}
-                />
-              </>
-            )}
-          </div>
-        </div>
-      </Tabs>
+                    Remove<span className="sr-only"> {closure.reason}</span>
+                  </Button>
+                </div>
+              ))}
+              {!config.closures.length && <p className="ops-help">No one-off closures recorded.</p>}
+            </section>
+            <ScheduleHistory
+              entries={config.scheduleHistory ?? []}
+              organisation={state.organisation}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  )
+  const dialogs = (
+    <>
       {moving && (
         <StaffMoveDialog
           staffId={moving}
@@ -1416,6 +1515,58 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           </form>
         </Modal>
       )}
+    </>
+  )
+  if (only === 'staff')
+    return (
+      <div className="manage-page team-page">
+        <PageHeader
+          variant="compact"
+          eyebrow="Team"
+          title="Who does what."
+          description="Each person, the treatments they give and where they work. Signing in is set separately, below."
+        />
+        {body}
+        {dialogs}
+      </div>
+    )
+  return (
+    <div className="manage-page settings-page">
+      <PageHeader
+        variant="compact"
+        eyebrow="Settings"
+        title="Your studio, considered."
+        description="How the studio runs: its places, treatments, payments and messages."
+      />
+      <Tabs
+        label="Settings sections"
+        picker="Section"
+        orientation="vertical"
+        value={section}
+        disabled={pending}
+        onChange={(id) => {
+          setSection(id)
+          setError('')
+          setSaved('')
+        }}
+        find={
+          <label className="settings-find">
+            <Search size={16} aria-hidden="true" />
+            <span className="sr-only">Find a setting</span>
+            <input
+              type="search"
+              value={find}
+              placeholder="Find a setting"
+              onChange={(event) => setFind(event.target.value)}
+            />
+          </label>
+        }
+        empty={<p className="settings-find-none">Nothing matches “{find.trim()}”.</p>}
+        groups={shownGroups}
+      >
+        {body}
+      </Tabs>
+      {dialogs}
     </div>
   )
 }

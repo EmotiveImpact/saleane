@@ -12,7 +12,7 @@ import type { BusinessState } from '../domain/model'
 import { operations } from '../domain/operations'
 import { staffLocationOn } from '../domain/locations'
 
-// Stage 4: moving someone to another location, from the rota and from Settings.
+// Stage 4: moving someone to another location, from the rota and from Team.
 const now = '2026-10-06T09:45:00.000Z'
 const store = vi.hoisted(() => ({
   state: null as unknown as BusinessState,
@@ -227,13 +227,13 @@ describe('moving someone from the rota', () => {
   })
 })
 
-describe('moving someone from Settings', () => {
+describe('moving someone from Team', () => {
   it('shows where each person works, and moves them from their details', async () => {
     const user = userEvent.setup()
-    window.history.replaceState(null, '', '/settings?section=staff')
+    window.history.replaceState(null, '', '/team')
     render(
-      <MemoryRouter initialEntries={['/settings?section=staff']}>
-        <Manage />
+      <MemoryRouter initialEntries={['/team']}>
+        <Manage only="staff" />
       </MemoryRouter>,
     )
     expect(screen.getAllByText('Works at Marylebone, London').length).toBeGreaterThan(0)

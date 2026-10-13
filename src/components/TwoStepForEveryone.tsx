@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { Button, ErrorMessage } from '../design'
 import { listNames, twoStepForEveryone } from '../domain/twoStepRule'
 
 /**
- * Stage 6: the owner's switch, "Ask everyone to use two-step sign-in", on Settings, Team. It says
+ * Stage 6: the owner's switch, "Ask everyone to use two-step sign-in", on Team, People. It says
  * who has it on and who has not yet, from the team list (never anyone's key or codes). The owner
  * must use it themselves before switching it on; the server checks that too.
  */
@@ -54,7 +55,13 @@ export function TwoStepForEveryone({
         </p>
       )}
       {!on && !mine && (
-        <p className="ops-help">Turn on two-step sign-in for yourself first, just above.</p>
+        <p className="ops-help">
+          Turn on two-step sign-in for yourself first, under your name in{' '}
+          <Link className="text-link" to="/you#signing-in">
+            Password, two-step and Face ID
+          </Link>
+          .
+        </p>
       )}
       <div className="ops-actions">
         <Button

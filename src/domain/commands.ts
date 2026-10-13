@@ -868,6 +868,8 @@ export function execute(
       command.type === 'import-services' ||
       command.type === 'import-appointments' ||
       command.type === 'import-balances' ||
+      command.type === 'import-gift-cards' ||
+      command.type === 'import-packages' ||
       command.type === 'balance-settle'
     ) {
       recordId = runSwitchingCommand(next, command, now, makeId, addEvent, createClient)

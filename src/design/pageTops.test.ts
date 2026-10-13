@@ -40,6 +40,7 @@ const shared = [
   'Rota',
   'Stock',
   'Waitlist',
+  'You',
 ]
 /** Pages with a frame of their own: a greeting panel, a record, guest and account pages. */
 const ownFrame = [
