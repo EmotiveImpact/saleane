@@ -28,7 +28,8 @@ export function Account() {
   const [params] = useSearchParams()
   const invitation = params.get('invitation') ?? ''
   const [view, setView] = useState<'signin' | 'create' | 'workspace' | 'forgot'>(
-    invitation ? 'create' : 'signin',
+    // An invitation, or a link such as the homepage's "Start free" (?create), opens on sign-up.
+    invitation || params.has('create') ? 'create' : 'signin',
   )
   const [name, setName] = useState(''),
     [email, setEmail] = useState(''),

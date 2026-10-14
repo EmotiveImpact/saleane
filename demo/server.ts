@@ -36,6 +36,30 @@ function persist() {
     // Storage can be full or blocked; the demo still works until the tab closes.
   }
 }
+const NEW_STUDIO = 'saleane.demo.new-studio'
+/** While someone tries a new studio of their own, the demo does not sign Jen back in for them. */
+function startingNew() {
+  try {
+    if (sessionStorage.getItem(NEW_STUDIO) !== 'starting') return false
+    if (cookie) sessionStorage.setItem(NEW_STUDIO, 'started')
+    return !cookie
+  } catch {
+    return false
+  }
+}
+/** Signs out and opens "Create an account", so sign-up, setup and the first welcome can be tried. */
+export function startNewStudio() {
+  // Forgetting the cookie signs this tab out; Jen's studio stays as it was for later.
+  cookie = ''
+  try {
+    sessionStorage.removeItem('saleane.demo.cookie')
+    sessionStorage.removeItem('saleane.workspace')
+    sessionStorage.setItem(NEW_STUDIO, 'starting')
+  } catch {
+    // Without session storage the demo signs Jen in again on the next visit.
+  }
+}
+
 export function resetDemo() {
   try {
     localStorage.clear()
@@ -195,7 +219,7 @@ async function seed() {
     'POST',
     '/api/auth/register',
     JSON.stringify({
-      name: 'Amara Okafor',
+      name: 'Jen',
       email: DEMO_EMAIL,
       password: DEMO_PASSWORD,
       workspace: {
@@ -283,6 +307,7 @@ export async function startDemoServer(base = '') {
   }
   const fresh = !api.database.get('SELECT id FROM accounts LIMIT 1')
   if (fresh) await seed()
+  else if (startingNew()) cookie = ''
   else if (!cookie || (await call('GET', '/api/session')).statusCode !== 200) {
     const login = await call(
       'POST',

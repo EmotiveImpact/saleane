@@ -239,3 +239,16 @@ test('the list of studios has Help, with the guides for everyone and no way into
     ),
   ).toBeInTheDocument()
 })
+
+test('a link with ?create opens on making a new studio rather than signing in', async () => {
+  vi.mocked(api).mockRejectedValue(new ApiError('Sign in to continue.', 401))
+  render(
+    <MemoryRouter initialEntries={['/account?create']}>
+      <Routes>
+        <Route path="/account" element={<Account />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  expect(await screen.findByLabelText('Business name')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /Create your studio/ })).toBeInTheDocument()
+})

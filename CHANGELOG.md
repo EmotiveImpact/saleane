@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-14 · Try the demo as a brand new studio
+
+**Status: built locally on 14 October 2026 and checked in the demo in Chromium at 1440px and 390px.**
+
+- The Demo note gains "Start as a new studio": it signs the demo owner out and opens sign-up, so making an account, the eight setup screens and a new studio's first welcome can be walked through. "Start the demo again" brings the finished sample studios back.
+- `/account?create` opens on making a studio rather than signing in, for a link such as a homepage's "Start free".
+- The demo owner is now called Jen.
+
 ## 2026-10-13 · Ask SALEANE answers in the click-through demo again
 
 **Status: built locally on 13 October 2026 and checked in the demo in Chromium.**
