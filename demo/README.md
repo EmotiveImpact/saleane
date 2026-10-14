@@ -23,6 +23,9 @@ What it does:
 - Adds a sample package and membership to each studio, each held by one client.
 - Keeps whole-page moves, such as to the test payment page and back, inside the demo page.
 - Saves changes in that browser only. "Start the demo again" in the Demo note clears them.
+- "Start as a new studio" in the Demo note signs Jen out and opens sign-up (`/account?create`), so
+  making an account, "Set up your studio" and a new studio's first welcome can be tried. Jen's
+  studios stay as they were until the demo starts again.
 - Lets the sample studios produce test-mode confirmations and reminders (never sent), which the real
   server skips for samples, so the Inbox and client pages show them.
 - Rewrites links the server writes, such as a guest's manage link, to point into the demo page.

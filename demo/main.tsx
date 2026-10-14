@@ -9,21 +9,41 @@ import './demo.css'
 import { StoreProvider } from '../src/state/StoreProvider'
 import { App } from '../src/App'
 import { DaySheetGate } from '../src/components/DaySheetGate'
-import { DEMO_EMAIL, DEMO_PASSWORD, resetDemo, startDemoServer } from './server'
+import { DEMO_EMAIL, DEMO_PASSWORD, resetDemo, startDemoServer, startNewStudio } from './server'
 
 // The page may be served from a sub-folder; the app's own paths sit underneath it.
+const OPEN_ON = 'saleane.demo.open-on'
 const base = location.pathname.replace(/\/(index\.html)?$/, '').replace(/\/[^/]*\.html$/, '')
 if (!sessionStorageGet('saleane.demo.base')) sessionStorageSet('saleane.demo.base', base)
 const basename = sessionStorageGet('saleane.demo.base') ?? base
-// Open on the app's own front door rather than the file name the page was served under.
-if (location.pathname === base || /\.html$/.test(location.pathname))
-  history.replaceState(null, '', `${basename}/`)
+// The address the page was served from, so the demo can start again by reloading it.
+const pageAddress = location.href
+// Open on the app's own front door rather than the file name the page was served under, or on the
+// page the demo asked for just before it reloaded.
+if (location.pathname === base || /\.html$/.test(location.pathname)) {
+  const opening = sessionStorageGet(OPEN_ON) ?? '/'
+  sessionStorageRemove(OPEN_ON)
+  history.replaceState(null, '', `${basename}${opening}`)
+}
+
+/** Reloads the page it was served as, then opens the app on `path`. */
+function restartOn(path: string) {
+  sessionStorageSet(OPEN_ON, path)
+  location.replace(pageAddress)
+}
 
 function sessionStorageGet(key: string) {
   try {
     return sessionStorage.getItem(key)
   } catch {
     return null
+  }
+}
+function sessionStorageRemove(key: string) {
+  try {
+    sessionStorage.removeItem(key)
+  } catch {
+    // Nothing stored.
   }
 }
 function sessionStorageSet(key: string, value: string) {
@@ -71,11 +91,21 @@ function DemoNote() {
       <p>
         <a href="/pricing">See the price page</a>
       </p>
+      <p>Try it as a brand new studio: sign up, set up and see the first welcome.</p>
+      <button
+        type="button"
+        onClick={() => {
+          startNewStudio()
+          restartOn('/account?create')
+        }}
+      >
+        Start as a new studio
+      </button>
       <button
         type="button"
         onClick={() => {
           resetDemo()
-          location.replace(`${basename}/`)
+          restartOn('/')
         }}
       >
         Start the demo again

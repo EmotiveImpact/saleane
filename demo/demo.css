@@ -36,7 +36,8 @@
   color: #4f6a56;
 }
 .saleane-demo-pill button {
-  margin: 0 12px;
+  display: block;
+  margin: 0 12px 6px;
   padding: 6px 10px;
   border: 1px solid rgba(60, 72, 60, 0.2);
   border-radius: 999px;
