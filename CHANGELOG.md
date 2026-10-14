@@ -9,6 +9,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The Demo note gains "Start as a new studio": it signs the demo owner out and opens sign-up, so making an account, the eight setup screens and a new studio's first welcome can be walked through. "Start the demo again" brings the finished sample studios back.
 - `/account?create` opens on making a studio rather than signing in, for a link such as a homepage's "Start free".
 - The demo owner is now called Jen.
+- The missed-call booking tests keep the clock on 6 October, so 13 October stays a day still to come; they had started failing once that date passed.
 
 ## 2026-10-13 · Ask SALEANE answers in the click-through demo again
 
