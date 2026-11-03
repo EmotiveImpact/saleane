@@ -1,9 +1,10 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { DiaryLinks } from './DiaryLinks'
 import type { DiaryLinkView, DiaryListing } from './DiaryLinks'
 import { api } from '../state/api'
+import { choicesIn } from '../test/choices'
 
 // NEXT-10: a private link to a diary of visits for Google or Apple Calendar.
 vi.mock('../state/api', async (importOriginal) => ({
@@ -51,11 +52,11 @@ test('makes a link for the whole studio, shows it once, copies it and stops it',
   })
   render(<DiaryLinks workspaceId="org-1" />)
   const whose = await screen.findByRole('combobox', { name: 'Whose visits' })
-  expect(
-    within(whose)
-      .getAllByRole('option')
-      .map((o) => o.textContent),
-  ).toEqual(['Your own visits (Maya Lewis)', 'Sophia Reed', 'Everyone at the studio'])
+  expect((await choicesIn(user, whose)).map((o) => o.text)).toEqual([
+    'Your own visits (Maya Lewis)',
+    'Sophia Reed',
+    'Everyone at the studio',
+  ])
   expect(screen.getByText(/From two weeks back to six months ahead/)).toBeInTheDocument()
   await user.selectOptions(whose, 'Everyone at the studio')
   await user.click(screen.getByRole('radio', { name: 'The treatment only' }))

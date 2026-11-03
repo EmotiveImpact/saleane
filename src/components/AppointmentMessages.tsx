@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import { BellRing, Mail, MessageSquareText, RotateCcw } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -9,18 +10,27 @@ import {
   outboxStatusLabel,
   reminderHourChoices,
   reminderSettings,
-  missYouDayChoices,
   textNumber,
 } from '../domain/reminders'
 import type { ReminderSettings } from '../domain/reminders'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import type { Client } from '../domain/model'
 import { kindLabel, useSentMessages } from './sentMessages'
 import { isSocialChannel, socialLabel } from '../domain/inboxSchema'
+import { dayMonth, textStopState } from '../domain/textStop'
+import './textStop.css'
+import { SentEmail } from './EmailPreview'
 
 const providerLabel: Record<string, string> = {
   test: 'test mode',
   postmark: 'Postmark',
+  resend: 'Resend',
+  sendgrid: 'SendGrid',
+  mailgun: 'Mailgun',
+  ses: 'Amazon SES',
+  smtp: 'a mail server',
+  google: 'Google Workspace',
+  microsoft: 'Microsoft 365',
   twilio: 'Twilio',
 }
 
@@ -67,95 +77,35 @@ export function MessageSettings() {
         <fieldset className="message-settings" disabled={!editable || pending}>
           <legend className="sr-only">What to send</legend>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.confirmations}
               onChange={(e) => set('confirmations', e.target.checked)}
             />
             Confirm each booking, and any change of time or cancellation
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.reminders}
               onChange={(e) => set('reminders', e.target.checked)}
             />
             Send a reminder before each visit
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.feedback !== false}
               onChange={(e) => set('feedback', e.target.checked)}
             />
             After checkout, email a private &ldquo;how was your visit?&rdquo; request
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.aftercare !== false}
-              onChange={(e) => set('aftercare', e.target.checked)}
-            />
-            After checkout, email the treatment&rsquo;s aftercare advice, if it has some
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.dueBack !== false}
-              onChange={(e) => set('dueBack', e.target.checked)}
-            />
-            Email guests who agreed to hear from you when they are due back
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.birthday !== false}
-              onChange={(e) => set('birthday', e.target.checked)}
-            />
-            Wish guests who agreed, and shared the date, a happy birthday
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.missYou !== false}
-              onChange={(e) => set('missYou', e.target.checked)}
-            />
-            Send one &ldquo;we miss you&rdquo; email to guests who agreed, after a long gap
-          </label>
-          <label>
-            A long gap is
-            <select
-              value={draft.missYouDays ?? 90}
-              disabled={draft.missYou === false}
-              onChange={(e) =>
-                set('missYouDays', Number(e.target.value) as ReminderSettings['missYouDays'])
-              }
-            >
-              {missYouDayChoices.map((days) => (
-                <option key={days} value={days}>
-                  {days === 60
-                    ? 'Two months'
-                    : days === 90
-                      ? 'Three months'
-                      : days === 120
-                        ? 'Four months'
-                        : 'Six months'}{' '}
-                  without a visit
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.missedCall === true}
               onChange={(e) => set('missedCall', e.target.checked)}
             />
             When you miss a call, text the caller once with your booking link
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.openingInvites !== false}
               onChange={(e) => set('openingInvites', e.target.checked)}
             />
@@ -163,7 +113,7 @@ export function MessageSettings() {
           </label>
           <label>
             When the reminder goes
-            <select
+            <Select
               value={draft.hoursBefore}
               disabled={!draft.reminders}
               onChange={(e) =>
@@ -179,35 +129,29 @@ export function MessageSettings() {
                       : 'Two days before'}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </fieldset>
         <fieldset className="message-settings" disabled={!editable || pending}>
           <legend>How</legend>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.email}
-              onChange={(e) => set('email', e.target.checked)}
-            />
+            <Checkbox checked={draft.email} onChange={(e) => set('email', e.target.checked)} />
             Email
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.sms}
-              onChange={(e) => set('sms', e.target.checked)}
-            />
+            <Checkbox checked={draft.sms} onChange={(e) => set('sms', e.target.checked)} />
             Text message, when the client has a mobile number
           </label>
         </fieldset>
         <p className="subtle">
           These are messages about a booked visit, not marketing. A client can turn them off on
-          their profile. Due back, birthday and &ldquo;we miss you&rdquo; emails go only to guests
-          who agreed to hear from you, by email only. A missed-call text goes within 15 minutes of
-          the call, at most once a day to each number, and never to a client who asked for no texts.
-          Invitations to a cancelled time go to a few guests who agreed to hear from you, only once
-          you approve them in the Inbox, and never when someone on the waitlist could take it.{' '}
+          their profile. Aftercare, due back, birthday and &ldquo;we miss you&rdquo; emails are in{' '}
+          <Link to="/marketing/automatic">Marketing, Automatic</Link>, and the words guests agree to
+          for news are in <Link to="/marketing/audience">Marketing, Audience</Link>. A missed-call
+          text goes within 15 minutes of the call, at most once a day to each number, and never to a
+          client who asked for no texts. Invitations to a cancelled time go to a few guests who
+          agreed to hear from you, only once you approve them in the Inbox, and never when someone
+          on the waitlist could take it.{' '}
           {mode === 'demo' ? 'The demo studio never sends anything.' : ''}
         </p>
         <ErrorMessage error={error} />
@@ -332,6 +276,9 @@ export function SentMessages({ clientId }: { clientId?: string }) {
                     {message.subject && <strong>{message.subject}</strong>}
                     <p>{message.body}</p>
                     {message.detail && <p className="subtle">{message.detail}</p>}
+                    {message.channel === 'email' && message.status !== 'skipped' && (
+                      <SentEmail id={message.id} />
+                    )}
                     {message.provider &&
                       message.provider !== 'test' &&
                       message.status !== 'skipped' && (
@@ -370,16 +317,22 @@ export function ClientMessagePreferences({ client }: { client: Client }) {
   const { state, commit, blocked, role } = useStore()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
+  // Stage 1: turning texts back on for a client who replied STOP waits for the team to confirm.
+  const [asking, setAsking] = useState<string | null>(null)
   const allowed = can(role, 'contact-preferences') && !blocked
   const studio = reminderSettings(state)
   const reachable = channelsFor(state, client)
-  async function change(next: { email: boolean; sms: boolean }) {
+  const stop = textStopState(state, client)
+  const confirming = asking === client.id && stop?.kind === 'stopped'
+  const first = client.name.split(' ')[0]
+  async function change(next: { email: boolean; sms: boolean; askedAfterStop?: true }) {
     if (pending || !allowed) return
     setPending(true)
     setError('')
     try {
       const result = await commit({ type: 'contact-preferences', clientId: client.id, ...next })
       if (!result.ok) setError(result.error)
+      else setAsking(null)
     } catch {
       setError('Could not save. The previous choice is kept.')
     } finally {
@@ -392,8 +345,7 @@ export function ClientMessagePreferences({ client }: { client: Client }) {
     <>
       <ErrorMessage error={error} />
       <label className="checkbox-label">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={email}
           disabled={pending || !allowed}
           onChange={(e) => void change({ email: e.target.checked, sms })}
@@ -401,14 +353,67 @@ export function ClientMessagePreferences({ client }: { client: Client }) {
         Visit emails
       </label>
       <label className="checkbox-label">
-        <input
-          type="checkbox"
-          checked={sms}
-          disabled={pending || !allowed}
-          onChange={(e) => void change({ email, sms: e.target.checked })}
+        <Checkbox
+          checked={sms || confirming}
+          disabled={pending || !allowed || confirming}
+          onChange={(e) => {
+            if (e.target.checked && stop?.kind === 'stopped') setAsking(client.id)
+            else void change({ email, sms: e.target.checked })
+          }}
         />
         Visit texts
       </label>
+      {confirming && stop?.kind === 'stopped' && (
+        <div className="text-stop-confirm" role="group" aria-label="Turn texts back on">
+          <p>
+            <strong>Only if {first} asked you to.</strong> They replied STOP by text on{' '}
+            {dayMonth(state, stop.at)}.{' '}
+            {stop.blocked
+              ? 'Their phone network keeps blocking the studio’s texts until they text START to your number, and SALEANE will not text that number until then.'
+              : 'Texts would go to the number now on their record.'}
+          </p>
+          <div className="text-stop-actions">
+            <Button
+              disabled={pending || !allowed}
+              onClick={() => void change({ email, sms: true, askedAfterStop: true })}
+            >
+              {pending ? 'Saving…' : `${first} asked, turn texts on`}
+            </Button>
+            <Button variant="secondary" disabled={pending} onClick={() => setAsking(null)}>
+              Keep texts off
+            </Button>
+          </div>
+        </div>
+      )}
+      {stop && !confirming && (
+        <p className="text-stop-note" role="status">
+          {stop.kind === 'stopped' ? (
+            <>
+              <strong>
+                Texts are off. {first} replied STOP on {dayMonth(state, stop.at)}.
+              </strong>{' '}
+              {stop.blocked
+                ? 'Their phone network blocks the studio’s texts until they text START. Emails and email news are separate and unchanged.'
+                : 'Emails and email news are separate and unchanged.'}
+            </>
+          ) : stop.kind === 'asked' ? (
+            <>
+              <strong>
+                {first} texted START on {dayMonth(state, stop.at)}.
+              </strong>{' '}
+              Texts were turned off here, so they stay off until the team turns them on. Turn visit
+              texts on if {first} wants them.
+            </>
+          ) : (
+            <>
+              <strong>
+                {first}’s number replied STOP on {dayMonth(state, stop.at)}.
+              </strong>{' '}
+              SALEANE will not text it until they text START.
+            </>
+          )}
+        </p>
+      )}
       <p className="subtle">
         {!studio.email && !studio.sms
           ? 'The studio has turned visit messages off.'

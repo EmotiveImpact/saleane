@@ -8,7 +8,7 @@ import { parseMinor, minorInput } from './money'
 import { emailProblem, phoneProblem } from './studioContact'
 import { isUpcoming, scheduleImpact } from './schedule'
 import type { AffectedVisit } from './schedule'
-import { locationParts, suggestedRooms } from './setup'
+import { locationParts, openingCover, suggestedRooms } from './setup'
 import { monthBill, planDate } from './billing'
 import type { BillingView } from './billing'
 import { money } from './format'
@@ -247,6 +247,8 @@ export function openingProblem(
       if (!person.serviceIds.length) return `Tick the treatments ${who} gives.`
       if (!person.days.some((day) => open.has(day))) return `Choose the days ${who} works here.`
     }
+    if (!openingCover(s, openingCommand(s, draft)).given.length)
+      return 'Nobody you have chosen gives a treatment on the menu here, so guests could not book. Choose someone who does.'
     if (impact.length)
       return 'Some visits already booked would lose their professional. Choose other days for them, or move those visits first.'
     return null
@@ -254,16 +256,49 @@ export function openingProblem(
   return null
 }
 
+/**
+ * Treatments on the menu here that nobody working here gives yet, in a sentence, or null. Guests
+ * cannot book those here until someone does, though the location can still open.
+ */
+export function openingGaps(s: BusinessState, draft: OpeningDraft): string | null {
+  const { given, nobody } = openingCover(s, openingCommand(s, draft))
+  if (!given.length || !nobody.length) return null
+  const names = nobody.map((service) => service.name)
+  const list = new Intl.ListFormat(s.organisation.locale, { type: 'disjunction' }).format(
+    names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names,
+  )
+  const them = nobody.length === 1 ? 'it' : 'them'
+  return `Nobody working here gives ${list} yet, so guests cannot book ${them} at ${draft.name.trim()} until someone does.`
+}
+
+/**
+ * The new people a location adds who will take bookings, counted as the bill counts them: those
+ * who give at least one treatment the studio still offers.
+ */
+export function newBookingPeople(s: BusinessState, draft: Pick<OpeningDraft, 'newTeam'>) {
+  const offered = new Set(s.services.filter((x) => !x.archived).map((x) => x.id))
+  return draft.newTeam.filter((person) => person.serviceIds.some((id) => offered.has(id))).length
+}
+
 const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 /**
  * NEXT-02: what one more location does to the studio's SALEANE bill, in words for the last step.
  * Each month is billed in advance for every open location, so nothing is taken when it is added:
- * the new amount starts with the next monthly bill.
+ * the new amount starts with the next monthly bill. `newPeople` are the new hires who will take
+ * bookings, so the bill shown before saving counts them as the next bill will.
  */
-export function openingBill(plan: BillingView, org: BusinessState['organisation']) {
-  const before = monthBill(plan.region, plan.locations, plan.plusNext)
-  const after = monthBill(plan.region, plan.locations + 1, plan.plusNext)
+export function openingBill(plan: BillingView, org: BusinessState['organisation'], newPeople = 0) {
+  const phone = !!plan.phoneNext
+  const before = monthBill(plan.region, plan.locations, plan.plusNext, plan.people, phone)
+  const after = monthBill(
+    plan.region,
+    plan.locations + 1,
+    plan.plusNext,
+    plan.people + newPeople,
+    phone,
+  )
+  const extras = [plan.plusNext && 'Plus', phone && 'the phone receptionist'].filter(Boolean)
   const cash = (minor: number) => money(minor, org, true)
   const day = (at: number) => planDate(org, at)
   const tax = after.taxLabel ? `, including ${after.taxLabel}` : ', plus any sales tax'
@@ -282,7 +317,7 @@ export function openingBill(plan: BillingView, org: BusinessState['organisation'
   return {
     before,
     after,
-    heading: `Your monthly bill${plan.plusNext ? ', with Plus,' : ''} goes from ${cash(before.totalMinor)} to ${cash(after.totalMinor)}${tax}.`,
+    heading: `Your monthly bill${extras.length ? `, with ${extras.join(' and ')},` : ''} goes from ${cash(before.totalMinor)} to ${cash(after.totalMinor)}${tax}.`,
     detail: plan.test ? `${when} Card payments are in test mode, so nothing is charged.` : when,
   }
 }

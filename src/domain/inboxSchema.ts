@@ -58,9 +58,33 @@ export const replySchema = z
     actor: z.string(),
     readAt: z.iso.datetime().optional(),
     readBy: z.string().optional(),
+    /**
+     * Stage 1: a text that was only a phone network keyword, and what it did (textStop.ts):
+     * `stop` turned texts off, `start` turned them back on, `asked` asked for texts again while
+     * the desk keeps them off, `already` asked for texts that were not off, `help` asked for help.
+     */
+    keyword: z.enum(['stop', 'start', 'asked', 'already', 'help']).optional(),
   })
   .strict()
 export type Reply = z.infer<typeof replySchema>
+export type ReplyKeyword = NonNullable<Reply['keyword']>
+
+/** Stage 1: one entry per number that ever texted STOP to the studio's line. */
+export const TEXT_STOP_LIMIT = 50000
+export const textStopSchema = z
+  .object({
+    /** International (E.164), as the text line gives it. */
+    number: z.string().regex(/^\+[1-9]\d{7,14}$/),
+    /** Their latest STOP. Nothing is texted to the number from then until `startedAt`. */
+    stoppedAt: z.iso.datetime(),
+    /** The reply that said STOP. */
+    replyId: id,
+    /** When they texted START (or UNSTOP, or YES) afterwards; absent while texts are stopped. */
+    startedAt: z.iso.datetime().optional(),
+    startReplyId: id.optional(),
+  })
+  .strict()
+export type TextStop = z.infer<typeof textStopSchema>
 
 export const savedReplyInputSchema = z
   .object({

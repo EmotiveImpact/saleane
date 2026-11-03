@@ -3,11 +3,12 @@ import type { FormEvent } from 'react'
 import { MapPin, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import type { OperatingCommand } from '../domain/commandSchema'
-import { can, operations } from '../domain/operations'
+import { businessDate, can, operations, usualHoursFor } from '../domain/operations'
+import { addDays } from '../domain/format'
 import { places, resourceLocation } from '../domain/locations'
 import type { Place } from '../domain/locations'
 import { scheduleImpact } from '../domain/schedule'
-import { Button, ErrorMessage, Modal, TimeField } from '../design'
+import { Button, ErrorMessage, Modal, TimeField, Checkbox } from '../design'
 import { AffectedVisits } from './ScheduleImpact'
 import { LocationOpening } from './LocationOpening'
 
@@ -34,17 +35,20 @@ export function LocationsSettings() {
   const [saved, setSaved] = useState('')
   const all = places(state, true)
   const allowed = !blocked && can(role, 'location')
+  // The coming seven days, so a move to another location still to come (Stage 4) counts from its
+  // own date rather than straight away.
+  const today = businessDate(state)
+  const coming = Array.from({ length: 7 }, (_, i) => addDays(today, i))
   const week = (place: Place) =>
     weekOrder
-      .filter((day) =>
-        state.staff.some(
-          (person) =>
-            !person.archived &&
-            !(person.hours?.find((h) => h.day === day)?.closed ?? false) &&
-            (person.hours?.find((h) => h.day === day)?.locationId ??
-              state.organisation.locationId) === place.id,
-        ),
-      )
+      .filter((day) => {
+        const date = coming.find((d) => new Date(`${d}T12:00:00Z`).getUTCDay() === day)!
+        return state.staff.some((person) => {
+          if (person.archived) return false
+          const usual = usualHoursFor(state, person.id, date)
+          return !usual.closed && (usual.locationId ?? state.organisation.locationId) === place.id
+        })
+      })
       .map((day) => days[day].slice(0, 3))
   return (
     <section className="surface ops-panel" aria-labelledby="locations-heading">
@@ -266,7 +270,7 @@ function LocationDialog({
           <fieldset className="ops-checks ops-wide">
             <legend>Opening hours</legend>
             <label>
-              <input type="checkbox" checked={!own} onChange={(e) => setOwn(!e.target.checked)} />
+              <Checkbox checked={!own} onChange={(e) => setOwn(!e.target.checked)} />
               Same as the studio&rsquo;s opening hours
             </label>
             {own && (
@@ -281,8 +285,7 @@ function LocationDialog({
                   return (
                     <div className="ops-day" key={weekday}>
                       <label>
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={!day.closed}
                           onChange={(e) => update({ closed: !e.target.checked })}
                         />
@@ -318,11 +321,7 @@ function LocationDialog({
           </fieldset>
           {place && (
             <label className="ops-check ops-wide">
-              <input
-                type="checkbox"
-                checked={closed}
-                onChange={(e) => setClosed(e.target.checked)}
-              />
+              <Checkbox checked={closed} onChange={(e) => setClosed(e.target.checked)} />
               Closed for good: no new bookings here; its history is kept
             </label>
           )}

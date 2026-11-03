@@ -3,69 +3,291 @@ import { z } from 'zod'
 import { digest, token } from '../auth'
 import { canonical, fail } from '../http'
 import { commandSchema, dispatch, slots } from '../../src/domain/commands'
-import { businessDate, hoursFor, operations } from '../../src/domain/operations'
+import { businessDate, operations } from '../../src/domain/operations'
 import { addDays } from '../../src/domain/format'
-import type { BusinessState } from '../../src/domain/model'
-import { patchTestSettings } from '../../src/domain/patchTests'
+import type { VisitChannel } from '../../src/domain/model'
+import {
+  onlinePatchTestStop,
+  patchTestBooking,
+  patchTestSettings,
+} from '../../src/domain/patchTests'
 import { currentWording } from '../../src/domain/consent'
 import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Org, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
 import { bookingChannel } from '../../src/domain/bookingChannel'
-import {
-  offeredAt,
-  places,
-  resourceLocation,
-  serviceAt,
-  staffLocationOn,
-  staffPlaces,
-} from '../../src/domain/locations'
+import { serviceAt, staffLocationOn, staffPlaces } from '../../src/domain/locations'
+import { bookingLocations, placeClosed } from '../../src/domain/bookingPlaces'
 import { isOn } from '../../src/assistant/receptionist'
 import { guestPhone, phoneProblem } from '../../src/domain/phone'
 import { GUEST_CANCEL_CUTOFF_HOURS } from '../../src/domain/guest'
 import { BOOKING_DAYS, NEXT_FREE_DAYS, STRIP_DAYS } from '../../src/domain/bookingTerms'
 import { guestPaymentFor } from '../payments/service'
+import { OFFER_UNKNOWN, readOffer, spendOffer } from '../offers'
+import { offerEnds, offerMatches } from '../../src/domain/quietOffers'
+import { OFFER_GONE, offerTimeWords } from '../../src/domain/quietInvites'
 
 /**
- * The open locations a guest can book at: somewhere a treatment is offered, someone who does it
- * works there, and a room or chair it needs is there. A new location still being set up stays
- * off the booking page until it can take a visit.
+ * Holds a time for a guest, as the booking page does: never a treatment the studio keeps for
+ * guests with a patch test, at most HOLDS_PER_VISITOR for one visitor (the newest replace the
+ * oldest), a ceiling for the whole studio, and a professional and room free for desk bookings and
+ * other guests' holds, with the price, deposit and tax as they stand. Runs its own transaction.
+ * The booking page and booking through an AI assistant (Stage 5) both hold through here.
+ *
+ * Stage 5: with `offer`, the private link of an invitation with a quiet-time price, the time is
+ * held at that price only when it is exactly the invitation's time and the link is still open;
+ * otherwise it is held at the usual price and `offerProblem` says why, before the guest confirms.
+ * Without it, as for Google and AI assistants, the time is always held at the usual price.
  */
-function bookingLocations(s: BusinessState) {
-  const people = s.staff.filter((person) => !person.archived)
-  return places(s).filter((place) =>
-    s.services.some(
-      (service) =>
-        !service.archived &&
-        offeredAt(service, place.id) &&
-        people.some(
-          (person) =>
-            person.serviceIds.includes(service.id) && staffPlaces(s, person.id).includes(place.id),
-        ) &&
-        s.resources.some(
-          (resource) =>
-            !resource.archived &&
-            resource.type === service.resourceType &&
-            resourceLocation(s, resource) === place.id,
-        ),
-    ),
-  )
+export function holdTime(
+  ctx: Context,
+  slug: string,
+  data: z.infer<typeof holdInput>,
+  options: { raw: string; visitor: string; replaces?: string; offer?: string },
+) {
+  const { db, now, publicOrg, withHolds, chooseStaff } = ctx
+  const limits = HOLD_LIMITS
+  const { raw, visitor, replaces, offer: offerToken } = options
+  let expires = 0,
+    heldWith = ''
+  let heldOffer: { priceMinor: number; usualPriceMinor: number } | undefined
+  let offerProblem: string | undefined
+  db.transaction(() => {
+    const time = now()
+    const org = publicOrg(slug)
+    // Stage 3: a treatment the studio keeps for guests with a patch test is never held here.
+    const patchStop = onlinePatchTestStop(org.state, data.serviceId)
+    if (patchStop) fail(422, patchStop)
+    expires = time + limits.HOLD_MS
+    db.run('DELETE FROM booking_holds WHERE expires_at<=? AND appointment_id IS NULL', time)
+    if (replaces)
+      db.run(
+        'DELETE FROM booking_holds WHERE token_hash=? AND organisation_id=? AND appointment_id IS NULL',
+        digest(replaces),
+        org.id,
+      )
+    // One visitor keeps at most HOLDS_PER_VISITOR: the newest replace the oldest, never stack.
+    // A refused new hold rolls back, so the visitor keeps the time they already had.
+    for (const old of db
+      .all<{ token_hash: string }>(
+        'SELECT token_hash FROM booking_holds WHERE organisation_id=? AND visitor=? AND appointment_id IS NULL ORDER BY expires_at DESC, rowid DESC',
+        org.id,
+        visitor,
+      )
+      .slice(limits.HOLDS_PER_VISITOR - 1))
+      db.run('DELETE FROM booking_holds WHERE token_hash=?', old.token_hash)
+    const active = db.get<{ count: number }>(
+      'SELECT count(*) AS count FROM booking_holds WHERE organisation_id=? AND appointment_id IS NULL',
+      org.id,
+    )!.count
+    const professionals = org.state.staff.filter((person) => !person.archived).length
+    if (
+      active >=
+      Math.max(limits.STUDIO_HOLDS_MIN, limits.STUDIO_HOLDS_PER_PROFESSIONAL * professionals)
+    )
+      fail(429, 'Many guests are choosing times right now. Try again in a few minutes.')
+    const blocked = withHolds(org),
+      allocation = chooseStaff(blocked, data)
+    heldWith = allocation.staffId
+    const service = org.state.services.find((service) => service.id === data.serviceId)!
+    // V2: the price where the visit will be, which can differ between locations.
+    const place = data.locationId ?? staffLocationOn(org.state, allocation.staffId, data.date)
+    const usual = serviceAt(service, place).priceMinor
+    // Stage 5: a quiet-time price holds only for exactly its time; otherwise the time is held at
+    // the usual price and the guest is told why before they confirm.
+    let offer: HoldAllocation['offer']
+    heldOffer = undefined
+    offerProblem = undefined
+    if (offerToken) {
+      const open = readOffer(ctx, org, offerToken)
+      if (!open.ok) offerProblem = open.problem
+      else if (
+        !offerMatches(org.state, open.opening, {
+          serviceId: data.serviceId,
+          staffId: allocation.staffId,
+          date: data.date,
+          startMinutes: data.startMinutes,
+          locationId: place,
+        })
+      )
+        offerProblem = `This quiet-time price is for ${offerTimeWords(org.state, open.opening)} only.`
+      else if (open.offer.usualPriceMinor !== usual) offerProblem = OFFER_UNKNOWN
+      else {
+        offer = { messageId: open.messageId, tokenHash: open.tokenHash, usualPriceMinor: usual }
+        heldOffer = { priceMinor: open.offer.priceMinor, usualPriceMinor: usual }
+      }
+    }
+    const input: HoldAllocation = {
+      ...data,
+      ...allocation,
+      duration: service.durationMinutes,
+      buffer: service.bufferMinutes,
+      price: heldOffer ? heldOffer.priceMinor : usual,
+      deposit: service.depositMinor,
+      resourceType: service.resourceType,
+      tax: operations(org.state).tax ?? null,
+      ...(offer ? { offer } : {}),
+    }
+    db.run(
+      'INSERT INTO booking_holds(token_hash,id,organisation_id,input,expires_at,visitor) VALUES(?,?,?,?,?,?)',
+      digest(raw),
+      randomUUID(),
+      org.id,
+      JSON.stringify(input),
+      expires,
+      visitor,
+    )
+  })
+  return {
+    expires,
+    staffId: heldWith,
+    ...(heldOffer ? { offer: heldOffer } : {}),
+    ...(offerProblem ? { offerProblem } : {}),
+  }
 }
 
-/** A location shut all day: closed on its weekly hours, or closed for the whole of its hours. */
-function placeClosed(s: BusinessState, date: string, locationId?: string) {
-  const hours = hoursFor(s, date, locationId)
-  if (!hours || hours.closed) return true
-  return operations(s).closures.some(
-    (c) =>
-      c.date === date && !c.staffId && c.startMinutes <= hours.open && c.endMinutes >= hours.close,
-  )
+/**
+ * Books a held time, as the booking page does: the guest's number kept in international form,
+ * the hold still theirs and unexpired, the patch test rule, and the treatment's length, price,
+ * deposit, room and tax unchanged since the hold, then the `book` command with the source online.
+ * A hold already booked by the same contact details returns that visit again with a fresh private
+ * link, so a reply that never arrived never books twice. Runs its own transaction. The booking
+ * page and booking through an AI assistant (Stage 5) both book through here.
+ *
+ * Stage 5: a time held at a quiet-time price is booked at it only while the invitation's link is
+ * still unused, not revoked and open; the link is used by this visit in the same transaction, so
+ * a retry never takes it twice. Otherwise it refuses with 409 and the time can be held again at
+ * the usual price.
+ */
+export function bookHeld(
+  ctx: Context,
+  slug: string,
+  input: {
+    hold: string
+    contact: z.infer<typeof guestContact>
+    /** The version of the email news wording shown to the guest, when they ticked it. */
+    emailNewsVersion?: number
+    channel?: VisitChannel
+    /** Who the booking is recorded as, on the visit's history. */
+    actor: string
+    /** The change record's action. */
+    action: string
+  },
+) {
+  const { db, now, publicOrg, persist, withHolds, chooseStaff } = ctx
+  // The deposit still to pay, read the same way as on the guest's own visit page, so the page can
+  // offer to pay it straight away. Absent when there is nothing to pay.
+  const depositDue = (booked: Org, appointmentId: string) => {
+    const payment = guestPaymentFor(ctx, booked, appointmentId)
+    return payment ? { payment } : {}
+  }
+  const fingerprint = digest(canonical(input.contact))
+  return db.transaction(() => {
+    const org = publicOrg(slug)
+    // Guests write their number the way they know it, such as 07700 900456 in the UK; it is
+    // kept as an international number. Checked first, so a slip never costs the held time.
+    const region = org.state.organisation.region
+    const phone = guestPhone(region, input.contact.phone)
+    if (!phone) fail(422, phoneProblem(region))
+    const hash = digest(input.hold)
+    const hold = db.get<HoldRow>(
+      'SELECT id,input,expires_at,appointment_id,fingerprint FROM booking_holds WHERE token_hash=? AND organisation_id=?',
+      hash,
+      org.id,
+    )
+    if (!hold) fail(409, 'This reservation expired. Choose a time again.')
+    if (hold!.appointment_id) {
+      if (hold!.fingerprint !== fingerprint) fail(409, 'This reservation has already been used.')
+      // The first response may never have arrived, so the guest gets a fresh manage link and
+      // any earlier one stops working.
+      return {
+        appointmentId: hold!.appointment_id,
+        replayed: true,
+        manage: issueGuestLink(ctx, org, hold!.appointment_id!, 'booking'),
+        ...depositDue(org, hold!.appointment_id!),
+      }
+    }
+    if (hold!.expires_at <= now()) fail(409, 'This reservation expired. Choose a time again.')
+    const allocation = JSON.parse(hold!.input) as HoldAllocation
+    // Stage 3: the studio may have turned its patch test rule on while the time was held.
+    const patchStop = onlinePatchTestStop(org.state, allocation.serviceId)
+    if (patchStop) fail(422, patchStop)
+    const service = org.state.services.find((service) => service.id === allocation.serviceId)
+    if (
+      !service ||
+      service.durationMinutes !== allocation.duration ||
+      service.bufferMinutes !== allocation.buffer ||
+      serviceAt(
+        service,
+        allocation.locationId ?? staffLocationOn(org.state, allocation.staffId, allocation.date),
+      ).priceMinor !== (allocation.offer?.usualPriceMinor ?? allocation.price) ||
+      service.depositMinor !== allocation.deposit ||
+      service.resourceType !== allocation.resourceType ||
+      (allocation.tax !== undefined &&
+        canonical(operations(org.state).tax ?? null) !== canonical(allocation.tax))
+    )
+      fail(409, 'This treatment changed while you were booking. Review it and choose a time again.')
+    chooseStaff(withHolds(org, hash), allocation, allocation.resourceId)
+    if (
+      allocation.offer &&
+      !db.get(
+        'SELECT 1 FROM offer_links WHERE token_hash=? AND organisation_id=? AND used_at IS NULL AND revoked_at IS NULL AND expires_at>?',
+        allocation.offer.tokenHash,
+        org.id,
+        now(),
+      )
+    )
+      fail(409, `${OFFER_GONE} You can still book this time at the usual price.`)
+    const command = commandSchema.parse({
+      type: 'book',
+      input: {
+        serviceId: allocation.serviceId,
+        staffId: allocation.staffId,
+        resourceId: allocation.resourceId,
+        date: allocation.date,
+        startMinutes: allocation.startMinutes,
+        ...(allocation.locationId ? { locationId: allocation.locationId } : {}),
+        contact: { ...input.contact, phone },
+        source: 'online',
+        ...(input.channel ? { channel: input.channel } : {}),
+        ...(input.contact.marketingConsent && input.emailNewsVersion
+          ? { consentVersion: input.emailNewsVersion }
+          : {}),
+      },
+    })
+    const result = dispatch(
+      org.state,
+      command,
+      input.actor,
+      new Date(now()).toISOString(),
+      allocation.offer ? { offer: { messageId: allocation.offer.messageId } } : {},
+    )
+    if (!result.ok)
+      fail(allocation.offer && /quiet-time price/.test(result.error) ? 409 : 422, result.error)
+    if (allocation.offer) spendOffer(ctx, org.id, allocation.offer.tokenHash, result.recordId)
+    persist(org, result.state, null, input.action, result.recordId)
+    db.run(
+      'UPDATE booking_holds SET appointment_id=?,fingerprint=? WHERE token_hash=?',
+      result.recordId,
+      fingerprint,
+      hash,
+    )
+    const booked = { ...org, state: result.state }
+    return {
+      appointmentId: result.recordId,
+      manage: issueGuestLink(ctx, booked, result.recordId, 'booking'),
+      sample: operations(org.state).mode === 'sandbox',
+      depositPolicy: operations(org.state).mode === 'sandbox' ? 'simulated' : 'card',
+      ...depositDue(booked, result.recordId),
+      confirmation: 'local_only',
+    }
+  })
 }
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
   const { db, now, rateLimit, address, visitorFor, turnstile, paymentProvider, messaging } = ctx
-  const { publicOrg, persist, withHolds, chooseStaff } = ctx
+  const { publicOrg, withHolds } = ctx
   const { request, method, url, path, body, reply } = route
   if (path[1] === 'public' && path[2]) {
     const slug = path[2]
@@ -106,6 +328,12 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         sample,
         // V1.5: treatments marked as needing a patch test tell guests how far ahead to have one.
         patchTestHours: patchTestSettings(state).hoursBefore,
+        // Stage 3: with the studio's rule on, a treatment that needs a patch test is not booked
+        // here, and the guest is shown how to get one: the studio's patch test, when a guest can
+        // book it, or its phone and email. The same for every guest; nothing about anyone.
+        ...(patchTestSettings(state).stopOnline
+          ? { patchTestFirst: { testServiceId: patchTestBooking(state)?.id ?? null } }
+          : {}),
         // V1.5: the studio's current words for email news, so a ticked box records what was read.
         emailNews: (({ version, text }) => ({ version, text }))(currentWording(state)),
         // PILOT-02: a sample studio only simulates its deposits. A real studio's guest pays the
@@ -204,6 +432,37 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       }
       return true
     }
+    // Stage 5: the quiet-time price a guest's private link carries, read before they choose. The
+    // same for a link that never existed, was revoked or ended, so a guess reveals nothing.
+    if (path[3] === 'offer' && path.length === 4 && method === 'POST') {
+      rateLimit(request, 'public-offer', 30, 5 * 60000)
+      const data = z
+        .object({ offer: z.string().min(1).max(200) })
+        .strict()
+        .parse(body)
+      const org = publicOrg(slug)
+      const open = readOffer(ctx, org, data.offer)
+      if (!open.ok) {
+        reply(200, { problem: open.problem })
+        return true
+      }
+      const { opening, offer } = open
+      reply(200, {
+        offer: {
+          serviceId: opening.serviceId,
+          staffId: opening.staffId,
+          ...(opening.locationId ? { locationId: opening.locationId } : {}),
+          date: opening.date,
+          startMinutes: opening.startMinutes,
+          priceMinor: offer.priceMinor,
+          usualPriceMinor: offer.usualPriceMinor,
+          endsAt: offer.endsAt,
+          ends: offerEnds(org.state, offer, open.writtenAt),
+          time: offerTimeWords(org.state, opening),
+        },
+      })
+      return true
+    }
     if (path[3] === 'holds' && path[4] === 'release' && path.length === 5 && method === 'POST') {
       rateLimit(request, 'public-write', 20, 5 * 60000)
       const data = z
@@ -228,10 +487,12 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       rateLimit(request, 'public-write', 20, 5 * 60000)
       rateLimit(request, 'public-hold-minute', limits.HOLDS_PER_MINUTE, 60000)
       rateLimit(request, 'public-hold-hour', limits.HOLDS_PER_HOUR, 60 * 60000)
-      const { replaces, botCheck, ...data } = holdInput
+      const { replaces, botCheck, offer, ...data } = holdInput
         .extend({
           replaces: z.string().min(32).max(100).optional(),
           botCheck: z.string().min(1).max(2048).optional(),
+          /** Stage 5: the private link of an invitation with a quiet-time price. */
+          offer: z.string().min(1).max(200).optional(),
         })
         .parse(body)
       // The check runs before any write; a studio that switched it on never takes an unchecked hold.
@@ -239,78 +500,19 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         if (!botCheck || !(await turnstile.verify(botCheck, address(request))))
           fail(403, 'Complete the quick check below, then reserve your time again.')
       }
-      const raw = token(),
-        visitor = visitorFor(request)
-      let expires = 0,
-        heldWith = ''
-      db.transaction(() => {
-        const time = now()
-        expires = time + limits.HOLD_MS
-        db.run('DELETE FROM booking_holds WHERE expires_at<=? AND appointment_id IS NULL', time)
-        const org = publicOrg(slug)
-        if (replaces)
-          db.run(
-            'DELETE FROM booking_holds WHERE token_hash=? AND organisation_id=? AND appointment_id IS NULL',
-            digest(replaces),
-            org.id,
-          )
-        // One visitor keeps at most HOLDS_PER_VISITOR: the newest replace the oldest, never stack.
-        // A refused new hold rolls back, so the visitor keeps the time they already had.
-        for (const old of db
-          .all<{ token_hash: string }>(
-            'SELECT token_hash FROM booking_holds WHERE organisation_id=? AND visitor=? AND appointment_id IS NULL ORDER BY expires_at DESC, rowid DESC',
-            org.id,
-            visitor,
-          )
-          .slice(limits.HOLDS_PER_VISITOR - 1))
-          db.run('DELETE FROM booking_holds WHERE token_hash=?', old.token_hash)
-        const active = db.get<{ count: number }>(
-          'SELECT count(*) AS count FROM booking_holds WHERE organisation_id=? AND appointment_id IS NULL',
-          org.id,
-        )!.count
-        const professionals = org.state.staff.filter((person) => !person.archived).length
-        if (
-          active >=
-          Math.max(limits.STUDIO_HOLDS_MIN, limits.STUDIO_HOLDS_PER_PROFESSIONAL * professionals)
-        )
-          fail(429, 'Many guests are choosing times right now. Try again in a few minutes.')
-        const blocked = withHolds(org),
-          allocation = chooseStaff(blocked, data)
-        heldWith = allocation.staffId
-        const service = org.state.services.find((service) => service.id === data.serviceId)!
-        // V2: the price where the visit will be, which can differ between locations.
-        const place = data.locationId ?? staffLocationOn(org.state, allocation.staffId, data.date)
-        const input: HoldAllocation = {
-          ...data,
-          ...allocation,
-          duration: service.durationMinutes,
-          buffer: service.bufferMinutes,
-          price: serviceAt(service, place).priceMinor,
-          deposit: service.depositMinor,
-          resourceType: service.resourceType,
-          tax: operations(org.state).tax ?? null,
-        }
-        db.run(
-          'INSERT INTO booking_holds(token_hash,id,organisation_id,input,expires_at,visitor) VALUES(?,?,?,?,?,?)',
-          digest(raw),
-          randomUUID(),
-          org.id,
-          JSON.stringify(input),
-          expires,
-          visitor,
-        )
+      const raw = token()
+      const { expires, ...held } = holdTime(ctx, slug, data, {
+        raw,
+        visitor: visitorFor(request),
+        replaces,
+        offer,
       })
-      // Who the time is with, so a guest who chose "no preference" sees who they will meet.
-      reply(201, { hold: raw, expiresAt: new Date(expires).toISOString(), staffId: heldWith })
+      // Who the time is with, so a guest who chose "no preference" sees who they will meet, and
+      // any quiet-time price held, or why the link could not give one (Stage 5).
+      reply(201, { hold: raw, expiresAt: new Date(expires).toISOString(), ...held })
       return true
     }
     if (path[3] === 'book' && path.length === 4 && method === 'POST') {
-      // The deposit still to pay, read the same way as on the guest's own visit page, so the
-      // page can offer to pay it straight away. Absent when there is nothing to pay.
-      const depositDue = (booked: Org, appointmentId: string) => {
-        const payment = guestPaymentFor(ctx, booked, appointmentId)
-        return payment ? { payment } : {}
-      }
       rateLimit(request, 'public-write', 20, 5 * 60000)
       const data = z
         .object({
@@ -324,90 +526,13 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         })
         .strict()
         .parse(body)
-      const fingerprint = digest(canonical(data.contact))
-      const result = db.transaction(() => {
-        const org = publicOrg(slug)
-        // Guests write their number the way they know it, such as 07700 900456 in the UK; it is
-        // kept as an international number. Checked first, so a slip never costs the held time.
-        const region = org.state.organisation.region
-        const phone = guestPhone(region, data.contact.phone)
-        if (!phone) fail(422, phoneProblem(region))
-        const hash = digest(data.hold)
-        const hold = db.get<HoldRow>(
-          'SELECT id,input,expires_at,appointment_id,fingerprint FROM booking_holds WHERE token_hash=? AND organisation_id=?',
-          hash,
-          org.id,
-        )
-        if (!hold) fail(409, 'This reservation expired. Choose a time again.')
-        if (hold!.appointment_id) {
-          if (hold!.fingerprint !== fingerprint)
-            fail(409, 'This reservation has already been used.')
-          // The first response may never have arrived, so the guest gets a fresh manage link and
-          // any earlier one stops working.
-          return {
-            appointmentId: hold!.appointment_id,
-            replayed: true,
-            manage: issueGuestLink(ctx, org, hold!.appointment_id!, 'booking'),
-            ...depositDue(org, hold!.appointment_id!),
-          }
-        }
-        if (hold!.expires_at <= now()) fail(409, 'This reservation expired. Choose a time again.')
-        const allocation = JSON.parse(hold!.input) as HoldAllocation
-        const service = org.state.services.find((service) => service.id === allocation.serviceId)
-        if (
-          !service ||
-          service.durationMinutes !== allocation.duration ||
-          service.bufferMinutes !== allocation.buffer ||
-          serviceAt(
-            service,
-            allocation.locationId ??
-              staffLocationOn(org.state, allocation.staffId, allocation.date),
-          ).priceMinor !== allocation.price ||
-          service.depositMinor !== allocation.deposit ||
-          service.resourceType !== allocation.resourceType ||
-          (allocation.tax !== undefined &&
-            canonical(operations(org.state).tax ?? null) !== canonical(allocation.tax))
-        )
-          fail(
-            409,
-            'This service changed during the reservation. Review it and choose a time again.',
-          )
-        chooseStaff(withHolds(org, hash), allocation, allocation.resourceId)
-        const command = commandSchema.parse({
-          type: 'book',
-          input: {
-            serviceId: allocation.serviceId,
-            staffId: allocation.staffId,
-            resourceId: allocation.resourceId,
-            date: allocation.date,
-            startMinutes: allocation.startMinutes,
-            ...(allocation.locationId ? { locationId: allocation.locationId } : {}),
-            contact: { ...data.contact, phone },
-            source: 'online',
-            channel: bookingChannel(data.from),
-            ...(data.contact.marketingConsent && data.emailNewsVersion
-              ? { consentVersion: data.emailNewsVersion }
-              : {}),
-          },
-        })
-        const result = dispatch(org.state, command, 'Guest booking', new Date(now()).toISOString())
-        if (!result.ok) fail(422, result.error)
-        persist(org, result.state, null, 'public.book', result.recordId)
-        db.run(
-          'UPDATE booking_holds SET appointment_id=?,fingerprint=? WHERE token_hash=?',
-          result.recordId,
-          fingerprint,
-          hash,
-        )
-        const booked = { ...org, state: result.state }
-        return {
-          appointmentId: result.recordId,
-          manage: issueGuestLink(ctx, booked, result.recordId, 'booking'),
-          sample: operations(org.state).mode === 'sandbox',
-          depositPolicy: operations(org.state).mode === 'sandbox' ? 'simulated' : 'card',
-          ...depositDue(booked, result.recordId),
-          confirmation: 'local_only',
-        }
+      const result = bookHeld(ctx, slug, {
+        hold: data.hold,
+        contact: data.contact,
+        emailNewsVersion: data.emailNewsVersion,
+        channel: bookingChannel(data.from),
+        actor: 'Guest booking',
+        action: 'public.book',
       })
       reply(200, result)
       return true

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { dispatch, execute, slots } from './commands'
 import type { Command } from './commands'
 import type { BusinessState } from './model'
@@ -23,6 +23,15 @@ import type { OperatingCommand } from './commandSchema'
 
 // V2: several locations.
 const now = '2026-10-06T08:00:00.000Z'
+// The records here sit on 6 October 2026, so the clock stays on that day: figures for "the last
+// seven days" keep counting them whatever day the tests run.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(now))
+})
+afterEach(() => {
+  vi.useRealTimers()
+})
 const thursday = '2026-10-08'
 let sequence = 0
 function local(): BusinessState {

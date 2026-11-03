@@ -5,20 +5,39 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { dateLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  MovingList,
+  MovingRow,
+  PageHeader,
+  SegmentedControl,
+  Select,
+} from '../design'
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
 import { draftStale, namesATime, shownBody } from '../domain/cancelledTimes'
-import { conversations, savedReplies, snippet, socialWindowEnds } from '../domain/inbox'
+import {
+  conversationKey,
+  conversations,
+  savedReplies,
+  snippet,
+  socialWindowEnds,
+} from '../domain/inbox'
 import type { Conversation, Delivery, ThreadItem } from '../domain/inbox'
 import { SOCIAL_ANSWER_LIMIT, isSocialChannel, noteWays, socialLabel } from '../domain/inboxSchema'
 import type { Reply, SocialChannel } from '../domain/inboxSchema'
 import { numberLabel } from '../domain/missedCalls'
-import { outboxStatusLabel, textNumber } from '../domain/reminders'
+import { outboxStatusLabel, textNumber, textsOff } from '../domain/reminders'
+import { dayMonth, keywordLabel, keywordNote, numberStop, settledKeyword } from '../domain/textStop'
+import { TestText } from '../components/TestText'
 import { SentMessages } from '../components/AppointmentMessages'
 import { kindLabel, useSentMessages } from '../components/sentMessages'
 import { useClock } from '../state/clock'
 import { InboxReply } from '../components/InboxReply'
+import { OfferNote } from '../components/QuietOffers'
 import type { ReplyDraft } from '../components/InboxReply'
 import '../components/management.css'
 
@@ -53,7 +72,10 @@ function who(state: BusinessState, c: Conversation) {
 }
 
 function itemText(item: ThreadItem) {
-  if (item.kind === 'reply') return item.reply.body
+  if (item.kind === 'reply')
+    return item.reply.keyword
+      ? `${keywordLabel[item.reply.keyword]}: ${item.reply.body}`
+      : item.reply.body
   if (item.kind === 'message') return item.message.body
   if (item.kind === 'answer') return item.answer.body
   return `${kindLabel[item.sent.kind as keyof typeof kindLabel] ?? 'Message'}: ${item.sent.body}`
@@ -82,7 +104,9 @@ export function Inbox() {
   const [clientId, setClientId] = useState(writeTo?.id ?? state.clients[0]?.id ?? '')
   const [purpose, setPurpose] = useState<'appointment' | 'marketing'>('appointment')
   const [channel, setChannel] = useState<'email' | 'sms'>(() =>
-    !writeTo || writeTo.email.trim() || !textNumber(writeTo.phone) ? 'email' : 'sms',
+    !writeTo || writeTo.email.trim() || !textNumber(writeTo.phone) || textsOff(state, writeTo)
+      ? 'email'
+      : 'sms',
   )
   const [appointmentId, setAppointmentId] = useState(
     () =>
@@ -101,20 +125,32 @@ export function Inbox() {
   const [query, setQuery] = useState('')
   const view = useInboxView(session?.user.id)
   const [selectedKey, setSelectedKey] = useState<string | undefined>(
-    writeTo ? `client:${writeTo.id}` : undefined,
+    writeTo ? conversationKey(state, writeTo.id) : undefined,
   )
   // On a phone the two-column view shows the list first, then one conversation.
   const [opened, setOpened] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [noting, setNoting] = useState(false)
   const [linkTo, setLinkTo] = useState('')
+  // Stage 1: while texts are in test mode, the owner or a manager can deliver a test text.
+  const [testing, setTesting] = useState(false)
+  const testTexts =
+    mode === 'server' &&
+    (role === 'owner' || role === 'manager') &&
+    !!sent.reply &&
+    (!sent.reply.providers.sms.live || operations(state).mode !== 'local')
   const all = conversations(state, sent.reply?.messages ?? [])
   const shown = all
     .filter((c) => filter === 'all' || (filter === 'unread' ? c.unread > 0 : c.drafts > 0))
     .filter((c) => matches(state, c, query))
   const listed = shown.find((c) => c.key === selectedKey) ?? shown[0]
-  // The list comes from the studio's newest messages; an open conversation reads that guest's own.
-  const own = useSentMessages(listed?.clientId, { limit: 200, skip: !listed?.clientId })
+  // The list comes from the studio's newest messages; an open conversation reads that guest's own,
+  // from every one of their records.
+  const own = useSentMessages(listed?.clientId, {
+    limit: 200,
+    skip: !listed?.clientId,
+    guest: true,
+  })
   const selected =
     listed &&
     (own.reply
@@ -131,7 +167,7 @@ export function Inbox() {
   const allowedDraft = can(role, 'message') && !blocked
   const allowedQueue = can(role, 'message.queue') && !blocked
   const client = state.clients.find((item) => item.id === clientId)
-  const canText = !!client && !!textNumber(client.phone)
+  const canText = !!client && !!textNumber(client.phone) && !textsOff(state, client)
   const saved = savedReplies(state)
   // Sample studios never send; a studio of its own on the server sends what is approved.
   const sends = mode === 'server' && operations(state).mode === 'local'
@@ -169,7 +205,9 @@ export function Inbox() {
     setPurpose('appointment')
     if (forClient) setClientId(forClient)
     const c = state.clients.find((x) => x.id === (forClient ?? clientId))
-    setChannel(c?.email.trim() || !c || !textNumber(c.phone) ? 'email' : 'sms')
+    setChannel(
+      c?.email.trim() || !c || !textNumber(c.phone) || textsOff(state, c) ? 'email' : 'sms',
+    )
     setComposing(true)
   }
   function close() {
@@ -216,7 +254,7 @@ export function Inbox() {
       setBody('')
       setAppointmentId('')
       setFilter('all')
-      setSelectedKey(`client:${clientId}`)
+      setSelectedKey(conversationKey(state, clientId))
     }
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -311,6 +349,9 @@ export function Inbox() {
     if (reply.channel === 'chat') return `Left with the AI receptionist · answer on ${from}`
     if (isSocialChannel(reply.channel))
       return `${socialLabel[reply.channel]} message${reply.channel === 'whatsapp' ? ` from ${from}` : ''}`
+    // Stage 1: a text the team delivered in test mode says so.
+    if (reply.channel === 'sms' && reply.providerRef?.startsWith('test-'))
+      return `Test text from ${from} (test mode)`
     return `${reply.channel === 'sms' ? 'Text' : 'Email'} from ${from}`
   }
 
@@ -322,17 +363,30 @@ export function Inbox() {
     const lastWritten = [...c.items]
       .reverse()
       .find((i) => i.kind === 'reply' && (i.reply.channel === 'email' || i.reply.channel === 'sms'))
+    // Stage 1: STOP and START need no answer, so they never make the guest look unanswered.
+    const lastAsking = [...c.items]
+      .reverse()
+      .find((i) => i.kind !== 'reply' || !settledKeyword(i.reply))
+    const stoppedNumber = !recipient && c.from ? numberStop(state, c.from) : undefined
     return (
       <>
         <header className="inbox-pane-header">
-          <Avatar identity={c.clientId ?? c.from} name={c.clientId ? name : '?'} />
+          <Avatar identity={c.clientIds[0] ?? c.from} name={c.clientId ? name : '?'} />
           <div>
             <h2 className="inbox-name">{name}</h2>
             <p>
               {recipient
                 ? [recipient.email, recipient.phone].filter(Boolean).join(' · ')
                 : 'Not matched to a client yet.'}
+              {stoppedNumber &&
+                ` This number replied STOP on ${dayMonth(state, stoppedNumber.stoppedAt)}, so SALEANE will not text it until they text START.`}
             </p>
+            {recipient && c.clientIds.length > 1 && (
+              <p className="inbox-records">
+                Booked under {c.clientIds.length} client records with this email, so their messages
+                are together here. Answers go to the details above.
+              </p>
+            )}
           </div>
           {recipient && (
             <Link className="button button-secondary" to={`/clients/${recipient.id}`}>
@@ -353,6 +407,12 @@ export function Inbox() {
                     {!item.reply.readAt && ' · new'}
                   </small>
                   <p>{item.reply.body}</p>
+                  {item.reply.keyword && (
+                    <div className="inbox-keyword">
+                      <span className="ops-tag">{keywordLabel[item.reply.keyword]}</span>
+                      <small>{keywordNote[item.reply.keyword]}</small>
+                    </div>
+                  )}
                 </li>
               )
             if (item.kind === 'answer')
@@ -410,6 +470,13 @@ export function Inbox() {
                 </small>
                 {message.channel !== 'sms' && <strong>{message.subject}</strong>}
                 <p>{shownBody(message.body)}</p>
+                {message.offer && (
+                  <OfferNote
+                    offer={message.offer}
+                    writtenAt={message.createdAt}
+                    booked={state.appointments.some((a) => a.bookedOffer?.messageId === message.id)}
+                  />
+                )}
                 {item.delivery?.detail && <p className="subtle">{item.delivery.detail}</p>}
                 {message.status === 'draft' && (
                   <div className="inbox-bubble-actions">
@@ -474,7 +541,8 @@ export function Inbox() {
           <InboxReply
             key={c.key}
             client={recipient}
-            answering={c.items.at(-1)?.kind === 'reply'}
+            answering={lastAsking?.kind === 'reply'}
+            textsOff={textsOff(state, recipient)}
             lastChannel={
               lastWritten?.kind === 'reply'
                 ? (lastWritten.reply.channel as 'email' | 'sms')
@@ -531,19 +599,19 @@ export function Inbox() {
                       })
                     ).ok,
                   'Matched. The conversation is now with the client.',
-                ).then((ok) => ok && setSelectedKey(`client:${linkTo}`))
+                ).then((ok) => ok && setSelectedKey(conversationKey(state, linkTo)))
               }}
             >
               <label>
                 Link to a client
-                <select value={linkTo} onChange={(e) => setLinkTo(e.target.value)} required>
+                <Select value={linkTo} onChange={(e) => setLinkTo(e.target.value)} required>
                   <option value="">Choose a client</option>
                   {state.clients.map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <Button type="submit" variant="secondary" disabled={!allowedDraft || !!pending}>
                 Match to this client
@@ -588,10 +656,12 @@ export function Inbox() {
         title="A considered word."
         description="Each guest’s messages in one place: what you wrote, what went out on its own and what they wrote back."
         actions={
-          <Button disabled={!allowedDraft || !state.clients.length} onClick={() => startDraft()}>
-            <Plus size={17} />
-            Write a draft
-          </Button>
+          <>
+            <Button disabled={!allowedDraft || !state.clients.length} onClick={() => startDraft()}>
+              <Plus size={17} />
+              Write a draft
+            </Button>
+          </>
         }
       />
       <div className="ops-banner">
@@ -599,8 +669,17 @@ export function Inbox() {
         <div>
           <strong>{banner.title}</strong>
           <p>{banner.text}</p>
+          {testTexts && (
+            <div className="test-text-entry">
+              <p>To see how a guest’s text is handled, including STOP and START, try one here.</p>
+              <Button variant="secondary" disabled={blocked} onClick={() => setTesting(true)}>
+                Deliver a test text
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+      {testing && <TestText onClose={() => setTesting(false)} />}
       <section className={`surface inbox-card inbox-${view} ${opened ? 'is-open' : ''}`}>
         <div className="inbox-list">
           <div className="inbox-toolbar">
@@ -640,44 +719,50 @@ export function Inbox() {
             {notice}
           </p>
           <ul className="inbox-rows">
-            {shown.map((c) => {
-              const isCurrent = view === 'columns' && current?.key === c.key
-              const last = c.items[c.items.length - 1]
-              const name = who(state, c)
-              return (
-                <li key={c.key}>
-                  <button
-                    type="button"
-                    className={`inbox-row ${isCurrent ? 'is-selected' : ''} ${c.unread ? 'is-unread' : ''}`}
-                    aria-current={isCurrent ? 'true' : undefined}
-                    onClick={() => open(c)}
-                  >
-                    <Avatar small identity={c.clientId ?? c.from} name={c.clientId ? name : '?'} />
-                    <span className="inbox-row-text">
-                      <span className="inbox-row-top">
-                        <strong>{name}</strong>
-                        <small>{when(c.lastAt)}</small>
+            <MovingList>
+              {shown.map((c) => {
+                const isCurrent = view === 'columns' && current?.key === c.key
+                const last = c.items[c.items.length - 1]
+                const name = who(state, c)
+                return (
+                  <MovingRow as="li" key={c.key}>
+                    <button
+                      type="button"
+                      className={`inbox-row ${isCurrent ? 'is-selected' : ''} ${c.unread ? 'is-unread' : ''}`}
+                      aria-current={isCurrent ? 'true' : undefined}
+                      onClick={() => open(c)}
+                    >
+                      <Avatar
+                        small
+                        identity={c.clientIds[0] ?? c.from}
+                        name={c.clientId ? name : '?'}
+                      />
+                      <span className="inbox-row-text">
+                        <span className="inbox-row-top">
+                          <strong>{name}</strong>
+                          <small>{when(c.lastAt)}</small>
+                        </span>
+                        <span className="inbox-preview">
+                          {last?.kind === 'reply' ? '' : 'You: '}
+                          {last ? snippet(itemText(last), 120) : ''}
+                        </span>
                       </span>
-                      <span className="inbox-preview">
-                        {last?.kind === 'reply' ? '' : 'You: '}
-                        {last ? snippet(itemText(last), 120) : ''}
-                      </span>
-                    </span>
-                    {(c.unread > 0 || c.drafts > 0) && (
-                      <span className={`ops-tag ${c.unread ? 'is-new' : ''}`}>
-                        {c.unread
-                          ? c.unread === 1
-                            ? 'New reply'
-                            : `${c.unread} new replies`
-                          : c.drafts === 1
-                            ? 'Draft'
-                            : `${c.drafts} drafts`}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              )
-            })}
+                      {(c.unread > 0 || c.drafts > 0) && (
+                        <span className={`ops-tag ${c.unread ? 'is-new' : ''}`}>
+                          {c.unread
+                            ? c.unread === 1
+                              ? 'New reply'
+                              : `${c.unread} new replies`
+                            : c.drafts === 1
+                              ? 'Draft'
+                              : `${c.drafts} drafts`}
+                        </span>
+                      )}
+                    </button>
+                  </MovingRow>
+                )
+              })}
+            </MovingList>
           </ul>
           {!shown.length && (
             <div className="ops-no-records">
@@ -763,7 +848,7 @@ export function Inbox() {
             <div className="ops-fields">
               <label>
                 Client
-                <select
+                <Select
                   required
                   disabled={!!editingId}
                   value={clientId}
@@ -780,11 +865,11 @@ export function Inbox() {
                       {item.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label>
                 Purpose
-                <select
+                <Select
                   disabled={!!editingId}
                   value={purpose}
                   onChange={(event) => {
@@ -795,24 +880,29 @@ export function Inbox() {
                 >
                   <option value="appointment">Visit update</option>
                   <option value="marketing">Marketing</option>
-                </select>
+                </Select>
               </label>
               <label>
                 Send by
-                <select
+                <Select
                   value={channel}
                   onChange={(event) => setChannel(event.target.value as typeof channel)}
                 >
                   <option value="email">Email</option>
                   <option value="sms" disabled={purpose === 'marketing' || !canText}>
-                    Text{!canText ? ' (no mobile number)' : ''}
+                    Text
+                    {canText
+                      ? ''
+                      : client && textNumber(client.phone)
+                        ? ' (texts are off)'
+                        : ' (no mobile number)'}
                   </option>
-                </select>
+                </Select>
               </label>
               {saved.length > 0 && (
                 <label>
                   Start from a saved reply
-                  <select
+                  <Select
                     value=""
                     onChange={(event) => {
                       const pick = saved.find((r) => r.id === event.target.value)
@@ -825,12 +915,12 @@ export function Inbox() {
                         {r.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               <label className="ops-wide">
                 Related visit (optional)
-                <select
+                <Select
                   value={appointmentId}
                   onChange={(event) => setAppointmentId(event.target.value)}
                 >
@@ -845,7 +935,7 @@ export function Inbox() {
                         {state.services.find((service) => service.id === item.serviceId)?.name}
                       </option>
                     ))}
-                </select>
+                </Select>
               </label>
               {channel === 'email' && (
                 <label className="ops-wide">
@@ -944,11 +1034,11 @@ function NoteReply({
         <div className="ops-fields">
           <label>
             They answered
-            <select value={how} onChange={(e) => setHow(e.target.value as typeof how)}>
+            <Select value={how} onChange={(e) => setHow(e.target.value as typeof how)}>
               <option value="phone">By phone</option>
               <option value="in person">In person</option>
               <option value="elsewhere">Another way</option>
-            </select>
+            </Select>
           </label>
           <label className="ops-wide">
             What they said

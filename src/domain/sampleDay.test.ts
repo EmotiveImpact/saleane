@@ -88,6 +88,10 @@ describe('the demo studio on the real clock', () => {
   it('before opening, has every visit today still to come and nothing yet happened', () => {
     const { s, now } = demo('2026-10-09', 6 * 60 + 7)
     agreesWithItself(s, now)
+    // Stage 4: the sample's requests move with it, less the refund for a receipt left out.
+    const asked = s.operations!.requests!
+    expect(asked.map((r) => r.kind)).toEqual(['price', 'rota'])
+    expect(asked[1].rota?.date).toBe(addDays('2026-10-09', 6))
     const today = onDay(s, '2026-10-09')
     expect(today.length).toBe(onDay(sample, DEMO_DATE).length)
     expect(today.map((a) => shownStatus(a))).toEqual(today.map(() => 'confirmed'))

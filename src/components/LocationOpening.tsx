@@ -12,12 +12,14 @@ import {
   OPENING_STEPS,
   coreTreatment,
   menuRow,
+  newBookingPeople,
   openDays,
   openingCommand,
   openingDraft,
   openingHours,
   openingBill,
   openingImpact,
+  openingGaps,
   openingProblem,
   bookedWeekdays,
   priceLimits,
@@ -34,6 +36,8 @@ import {
   WizardFooter,
   WizardSteps,
   useWizardStep,
+  Checkbox,
+  Tip,
 } from '../design'
 import { AffectedVisits } from './ScheduleImpact'
 import { HoursList, RemoveButton, RoomCards } from './SetupParts'
@@ -77,6 +81,7 @@ export function LocationOpening({
     [state, draft, id],
   )
   const problem = openingProblem(state, id, draft, impact)
+  const gaps = id === 'team' ? openingGaps(state, draft) : null
   const services = state.services.filter((x) => !x.archived)
   const offered = services.filter((x) => menuRow(draft, x).offered)
   const change = (patch: Partial<OpeningDraft>) => {
@@ -173,6 +178,7 @@ export function LocationOpening({
               {problem}
             </p>
           )}
+          {gaps && !problem && <p className="ops-help opening-gaps">{gaps}</p>}
         </section>
         {blocked && <p className="ops-help">Changes are paused until the connection is back.</p>}
         <ErrorMessage error={error} />
@@ -284,8 +290,7 @@ function Menu({
           return (
             <li key={service.id} className={row.offered ? undefined : 'is-off'}>
               <label className="opening-offered">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={row.offered}
                   disabled={core}
                   onChange={(e) => set(service, { offered: e.target.checked })}
@@ -349,32 +354,29 @@ function DayTicks({
         {WEEK_ORDER.map((day) => {
           const on = days.includes(day) && open.has(day)
           return (
-            <label
+            <Tip
               key={day}
-              className={`setup-tick${booked.has(day) && open.has(day) ? ' is-booked' : ''}`}
-              title={
-                !open.has(day)
-                  ? 'Closed'
-                  : booked.has(day)
-                    ? 'Visits already booked on this day'
-                    : undefined
-              }
+              label={!open.has(day) ? 'Closed' : 'Visits already booked on this day'}
+              disabled={open.has(day) && !booked.has(day)}
             >
-              <input
-                type="checkbox"
-                aria-label={
-                  !open.has(day)
-                    ? `${WEEKDAYS[day]}, closed`
-                    : booked.has(day)
-                      ? `${WEEKDAYS[day]}, visits already booked`
-                      : WEEKDAYS[day]
-                }
-                checked={on}
-                disabled={!open.has(day)}
-                onChange={() => onChange(on ? days.filter((d) => d !== day) : [...days, day])}
-              />
-              <span aria-hidden="true">{short(day)}</span>
-            </label>
+              <label
+                className={`setup-tick${booked.has(day) && open.has(day) ? ' is-booked' : ''}`}
+              >
+                <Checkbox
+                  aria-label={
+                    !open.has(day)
+                      ? `${WEEKDAYS[day]}, closed`
+                      : booked.has(day)
+                        ? `${WEEKDAYS[day]}, visits already booked`
+                        : WEEKDAYS[day]
+                  }
+                  checked={on}
+                  disabled={!open.has(day)}
+                  onChange={() => onChange(on ? days.filter((d) => d !== day) : [...days, day])}
+                />
+                <span aria-hidden="true">{short(day)}</span>
+              </label>
+            </Tip>
           )
         })}
       </div>
@@ -426,7 +428,9 @@ function Team({
           <li className="setup-row opening-person" key={person.id}>
             <div>
               <strong>{person.name}</strong>
-              <small>{usually(person.id) || 'No working days yet'}</small>
+              <small>
+                {person.role} · {usually(person.id) || 'No working days yet'}
+              </small>
             </div>
             <DayTicks
               who={person.name}
@@ -473,8 +477,7 @@ function Team({
                     const on = person.serviceIds.includes(service.id)
                     return (
                       <label key={service.id} className="setup-tick">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={on}
                           onChange={() =>
                             updateNew(person.key, {
@@ -558,7 +561,8 @@ function Summary({ draft, offered }: { draft: OpeningDraft; offered: Service[] }
       active = false
     }
   }, [real, state.organisation.id])
-  const bill = plan && openingBill(plan, state.organisation)
+  const bill = plan && openingBill(plan, state.organisation, newBookingPeople(state, draft))
+  const gaps = openingGaps(state, draft)
   const lines = [
     ['Where', [draft.name.trim(), draft.address.trim()].join(', ')],
     [
@@ -595,6 +599,7 @@ function Summary({ draft, offered }: { draft: OpeningDraft; offered: Service[] }
           </li>
         ))}
       </ul>
+      {gaps && <p className="ops-help opening-gaps">{gaps}</p>}
       <div className="ops-banner opening-price-note">
         <ReceiptText size={20} aria-hidden="true" />
         {bill ? (

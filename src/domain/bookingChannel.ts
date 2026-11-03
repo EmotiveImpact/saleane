@@ -1,5 +1,5 @@
 import { bookingChannels } from './model'
-import type { BookingChannel } from './model'
+import type { BookingChannel, VisitChannel } from './model'
 
 /**
  * Where an online guest came from, read from the `from` value on a shared booking link such as
@@ -14,8 +14,26 @@ export function bookingChannel(value: unknown): BookingChannel | undefined {
     : undefined
 }
 
-export function channelLabel(channel: BookingChannel) {
-  return channel === 'google' ? 'Google' : 'Instagram'
+const labels: Record<VisitChannel, string> = {
+  google: 'Google',
+  instagram: 'Instagram',
+  chatgpt: 'ChatGPT',
+  claude: 'Claude',
+  assistant: 'an AI assistant',
+}
+
+export function channelLabel(channel: VisitChannel) {
+  return labels[channel]
+}
+
+/**
+ * What a visit's booking says about where it came from: a shared link of the studio's, or, since
+ * Stage 5, an AI assistant the guest asked to book.
+ */
+export function channelNote(channel: VisitChannel) {
+  return (bookingChannels as readonly string[]).includes(channel)
+    ? `Booked through your ${labels[channel]} link.`
+    : `Booked by the guest through ${labels[channel]}.`
 }
 
 /** The booking page address with the `from` value for one channel added. */

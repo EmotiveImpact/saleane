@@ -5,7 +5,8 @@ import type { ApiHandler } from './app'
 import type { BusinessState } from '../src/domain/model'
 import type { Command } from '../src/domain/commands'
 
-// V5: read-only access keys for other software, made and revoked by the owner.
+// V5: access keys for other software, made and revoked by the owner. Stage 5's writes are in
+// partnerWrites.test.ts.
 const origin = 'http://127.0.0.1:5173'
 type Login = { cookie: string; csrf: string; orgId: string }
 let api: ApiHandler
@@ -164,7 +165,16 @@ describe('read-only access for other software', () => {
   it('changes nothing, and refuses wide ranges, wrong keys and revoked keys', async () => {
     const login = await owner()
     const { key, created } = await makeKey(login, ['appointments:read'])
-    expect((await read(key, 'appointments', 'POST')).statusCode).toBe(405)
+    // Stage 5: a key that only reads cannot write, and nothing but reads and writes is allowed.
+    expect((await read(key, 'appointments', 'DELETE')).statusCode).toBe(405)
+    const write = await api.inject({
+      method: 'POST',
+      url: '/api/v1/appointments',
+      headers: { authorization: `Bearer ${key}`, 'idempotency-key': 'try-1' },
+      payload: {},
+    })
+    expect(write.statusCode).toBe(403)
+    expect(write.json()).toMatchObject({ code: 'forbidden_scope' })
     expect((await read(key, 'appointments?from=2026-10-01&to=2026-12-01')).statusCode).toBe(400)
     // Both dates count: 1 October to 1 November is 32 days.
     expect((await read(key, 'appointments?from=2026-10-01&to=2026-11-01')).statusCode).toBe(400)

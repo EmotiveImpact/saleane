@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { CalendarSync, Check, Copy } from 'lucide-react'
 import { api } from '../state/api'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import { diaryDetailLabel } from '../domain/diary'
 import type { DiaryDetail } from '../domain/diary'
 import './diaries.css'
@@ -236,7 +236,7 @@ export function DiaryLinks({
             <Button
               variant="quiet"
               onClick={() => {
-                focusNext.current = '.diary-form select, .diary-form input'
+                focusNext.current = '.diary-form .select-trigger, .diary-form input'
                 setShown(null)
               }}
             >
@@ -284,13 +284,13 @@ export function DiaryLinks({
             {choices.length > 1 ? (
               <label className="diary-field">
                 Whose visits
-                <select value={chosen?.value} onChange={(e) => setWhose(e.target.value)}>
+                <Select value={chosen?.value} onChange={(e) => setWhose(e.target.value)}>
                   {choices.map((c) => (
                     <option key={c.value} value={c.value}>
                       {c.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             ) : (
               <p className="diary-whose">

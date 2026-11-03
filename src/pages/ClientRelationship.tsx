@@ -20,7 +20,16 @@ import { groupTimeline } from '../domain/timeline'
 import type { RelationshipEvent } from '../domain/model'
 import { can, instantFor, operations } from '../domain/operations'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, SegmentedControl, Status } from '../design'
+import {
+  Avatar,
+  Button,
+  Empty,
+  ErrorMessage,
+  SegmentedControl,
+  Status,
+  Checkbox,
+  Tip,
+} from '../design'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import { ClientMessagePreferences, SentMessages } from '../components/AppointmentMessages'
@@ -34,6 +43,7 @@ import { ClientBirthday } from '../components/ClientBirthday'
 import { ClientArea } from '../components/ClientArea'
 import { ConsentHistory } from '../components/EmailConsent'
 import { ClientConsultations } from '../components/Consultations'
+import { ClientInsight } from '../components/ClientInsight'
 
 // A booking's detail opens with the service, date and time already shown in
 // the visit heading; only the sentence after it (payment state) is new.
@@ -288,12 +298,15 @@ export function ClientRelationship() {
             aria-label={`${yearVisits.length} ${yearVisits.length === 1 ? 'visit' : 'visits'} in the last twelve months`}
           >
             {yearVisits.map((visit) => (
-              <span
+              <Tip
                 key={visit.id}
-                className={`year-mark ${visit.tone}`}
-                style={{ left: `${visit.position}%` }}
-                title={`${shortDate.format(new Date(`${visit.date}T12:00:00Z`))} · ${visit.name}`}
-              />
+                label={`${shortDate.format(new Date(`${visit.date}T12:00:00Z`))} · ${visit.name}`}
+              >
+                <span
+                  className={`year-mark ${visit.tone}`}
+                  style={{ left: `${visit.position}%` }}
+                />
+              </Tip>
             ))}
           </div>
           <div className="year-legend" aria-hidden="true">
@@ -306,6 +319,7 @@ export function ClientRelationship() {
           </div>
         </div>
       </section>
+      <ClientInsight key={`insight-${client.id}`} client={client} />
       <div className="relationship-layout">
         <section className="surface timeline-surface">
           <div className="section-heading">
@@ -636,8 +650,7 @@ export function ClientRelationship() {
             <h2>Communication preference</h2>
             <ErrorMessage error={consentError} />
             <label className="checkbox-label">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={client.marketingConsent}
                 disabled={busy || blocked || !can(role, 'consent')}
                 onChange={(e) => {

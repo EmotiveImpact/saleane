@@ -1,0 +1,27 @@
+/* Stage 6: "Protect your account", in place of every studio page until two-step sign-in is set up. */
+.protect-main h1:focus {
+  outline: none;
+}
+.protect-main .access-two-step.is-plain .access-two-step-body {
+  padding-top: 0;
+}
+.protect-open .button {
+  min-height: 46px;
+}
+.protect-actions {
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-4);
+  margin-top: var(--space-6);
+}
+@media (max-width: 480px) {
+  /* The main button sits full width where a thumb reaches it. */
+  .protect-main .access-two-step-body .ops-actions,
+  .protect-open {
+    display: grid;
+  }
+  .protect-main .access-two-step-body .ops-actions .button,
+  .protect-open .button {
+    width: 100%;
+    justify-content: center;
+  }
+}

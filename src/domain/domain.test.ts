@@ -615,7 +615,7 @@ describe('relationship integrity', () => {
   it('rejects cross-workspace or broken relationship data on load', () => {
     const s = seed('UK')
     s.clients[0].organisationId = 'org-another-business'
-    expect(() => parseState(s, 'UK')).toThrow('Foreign workspace record')
-    expect(() => parseState(seed('US'), 'UK')).toThrow('Workspace region mismatch')
+    expect(() => parseState(s, 'UK')).toThrow('A record from another studio')
+    expect(() => parseState(seed('US'), 'UK')).toThrow('This studio record is for another region')
   })
 })

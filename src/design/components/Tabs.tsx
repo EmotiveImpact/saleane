@@ -1,5 +1,8 @@
+import { useId } from 'react'
 import type { ReactNode } from 'react'
-import * as RadixTabs from '@radix-ui/react-tabs'
+import { Tabs as RadixTabs } from 'radix-ui'
+import { ChosenMark } from './ChosenMark'
+import { Select } from './Select'
 
 type Tab<T extends string> = {
   value: T
@@ -16,7 +19,8 @@ type Tab<T extends string> = {
  *
  * A long vertical list can be split into named `groups`, each its own short
  * tablist under a quiet heading. With `picker`, narrow screens show one select,
- * with the same groups, in place of the list.
+ * with the same groups, in place of the list. The shape behind the chosen tab slides
+ * to the next one, across groups too.
  */
 export function Tabs<T extends string>({
   label,
@@ -27,6 +31,8 @@ export function Tabs<T extends string>({
   picker,
   disabled = false,
   orientation = 'horizontal',
+  find,
+  empty,
   children,
 }: {
   label: string
@@ -39,8 +45,13 @@ export function Tabs<T extends string>({
   disabled?: boolean
   /** Vertical lists sit beside the panel, as on the Settings page. */
   orientation?: 'horizontal' | 'vertical'
+  /** A field above grouped lists that narrows them, such as "Find a setting". */
+  find?: ReactNode
+  /** What the grouped lists say when the field has narrowed them to nothing. */
+  empty?: ReactNode
   children: ReactNode
 }) {
+  const group = useId()
   const trigger = (tab: Tab<T>) => (
     <RadixTabs.Trigger
       key={tab.value}
@@ -49,6 +60,7 @@ export function Tabs<T extends string>({
       className="tabs-trigger"
     >
       {tab.label}
+      {tab.value === value && <ChosenMark group={group} radius={12} />}
     </RadixTabs.Trigger>
   )
   const words = (tab: Tab<T>) =>
@@ -68,6 +80,8 @@ export function Tabs<T extends string>({
     >
       {groups ? (
         <div className="tabs-groups" role="group" aria-label={label}>
+          {find}
+          {groups.length === 0 && empty}
           {groups.map((group) => (
             <div className="tabs-group" key={group.label}>
               <p className="tabs-group-label" aria-hidden="true">
@@ -87,7 +101,7 @@ export function Tabs<T extends string>({
       {picker && (
         <label className="tabs-picker">
           <span>{picker}</span>
-          <select
+          <Select
             value={value}
             disabled={disabled}
             onChange={(event) => onChange(event.target.value as T)}
@@ -99,7 +113,7 @@ export function Tabs<T extends string>({
                   </optgroup>
                 ))
               : tabs.map(option)}
-          </select>
+          </Select>
         </label>
       )}
       <RadixTabs.Content value={value} className="tabs-panel">

@@ -18,9 +18,9 @@ Weighted and established means dependable proportions, alignment, restrained hie
 
 **Canonical spelling: SALEANE. No accent.** Use Saleane in prose and SALEANE in the wordmark. Keep spelling identical in search, URLs, accessibility labels and future legal/product records. An accent introduces a spelling ambiguity across UK and US typing and recall. This is a product decision inherited from the conversation, not legal name clearance.
 
-The current wordmark uses **Bodoni Moda Variable, weight 500, tracking 0.12em**, as an openly licensed implementation of the original high-contrast serif direction. It is a reasoned type choice, not a claim to identify the exact generated font. Page greetings and guest headings use Bodoni at restrained weights. The original image is a reference, not a proprietary font file or production logo master.
+The wordmark, headings, names and greetings use the light display serif decided on 7 October 2026: **Financier Display Light**, with **Newsreader Variable at weight 300** standing in for it in the repository (wordmark tracking 0.2em). **Figtree Variable** carries navigation, forms, tables, money and metadata, with tabular figures for times and money. [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md) holds the details. The original image is a reference, not a proprietary font file or production logo master.
 
-**Source Sans 3 Variable** carries navigation, forms, tables, money and metadata. Functional figures retain tabular numerals and ordinary spacing. The previous compact Manrope mark belongs to the archived foundation history. Fonts are served locally; supplied OFL notices are included. See [third-party and generated-asset provenance](../THIRD_PARTY_NOTICES.md).
+History: the foundation used Bodoni Moda for the wordmark and headings and Source Sans 3 for working text, and before that a compact Manrope mark. Both are retired. Fonts are served locally; supplied OFL notices are included. See [third-party and generated-asset provenance](../THIRD_PARTY_NOTICES.md).
 
 No historical lunar or linguistic etymology has been established. Do not invent meaning for a glyph. Pronunciation and trademark/domain clearance remain separate decisions; past domain availability is not current ownership evidence. The source phrase “everything is under control” guides clarity, structure and honest failure states.
 
@@ -97,7 +97,7 @@ Compare directions with the same tasks, values and failure states. Judge readabi
 
 ## Local V1 application extension
 
-Keep the original reference as visual authority: ivory surfaces, light navigation, Bodoni Moda wordmark/editorial headings, functional Source Sans, sage/forest actions and generated fictional studio photography. No accent is introduced and no new brand direction replaces the approved foundation.
+Keep the original reference as visual authority: ivory surfaces, light navigation, a light display serif for the wordmark and headings, functional Figtree, sage actions and generated fictional studio photography. No accent is introduced and no new brand direction replaces the approved foundation.
 
 Accounts use a photographic welcome panel and a quiet form. Business uses a compact Overview/Money/Manage subnavigation rather than adding every administration surface to the main sidebar. Manage separates capability from account access. Money surfaces provenance next to the receipt. Inbox makes unsent status explicit. Imports use a reviewable table before any record is written.
 

@@ -107,3 +107,98 @@ describe('commission rates over the API', () => {
     expect(deskView.body).not.toContain('serviceBps')
   })
 })
+
+describe('commission by treatment, steps and targets over the API (Stage 3)', () => {
+  const rate = {
+    type: 'commission-rate',
+    input: {
+      item: { kind: 'treatment', serviceId: 'service-facial' },
+      bps: 4650,
+      from: '2026-10-01',
+    },
+  } as Command
+  const steps = {
+    type: 'commission-steps',
+    input: {
+      staffId: 'staff-maya',
+      on: 'treatments',
+      kind: 'whole',
+      steps: [
+        { fromMinor: 0, bps: 3000 },
+        { fromMinor: 450000, bps: 3650 },
+      ],
+      from: '2026-10-01',
+    },
+  } as Command
+  const target = {
+    type: 'staff-target',
+    input: { staffId: 'staff-maya', from: '2026-10', takingsMinor: 765400 },
+  } as Command
+
+  it('lets only the owner set rates and steps, and the owner or a manager set targets', async () => {
+    const owner = await register()
+    const manager = await member(owner, 'manager@example.invalid', 'manager')
+    const desk = await member(owner, 'desk@example.invalid', 'reception')
+    const maya = await member(owner, 'maya@example.invalid', 'practitioner', 'staff-maya')
+    let revision = (await studio(owner)).state.revision
+    for (const command of [rate, steps])
+      for (const login of [manager, desk, maya])
+        expect((await run(login, revision, command)).statusCode).toBe(403)
+    for (const login of [desk, maya])
+      expect((await run(login, revision, target)).statusCode).toBe(403)
+    for (const command of [rate, steps]) {
+      const saved = await run(owner, revision, command)
+      expect(saved.statusCode, saved.body).toBe(200)
+      revision += 1
+    }
+    const set = await run(manager, revision, target)
+    expect(set.statusCode, set.body).toBe(200)
+    const o = (await studio(owner)).state.operations!
+    expect(o.commissionRates!.at(-1)).toMatchObject({ bps: 4650 })
+    expect(o.commissionSteps!.at(-1)).toMatchObject({ kind: 'whole', staffId: 'staff-maya' })
+    expect(o.staffTargets!.at(-1)).toMatchObject({ takingsMinor: 765400 })
+    // Who changed what keeps each change.
+    const changes = await api.inject({
+      url: `/api/workspaces/${owner.orgId}/changes`,
+      headers: headers(owner),
+    })
+    expect(changes.statusCode, changes.body).toBe(200)
+    for (const words of [
+      'Changed a commission rate for a treatment or product',
+      'Changed commission steps by takings',
+      'Changed a monthly target',
+    ])
+      expect(changes.body).toContain(words)
+  })
+
+  it('keeps rates, steps, targets and rent terms from reception, and a practitioner sees only their own target', async () => {
+    const owner = await register()
+    const revision = (await studio(owner)).state.revision
+    expect((await run(owner, revision, rate)).statusCode).toBe(200)
+    const desk = await member(owner, 'desk@example.invalid', 'reception')
+    const deskView = await api.inject({
+      url: `/api/workspaces/${owner.orgId}`,
+      headers: headers(desk),
+    })
+    expect(deskView.statusCode).toBe(200)
+    const o = deskView.json<{ state: BusinessState }>().state.operations!
+    for (const field of ['commissionRates', 'commissionSteps', 'staffTargets', 'rentPayments'])
+      expect(o).not.toHaveProperty(field)
+    expect(o.rentals!.every((rental) => rental.amountMinor === 0 && !rental.percentBps)).toBe(true)
+    expect(deskView.body).not.toMatch(/[:[,]4650[,}\]]/)
+    for (const field of ['"bps"', 'percentBps', 'takingsMinor'])
+      expect(deskView.body).not.toContain(field)
+    // Maya reads her own target for the month and nothing of anyone else's.
+    const maya = await member(owner, 'maya@example.invalid', 'practitioner', 'staff-maya')
+    const own = await api.inject({ url: `/api/workspaces/${owner.orgId}`, headers: headers(maya) })
+    expect(own.statusCode).toBe(200)
+    const view = own.json<{
+      practitioner: { target?: { month: string; targetMinor: number; currency: string } }
+    }>().practitioner
+    expect(view.target).toMatchObject({ month: '2026-10', targetMinor: 600000, currency: 'GBP' })
+    // Sophia's target is £12,000 with £600 of products.
+    expect(own.body).not.toMatch(/[:[,](1200000|60000)[,}\]]/)
+    for (const field of ['staffTargets', 'commissionRates', 'commissionSteps', 'payRates', '"bps"'])
+      expect(own.body).not.toContain(field)
+  })
+})

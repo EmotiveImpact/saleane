@@ -22,14 +22,11 @@ describe('Ask Saleane', { timeout: 20000 }, () => {
     show()
     await user.click(screen.getByRole('button', { name: /^Ask SALEANE/ }))
     const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
-    const notice = within(panel).getByText(
-      /Enzyme Peel, professional size is running low/,
-    ).parentElement!
+    // Stage 3: Theo rents his chair, so the named clients' quieter week is the notice to follow.
+    const notice = within(panel).getByText(/Takings are down this week/).parentElement!
     expect(within(notice).queryByRole('button', { name: 'Anything unusual?' })).toBeNull()
-    await user.click(within(notice).getByRole('button', { name: 'What should I reorder?' }))
-    expect(
-      await within(panel).findByText(/^Time to reorder: Enzyme Peel, professional size \(\d+ left/),
-    ).toBeInTheDocument()
+    await user.click(within(notice).getByRole('button', { name: 'How was the week?' }))
+    expect(await within(panel).findByText(/^The last seven days: /)).toBeInTheDocument()
   })
 
   it('keeps the question box’s hint short enough for a phone', async () => {

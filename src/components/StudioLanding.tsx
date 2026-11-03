@@ -7,6 +7,8 @@ const OUTSIDE = new Set([
   '/account',
   '/join',
   '/manage',
+  // Stage 4: the link at the foot of a message to clients.
+  '/news/stop',
   '/pay/test',
   '/billing/test-card',
   '/pricing',

@@ -45,7 +45,11 @@ describe('accounts', () => {
     const rows = moneyInAndOut(s, september.from, september.to)
     expect(rows.length).toBeGreaterThan(0)
     expect(rows.every((r) => r.test || r.kind === 'Chair or room rent')).toBe(true)
-    expect(rows.filter((r) => r.kind === 'Chair or room rent')).toHaveLength(2)
+    // Stage 3: Theo's rent has a share of his takings, so each week is paid once it has ended.
+    expect(rows.filter((r) => r.kind === 'Chair or room rent')).toHaveLength(1)
+    expect(
+      moneyInAndOut(s, september.from, '2026-10-06').filter((r) => r.kind === 'Chair or room rent'),
+    ).toHaveLength(2)
     expect(moneyCsv(rows, 'GBP').split('\n')[0]).toContain('Amount (GBP)')
   })
 

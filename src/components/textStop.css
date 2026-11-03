@@ -1,0 +1,54 @@
+/* Stage 1: a client's STOP or START reply, on their page and in the Inbox. */
+.text-stop-note {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--sage-soft);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+.text-stop-note strong {
+  display: block;
+  margin-bottom: 2px;
+}
+.text-stop-confirm {
+  margin: 10px 0 0;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--sage);
+  font-size: var(--text-small);
+}
+.text-stop-confirm p {
+  margin: 0 0 12px;
+}
+.text-stop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.inbox-keyword {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 6px;
+}
+.inbox-keyword small {
+  color: var(--muted);
+}
+.test-text-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.test-text-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+.test-text-entry p {
+  margin: 0;
+}

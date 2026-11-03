@@ -175,6 +175,8 @@ describe('guest extras', () => {
       'arrival',
       'cancellation',
       'deposit',
+      // Stage 6: the guest's own first name, for the label on their visit.
+      'guest',
       // Whether the guest can move the visit online, and why not; never other guests' times.
       'move',
       'organisation',

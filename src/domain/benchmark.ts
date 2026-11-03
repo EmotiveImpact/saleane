@@ -1,6 +1,6 @@
 import type { BusinessState } from './model'
 import { addDays, money } from './format'
-import { serviceRevenue } from './selectors'
+import { renterVisit, serviceRevenue } from './takings'
 
 /**
  * V5: how a studio compares with similar studios, without anyone seeing anyone else. A studio
@@ -41,7 +41,9 @@ export function studioMeasures(s: BusinessState, today: string): Measures | null
   const inWindow = s.appointments.filter((a) => a.date >= from && a.date <= today)
   const completed = inWindow.filter((a) => a.status === 'completed')
   if (completed.length < BENCHMARK_MIN_VISITS) return null
-  const ids = new Set(completed.map((a) => a.id))
+  // Stage 3: the average treatment sale is the studio's own; a renter's takings are theirs.
+  const own = completed.filter((a) => !renterVisit(s, a))
+  const ids = new Set(own.map((a) => a.id))
   const revenue = s.sales
     .filter((sale) => ids.has(sale.appointmentId))
     .reduce((n, sale) => n + serviceRevenue(sale), 0)
@@ -57,7 +59,7 @@ export function studioMeasures(s: BusinessState, today: string): Measures | null
     visitsByClient.set(a.clientId, (visitsByClient.get(a.clientId) ?? 0) + 1)
   const clients = [...visitsByClient.values()]
   return {
-    averageVisit: Math.round(revenue / completed.length),
+    averageVisit: own.length ? Math.round(revenue / own.length) : 0,
     rebookRate: rebooked / completed.length,
     noShowRate: missed / (completed.length + missed),
     returnRate: clients.filter((n) => n > 1).length / clients.length,

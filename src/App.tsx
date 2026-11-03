@@ -9,21 +9,47 @@ import {
   Settings2,
   Users,
   Menu,
-  X,
   Info,
   Mail,
+  Megaphone,
   Hourglass,
   Sparkles,
   CircleHelp,
+  PanelLeftClose,
+  PanelLeftOpen,
+  SlidersHorizontal,
+  ShieldCheck,
+  Building2,
+  MapPin,
+  Globe,
+  LogOut,
+  UserRound,
+  Wallet,
+  IdCard,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
-import { leads, operations } from './domain/operations'
+import { leads, operations, roleNames, studioRole } from './domain/operations'
 import { hasLocations, places } from './domain/locations'
 import { regions } from './domain/group'
 import { draftStale } from './domain/cancelledTimes'
 import { nudges } from './domain/nudges'
-import { Avatar, Modal, ScrollNav } from './design'
+import {
+  Avatar,
+  CalmMotion,
+  Empty,
+  LoadingShapes,
+  Menu as ActionMenu,
+  MenuChoices,
+  MenuItem,
+  MenuLabel,
+  MenuSeparator,
+  Modal,
+  Notices,
+  ScrollNav,
+  Tip,
+  photos,
+} from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { BillingBanner } from './components/BillingBanner'
 import { Today } from './pages/Today'
@@ -98,7 +124,21 @@ const ServerBooking = lazy(() =>
   import('./pages/ServerBooking').then((module) => ({ default: module.ServerBooking })),
 )
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
+const You = lazy(() => import('./pages/You').then((module) => ({ default: module.You })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
+const News = lazy(() => import('./pages/News').then((module) => ({ default: module.News })))
+const MarketingAutomatic = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingAutomatic })),
+)
+const MarketingAudience = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingAudience })),
+)
+const MarketingResults = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingResults })),
+)
+const NewsStop = lazy(() =>
+  import('./pages/NewsStop').then((module) => ({ default: module.NewsStop })),
+)
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
 const Waitlist = lazy(() =>
   import('./pages/Waitlist').then((module) => ({ default: module.Waitlist })),
@@ -115,11 +155,15 @@ const AskSaleane = lazy(() =>
 const StudioSetup = lazy(() =>
   import('./pages/StudioSetup').then((module) => ({ default: module.StudioSetup })),
 )
+const ProtectAccount = lazy(() =>
+  import('./pages/ProtectAccount').then((module) => ({ default: module.ProtectAccount })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
 import { useClock } from './state/clock'
 import './account.css'
+import { ASK_NAME } from './assistant/name'
 
 const navigation = [
   { to: '/today', label: 'Today', icon: Home },
@@ -127,16 +171,42 @@ const navigation = [
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/waitlist', label: 'Waitlist', icon: Hourglass },
   { to: '/inbox', label: 'Inbox', icon: Mail },
+  // NEXT-14: its own section, for the people who write to clients.
+  { to: '/marketing', label: 'Marketing', icon: Megaphone },
+  // The till, gift cards, the shelf and the accountant's files: everything paid, sold or counted.
+  { to: '/money', label: 'Money', icon: Wallet },
+  // The people: who they are and what they do, who is in when, and what they have earned.
+  { to: '/team', label: 'Team', icon: IdCard },
   { to: '/business', label: 'Business', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: Settings2 },
 ]
 /** Whether a sidebar section holds the page that is open, including the pages inside it. */
 const within = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`)
+/** An older address, sent on to where its page lives now, keeping what came after it. */
+function Moved({ to }: { to: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={`${to}${search}${hash}`} replace />
+}
 
 function WorkspaceApp() {
-  const { state, warning, mode, slug, loading, session, role, reload, today, branch, billing } =
-    useStore()
+  const {
+    state,
+    warning,
+    mode,
+    slug,
+    loading,
+    session,
+    role,
+    today,
+    branch,
+    billing,
+    hold,
+    region,
+    changeRegion,
+    openWorkspace,
+    logout,
+  } = useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
     .split(' ')
@@ -156,6 +226,23 @@ function WorkspaceApp() {
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
+  // On a computer the sidebar can fold to its icons, for more room. Each person's choice is kept
+  // in their own browser.
+  const [rail, setRail] = useState(() => {
+    try {
+      return localStorage.getItem('saleane-sidebar') === 'rail'
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('saleane-sidebar', rail ? 'rail' : 'full')
+    } catch {
+      // The choice lasts until the tab closes.
+    }
+  }, [rail])
+  const [signOutError, setSignOutError] = useState('')
   // Waitlist offers and invitations whose time has gone are not counted as waiting for approval.
   const clock = useClock()
   // Read again each minute too, so a waitlist time that has passed stops counting.
@@ -166,46 +253,104 @@ function WorkspaceApp() {
   const drafts = operations(state).messages.filter(
     (m) => m.status === 'draft' && !draftStale(state, m.id, clock),
   ).length
-  // The front desk opens Money, Stock, Rota and Gift cards in Business, not the studio's figures,
-  // pay, accounts or private feedback, so their Business link lands on Money.
+  // Stage 4: a message to clients waits for the owner's approval, in Marketing.
+  const campaignDrafts =
+    role === 'owner' ? (operations(state).news ?? []).filter((m) => m.status === 'draft').length : 0
+  // The front desk opens Money and the rota, not the studio's figures, pay, accounts or private
+  // feedback, so Business has nothing for them and is not shown.
   const desk = role === 'reception'
-  const links = navigation.map((item) => ({
-    ...item,
-    href: desk && item.to === '/business' ? '/business/money' : item.to,
-    active: within(location.pathname, item.to),
-  }))
   const owns = role === 'owner' || role === 'manager'
+  // The studios this person can open at the desk, to move between from the studio menu.
+  const studios = (session?.workspaces ?? []).filter((w) => studioRole(w.role))
   // Branch visits and Requests are about running several branches, so they wait until there are
   // more locations or any regions. A general manager runs one of several, so always has them.
   const branches = hasLocations(state) || regions(state).length > 0 || role === 'general'
+  // Stage 4: Requests also shows once anything has been asked or the owner has set sign-off rules,
+  // such as a refund limit for managers in a studio of one location.
+  const signOffs = branches || !!operations(state).requests?.length || !!operations(state).approvals
+  const moneyTabs = [
+    { to: '/money', label: 'Takings', show: true },
+    { to: '/money/gift-cards', label: 'Gift cards', show: role !== 'practitioner' },
+    { to: '/money/stock', label: 'Stock', show: true },
+    { to: '/money/accounts', label: 'Accounts', show: owns },
+  ].filter((tab) => tab.show)
+  const teamTabs = [
+    { to: '/team', label: 'People', show: true },
+    { to: '/team/rota', label: 'Rota', show: role !== 'practitioner' },
+    { to: '/team/pay', label: 'Pay', show: owns },
+  ].filter((tab) => tab.show)
+  // Business is how the studio is doing: the figures, what guests say and where they come from.
   const businessTabs = [
     { to: '/business', label: 'Overview', show: !desk },
-    { to: '/business/money', label: 'Money', show: true },
-    { to: '/business/stock', label: 'Stock', show: true },
-    { to: '/business/rota', label: 'Rota', show: true },
-    { to: '/business/gift-cards', label: 'Gift cards', show: role !== 'practitioner' },
-    { to: '/business/pay', label: 'Pay', show: owns },
-    { to: '/business/accounts', label: 'Accounts', show: owns },
-    { to: '/business/compare', label: 'How you compare', show: owns },
     { to: '/business/feedback', label: 'Feedback', show: leads(role) },
-    { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
-    { to: '/business/requests', label: 'Requests', show: leads(role) && branches },
     { to: '/business/areas', label: 'Client areas', show: leads(role) },
+    { to: '/business/compare', label: 'How you compare', show: owns },
+    { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
+    { to: '/business/requests', label: 'Requests', show: leads(role) && signOffs },
+  ].filter((tab) => tab.show)
+  const links = navigation
+    .filter((item) => item.to !== '/marketing' || leads(role))
+    .filter((item) => item.to !== '/business' || businessTabs.length > 0)
+    .map((item) => ({ ...item, href: item.to, active: within(location.pathname, item.to) }))
+  // NEXT-14: the emails that go by themselves are the studio's own settings, for owners and
+  // managers; a general manager writes and follows their location's campaigns.
+  const marketingTabs = [
+    { to: '/marketing', label: 'Campaigns', show: true },
+    { to: '/marketing/automatic', label: 'Automatic', show: owns },
+    { to: '/marketing/audience', label: 'Audience', show: true },
+    { to: '/marketing/results', label: 'Results', show: true },
   ].filter((tab) => tab.show)
   useEffect(() => {
     document.title = `${state.organisation.name} · SALEANE`
   }, [state.organisation.name])
+  // "/" or Ctrl K (⌘K on a Mac) opens Find a client, unless someone is typing.
+  useEffect(() => {
+    const open = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const typing =
+        !!target?.closest('input, textarea, select, [role="combobox"], [contenteditable="true"]') ||
+        !!document.querySelector('[role="dialog"]')
+      const command = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)
+      if (
+        (event.key === '/' && !typing) ||
+        (command && !document.querySelector('[role="dialog"]'))
+      ) {
+        event.preventDefault()
+        setSearch(true)
+      }
+    }
+    window.addEventListener('keydown', open)
+    return () => window.removeEventListener('keydown', open)
+  }, [])
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
   }, [location.pathname])
   const pageName =
     location.pathname === '/design-language'
       ? 'Design language'
-      : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
+      : location.pathname === '/you'
+        ? 'You'
+        : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
+  // Stage 6: a studio that asks everyone for two-step sign-in shows "Protect your account" in
+  // place of every studio page, the account page and the scoped days, until it is set up. Guest
+  // and public pages are not anyone signing in, so they are never held.
+  const guestPage =
+    [
+      '/reset-password',
+      '/confirm-email',
+      '/manage',
+      '/news/stop',
+      '/pay/test',
+      '/pricing',
+    ].includes(location.pathname) ||
+    location.pathname === '/billing/test-card' ||
+    location.pathname.startsWith('/book/')
+  if (hold && !guestPage) return <ProtectAccount />
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
   if (location.pathname === '/reset-password' || location.pathname === '/confirm-email')
     return <AccountLink />
   if (location.pathname === '/manage') return <ManageVisit />
+  if (location.pathname === '/news/stop') return <NewsStop />
   if (location.pathname === '/pay/test') return <TestPayment />
   if (location.pathname === '/billing/test-card') return <TestBillingCard />
   if (location.pathname === '/pricing') return <Pricing />
@@ -245,60 +390,130 @@ function WorkspaceApp() {
       <BrandedBooking key={state.organisation.id} />
     )
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-rail={rail || undefined}>
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <aside className="sidebar" aria-label="Workspace navigation">
-        <div className="sidebar-masthead">
-          <div className="sidebar-brand">
-            <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
+      <aside
+        className="sidebar"
+        aria-label="Studio navigation"
+        // Folded, a click on any empty part of the sidebar opens it in full. Links and buttons keep
+        // their own clicks, and the fold button does the same for the keyboard.
+        onClick={(event) => {
+          if (rail && !(event.target as Element).closest('a, button, input, select, textarea'))
+            setRail(false)
+        }}
+      >
+        <div className="sidebar-brand">
+          <Link to="/today" className="wordmark" aria-label="SALEANE, Today">
+            <span className="wordmark-full" aria-hidden="true">
               SALEANE
-            </Link>
+            </span>
+            <span className="wordmark-initial" aria-hidden="true">
+              S
+            </span>
+          </Link>
+          <Tip
+            label={rail ? 'Show the sidebar in full' : 'Fold the sidebar to its icons'}
+            side="right"
+          >
             <button
-              className="mobile-nav-close icon-button"
-              aria-label="Close navigation"
-              onClick={() => setMobileNav(false)}
+              className="icon-button sidebar-fold"
+              aria-label={rail ? 'Show the sidebar in full' : 'Fold the sidebar to its icons'}
+              aria-pressed={rail}
+              onClick={() => setRail(!rail)}
             >
-              <X size={20} />
+              {rail ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
-          </div>
-          <p className="sidebar-tagline">
-            A considered way to run
-            <br /> a remarkable business.
-          </p>
+          </Tip>
         </div>
-        <button className="workspace-switch" onClick={() => openSettings('workspace')}>
-          <span className="workspace-monogram">{initials}</span>
-          <span>
-            <strong>{state.organisation.name}</strong>
-            <small>
-              {branch
-                ? `General manager · ${places(state, true).find((p) => p.id === branch)?.name ?? 'your location'}`
-                : state.organisation.locationName}
-            </small>
-          </span>
-          <ChevronDown size={14} />
-        </button>
+        <ActionMenu
+          label={`${state.organisation.name}: studio menu`}
+          align="start"
+          trigger={
+            <button className="workspace-switch">
+              <span className="workspace-monogram">{initials}</span>
+              <span className="workspace-words">
+                <strong>{state.organisation.name}</strong>
+                <small>
+                  {branch
+                    ? `General manager · ${places(state, true).find((p) => p.id === branch)?.name ?? 'your location'}`
+                    : state.organisation.locationName}
+                </small>
+              </span>
+              <span className="sr-only">, studio menu</span>
+              <ChevronDown size={14} />
+            </button>
+          }
+        >
+          <MenuLabel>{state.organisation.name}</MenuLabel>
+          {mode === 'server' && studios.length > 1 && (
+            <MenuChoices
+              value={state.organisation.id}
+              onChange={(id) => void openWorkspace(id).then(() => navigate('/today'))}
+              options={studios.map((w) => ({
+                value: w.id,
+                label: w.name,
+                detail: roleNames[w.role] ?? w.role,
+              }))}
+            />
+          )}
+          {mode === 'demo' && (
+            <MenuChoices
+              value={region}
+              onChange={(next) => changeRegion(next)}
+              options={[
+                { value: 'UK', label: 'The London sample', detail: 'Pounds, London time' },
+                { value: 'US', label: 'The New York sample', detail: 'Dollars, New York time' },
+              ]}
+            />
+          )}
+          <MenuSeparator />
+          {owns && (
+            <MenuItem to="/settings?section=business" icon={<Building2 size={17} />}>
+              Studio details
+            </MenuItem>
+          )}
+          {owns && (
+            <MenuItem to="/settings?section=locations" icon={<MapPin size={17} />}>
+              Locations
+            </MenuItem>
+          )}
+          <MenuItem to="/booking" icon={<Globe size={17} />}>
+            Your booking page
+          </MenuItem>
+          <MenuItem to="/settings?section=workspace" icon={<Info size={17} />}>
+            About this version
+          </MenuItem>
+        </ActionMenu>
         <nav>
-          {links.map(({ to, href, active, label, icon: Icon }) => (
-            <Link
-              onClick={() => setMobileNav(false)}
-              className={`nav-link ${active ? 'active' : ''}`}
-              aria-current={active ? 'page' : undefined}
-              key={to}
-              to={href}
-            >
-              <Icon size={19} strokeWidth={1.6} />
-              {label}
-              {to === '/inbox' && drafts > 0 && (
-                <span className="nav-count">
-                  {drafts}
-                  <span className="sr-only"> {drafts === 1 ? 'draft' : 'drafts'} to approve</span>
-                </span>
-              )}
-            </Link>
-          ))}
+          {links.map(({ to, href, active, label, icon: Icon }) => {
+            const count = to === '/inbox' ? drafts : to === '/marketing' ? campaignDrafts : 0
+            return (
+              <Tip key={to} label={label} side="right" disabled={!rail}>
+                <Link
+                  onClick={() => setMobileNav(false)}
+                  className={`nav-link ${active ? 'active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                  to={href}
+                >
+                  <Icon size={19} strokeWidth={1.6} />
+                  <span className="nav-label">{label}</span>
+                  {count > 0 && (
+                    <span className="nav-count">
+                      {count}
+                      <span className="sr-only">
+                        {' '}
+                        {to === '/inbox'
+                          ? `${count === 1 ? 'draft' : 'drafts'} to approve`
+                          : `${count === 1 ? 'message' : 'messages'} to clients to approve`}
+                      </span>
+                    </span>
+                  )}
+                </Link>
+              </Tip>
+            )
+          })}
         </nav>
         <div className="sidebar-bottom">
           <Link
@@ -306,21 +521,26 @@ function WorkspaceApp() {
             className="sidebar-photo"
             aria-label="Preview your studio’s booking experience"
           >
-            <img src="/images/saleane-studio-warm-small.jpg" alt="" />
+            <img src={photos.bookingPage} alt="" />
           </Link>
-          <Link to="/booking" className="public-booking-link">
-            Your booking page
-          </Link>
+          <Tip label="Your booking page" side="right" disabled={!rail}>
+            <Link to="/booking" className="public-booking-link">
+              <Globe size={18} strokeWidth={1.6} className="public-booking-icon" />
+              <span className="nav-label">Your booking page</span>
+            </Link>
+          </Tip>
           <div className="sidebar-footer">
             <span>
               <span className="live-dot" />
-              {mode === 'demo'
-                ? 'Fictional demo'
-                : state.operations?.mode === 'sandbox'
-                  ? 'Sample studio'
-                  : session?.services.payments || session?.services.email
-                    ? 'On this computer'
-                    : 'Test mode'}
+              <span className="nav-label">
+                {mode === 'demo'
+                  ? 'Fictional demo'
+                  : state.operations?.mode === 'sandbox'
+                    ? 'Sample studio'
+                    : session?.services.payments || session?.services.email
+                      ? 'On this computer'
+                      : 'Test mode'}
+              </span>
             </span>
           </div>
         </div>
@@ -328,27 +548,45 @@ function WorkspaceApp() {
       {mobileNav && (
         <Modal
           open
+          placement="start"
+          className="phone-menu"
           onClose={() => setMobileNav(false)}
-          title="Menu"
-          description={`Choose where to go in ${state.organisation.name}.`}
+          title={state.organisation.name}
+          description="Choose where to go."
         >
-          <nav className="mobile-route-menu">
-            {links.map(({ to, href, active, label, icon: Icon }) => (
-              <Link
-                key={to}
-                to={href}
-                className={active ? 'active' : undefined}
-                aria-current={active ? 'page' : undefined}
-                onClick={() => setMobileNav(false)}
-              >
-                <Icon size={19} />
-                {label}
-              </Link>
-            ))}
+          <nav className="mobile-route-menu" aria-label="Studio navigation">
+            {links.map(({ to, href, active, label, icon: Icon }) => {
+              const count = to === '/inbox' ? drafts : to === '/marketing' ? campaignDrafts : 0
+              return (
+                <Link
+                  key={to}
+                  to={href}
+                  className={active ? 'active' : undefined}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => setMobileNav(false)}
+                >
+                  <Icon size={19} />
+                  {label}
+                  {count > 0 && (
+                    <span className="nav-count">
+                      {count}
+                      <span className="sr-only"> to approve</span>
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </nav>
+          <div className="mobile-route-extra">
             <Link to="/booking" onClick={() => setMobileNav(false)}>
+              <Globe size={18} />
               Your booking page
             </Link>
-          </nav>
+            <Link to="/you" onClick={() => setMobileNav(false)}>
+              <UserRound size={18} />
+              You
+            </Link>
+          </div>
         </Modal>
       )}
       <div className="app-content">
@@ -371,7 +609,8 @@ function WorkspaceApp() {
             <button className="ask-button" onClick={() => setAsking(true)}>
               <Sparkles size={17} />
               <span>
-                Ask SALEANE
+                {/* On a smaller screen the button says just "Ask"; its full name stays for screen readers. */}
+                Ask <span className="ask-name-rest">{ASK_NAME.replace(/^Ask\s*/, '')}</span>
                 {noticed > 0 && (
                   <span className="ask-count">
                     , {noticed} {noticed === 1 ? 'thing' : 'things'} to mention
@@ -383,20 +622,74 @@ function WorkspaceApp() {
             <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />
               <span>Find a client</span>
+              <kbd className="search-key" aria-hidden="true">
+                /
+              </kbd>
             </button>
             <button className="ask-button help-button" onClick={() => setHelping(true)}>
               <CircleHelp size={17} aria-hidden="true" />
               <span>Help</span>
             </button>
             <span className="header-divider" />
-            <button className="operator-button" onClick={() => openSettings('preferences')}>
-              <Avatar small name={operator} tone="sand" />
-              <span>{operator.split(' ')[0]}</span>
-              <span className="sr-only">, your preferences</span>
-              <ChevronDown size={13} />
-            </button>
+            <ActionMenu
+              label="Your menu"
+              trigger={
+                <button className="operator-button">
+                  <Avatar small name={operator} tone="sand" />
+                  <span>{operator.split(' ')[0]}</span>
+                  <span className="sr-only">, your menu</span>
+                  <ChevronDown size={13} />
+                </button>
+              }
+            >
+              <MenuLabel>
+                {operator}
+                <small>{roleNames[role] ?? role}</small>
+              </MenuLabel>
+              <MenuItem to="/you" icon={<SlidersHorizontal size={17} />}>
+                Your preferences
+              </MenuItem>
+              {mode === 'server' && (
+                <MenuItem to="/you#signing-in" icon={<ShieldCheck size={17} />}>
+                  Password, two-step and Face ID
+                </MenuItem>
+              )}
+              {mode === 'server' && (
+                <MenuItem to="/account" icon={<UserRound size={17} />}>
+                  Your accounts and studios
+                </MenuItem>
+              )}
+              <MenuItem icon={<CircleHelp size={17} />} onSelect={() => setHelping(true)}>
+                Help
+              </MenuItem>
+              {mode === 'server' && (
+                <>
+                  <MenuSeparator />
+                  <MenuItem
+                    icon={<LogOut size={17} />}
+                    onSelect={() => {
+                      setSignOutError('')
+                      logout()
+                        .then(() => navigate('/account', { replace: true }))
+                        .catch((e: unknown) =>
+                          setSignOutError(
+                            e instanceof Error ? e.message : 'Sign out could not be confirmed.',
+                          ),
+                        )
+                    }}
+                  >
+                    Sign out
+                  </MenuItem>
+                </>
+              )}
+            </ActionMenu>
           </div>
         </header>
+        {signOutError && (
+          <div role="alert" className="workspace-warning">
+            {signOutError}
+          </div>
+        )}
         <section className="demo-notice" aria-label="About this version">
           <Info size={13} />
           <span>
@@ -424,7 +717,46 @@ function WorkspaceApp() {
           id="main-content"
           className="workspace-main"
         >
-          {within(location.pathname, '/business') && (
+          {within(location.pathname, '/marketing') && leads(role) && (
+            <ScrollNav
+              label="Marketing sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
+              {marketingTabs.map((tab) => (
+                <NavLink key={tab.to} end={tab.to === '/marketing'} to={tab.to}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </ScrollNav>
+          )}
+          {within(location.pathname, '/money') && (
+            <ScrollNav
+              label="Money sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
+              {moneyTabs.map((tab) => (
+                <NavLink key={tab.to} end={tab.to === '/money'} to={tab.to}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </ScrollNav>
+          )}
+          {within(location.pathname, '/team') && (
+            <ScrollNav
+              label="Team sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
+              {teamTabs.map((tab) => (
+                <NavLink key={tab.to} end={tab.to === '/team'} to={tab.to}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </ScrollNav>
+          )}
+          {within(location.pathname, '/business') && businessTabs.length > 0 && (
             <ScrollNav
               label="Business sections"
               className="business-subnav"
@@ -437,13 +769,7 @@ function WorkspaceApp() {
               ))}
             </ScrollNav>
           )}
-          <Suspense
-            fallback={
-              <div className="route-loading" role="status">
-                <span className="sr-only">Loading…</span>
-              </div>
-            }
-          >
+          <Suspense fallback={<LoadingShapes kind="page" className="route-loading" />}>
             <Routes>
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/today" element={<Today />} />
@@ -451,12 +777,42 @@ function WorkspaceApp() {
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/:clientId" element={<ClientRelationship />} />
               <Route path="/inbox" element={<Inbox />} />
+              {/* NEXT-14: messages to clients moved to Marketing, Campaigns. */}
+              <Route path="/inbox/news" element={<Navigate to="/marketing" replace />} />
+              <Route
+                path="/marketing"
+                element={leads(role) ? <News /> : <Navigate to="/inbox" replace />}
+              />
+              <Route
+                path="/marketing/automatic"
+                element={owns ? <MarketingAutomatic /> : <Navigate to="/marketing" replace />}
+              />
+              <Route
+                path="/marketing/audience"
+                element={leads(role) ? <MarketingAudience /> : <Navigate to="/inbox" replace />}
+              />
+              <Route
+                path="/marketing/results"
+                element={leads(role) ? <MarketingResults /> : <Navigate to="/inbox" replace />}
+              />
               <Route path="/waitlist" element={<Waitlist />} />
+              <Route path="/money" element={<Money />} />
+              <Route path="/money/gift-cards" element={<GiftCards />} />
+              <Route path="/money/stock" element={<Stock />} />
+              <Route
+                path="/money/accounts"
+                element={owns ? <Accounts /> : <Navigate to="/money" replace />}
+              />
+              <Route path="/team" element={<Manage only="staff" accessPanel={<AccessPanel />} />} />
+              <Route
+                path="/team/rota"
+                element={role === 'practitioner' ? <Navigate to="/today" replace /> : <Rota />}
+              />
+              <Route path="/team/pay" element={owns ? <Pay /> : <Navigate to="/team" replace />} />
               <Route
                 path="/business"
-                element={desk ? <Navigate to="/business/money" replace /> : <Business />}
+                element={desk ? <Navigate to="/money" replace /> : <Business />}
               />
-              <Route path="/business/money" element={<Money />} />
               <Route
                 path="/business/compare"
                 element={owns ? <Compare /> : <Navigate to="/business" replace />}
@@ -464,31 +820,6 @@ function WorkspaceApp() {
               <Route
                 path="/business/feedback"
                 element={leads(role) ? <Feedback /> : <Navigate to="/business" replace />}
-              />
-              <Route path="/business/stock" element={<Stock />} />
-              <Route
-                path="/business/accounts"
-                element={
-                  role === 'owner' || role === 'manager' ? (
-                    <Accounts />
-                  ) : (
-                    <Navigate to="/business" replace />
-                  )
-                }
-              />
-              <Route
-                path="/business/rota"
-                element={role === 'practitioner' ? <Navigate to="/today" replace /> : <Rota />}
-              />
-              <Route
-                path="/business/pay"
-                element={
-                  role === 'owner' || role === 'manager' ? (
-                    <Pay />
-                  ) : (
-                    <Navigate to="/business" replace />
-                  )
-                }
               />
               <Route
                 path="/business/visits"
@@ -502,30 +833,43 @@ function WorkspaceApp() {
                 path="/business/areas"
                 element={leads(role) ? <ClientAreas /> : <Navigate to="/business" replace />}
               />
-              <Route path="/business/gift-cards" element={<GiftCards />} />
+              {/* Older links still land in place. */}
+              <Route path="/business/money" element={<Moved to="/money" />} />
+              <Route path="/business/gift-cards" element={<Moved to="/money/gift-cards" />} />
+              <Route path="/business/stock" element={<Moved to="/money/stock" />} />
+              <Route path="/business/accounts" element={<Moved to="/money/accounts" />} />
+              <Route path="/business/rota" element={<Moved to="/team/rota" />} />
+              <Route path="/business/pay" element={<Moved to="/team/pay" />} />
+              <Route path="/you" element={<You />} />
               <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
               <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
               <Route path="/design-language" element={<DesignLanguage />} />
               <Route
                 path="*"
                 element={
-                  <div className="empty empty-photo">
-                    <h1>This page isn’t here.</h1>
-                    <Link to="/today">Return to Today</Link>
-                  </div>
+                  <Empty
+                    photo
+                    level={1}
+                    title="This page isn’t here."
+                    action={
+                      <Link className="button button-primary" to="/today">
+                        Return to Today
+                      </Link>
+                    }
+                  >
+                    The link may be old, or the page may have moved.
+                  </Empty>
                 }
               />
             </Routes>
           </Suspense>
           <footer className="workspace-footer">
             <span>SALEANE</span>
-            <Link className="text-link" to="/design-language">
-              Design language
-            </Link>
-            {mode === 'server' && (
-              <button className="text-link" onClick={() => void reload().catch(() => {})}>
-                Refresh records
-              </button>
+            {/* The design language is for the people building SALEANE, so studios never see it. */}
+            {mode === 'demo' && (
+              <Link className="text-link" to="/design-language">
+                Design language
+              </Link>
             )}
             <span>
               {state.organisation.locationName} · {state.organisation.currency} ·{' '}
@@ -553,21 +897,24 @@ function WorkspaceApp() {
           <AskSaleane onClose={() => setAsking(false)} />
         </Suspense>
       )}
+      <Notices />
     </div>
   )
 }
 
 export function App() {
   return (
-    <Suspense
-      fallback={
-        <main className="candidate-loading">
-          <span className="wordmark">SALEANE</span>
-          <p role="status">Loading…</p>
-        </main>
-      }
-    >
-      <WorkspaceApp />
-    </Suspense>
+    <CalmMotion>
+      <Suspense
+        fallback={
+          <main className="candidate-loading">
+            <span className="wordmark">SALEANE</span>
+            <p role="status">Loading…</p>
+          </main>
+        }
+      >
+        <WorkspaceApp />
+      </Suspense>
+    </CalmMotion>
   )
 }

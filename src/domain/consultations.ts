@@ -164,7 +164,7 @@ export function consultationsProblem(s: BusinessState) {
   const clients = new Set(s.clients.map((c) => c.id))
   const byId = new Map(list.map((c) => [c.id, c]))
   for (const c of list) {
-    if (c.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (c.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (!clients.has(c.clientId)) return 'A consultation does not match its client.'
     if (c.versions.some((v, i) => v.version !== i + 1)) return 'Consultation versions out of order.'
   }

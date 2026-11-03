@@ -1,0 +1,52 @@
+/* NEXT-16: writing up a visit after it, by voice or typing. */
+.visit-write-up {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.visit-write-up > p {
+  margin: 0;
+}
+.visit-write-up-voice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.visit-write-up-clock {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.visit-write-up-saved,
+.visit-write-up-heard {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: var(--sage-soft);
+}
+.visit-write-up-saved p {
+  margin: 0;
+}
+.visit-write-up-saved small {
+  color: var(--muted);
+}
+.visit-write-up-saved .button {
+  justify-self: start;
+  margin-top: 4px;
+}
+.visit-write-up-label {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.visit-write-up-draft {
+  display: grid;
+  gap: 8px;
+}
+.visit-write-up-privacy {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--muted);
+}

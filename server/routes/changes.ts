@@ -12,7 +12,10 @@ const MOST = 500
 const groups = Object.keys(changeGroups) as [ChangeGroup, ...ChangeGroup[]]
 const query = z
   .object({
-    /** One person's account, or `automatic` for changes nobody signed in made. */
+    /**
+     * One person's account, `key:<id>` for one access key's changes (Stage 5), or `automatic`
+     * for changes nobody signed in made.
+     */
     who: z.string().min(1).max(100).optional(),
     group: z.enum(groups).optional(),
     /** Changes on this day of the studio's and earlier. */
@@ -74,9 +77,10 @@ export async function changeRoutes(ctx: Context, route: Route): Promise<boolean>
   const limit = input.limit ?? PAGE
   const rows = ctx.db.all<ChangeRow & { seq: number }>(
     `SELECT e.rowid AS seq,e.id,e.action,e.record_id AS recordId,e.occurred_at AS occurredAt,
-       a.name AS actor,r.name AS account,e.detail
+       a.name AS actor,r.name AS account,e.detail,k.name AS keyName
      FROM audit_events e
      LEFT JOIN accounts a ON a.id=e.actor_id
+     LEFT JOIN api_keys k ON e.actor_id='key:'||k.id AND k.organisation_id=e.organisation_id
      LEFT JOIN accounts r ON r.id=e.record_id AND e.action IN ('membership.changed','invitation.accepted')
      WHERE ${where.join(' AND ')}
      ORDER BY e.occurred_at DESC,e.rowid DESC LIMIT ?`,
@@ -93,10 +97,17 @@ export async function changeRoutes(ctx: Context, route: Route): Promise<boolean>
     ...(input.before
       ? {}
       : {
+          // Stage 5: and every access key whose software has made a change, revoked or not.
           people: ctx.db.all<{ id: string; name: string }>(
-            `SELECT id,name FROM accounts WHERE id IN
-               (SELECT DISTINCT actor_id FROM audit_events WHERE organisation_id=? AND actor_id IS NOT NULL)
-             ORDER BY name COLLATE NOCASE`,
+            `SELECT id,name FROM (
+               SELECT id,name FROM accounts WHERE id IN
+                 (SELECT DISTINCT actor_id FROM audit_events WHERE organisation_id=? AND actor_id IS NOT NULL)
+               UNION ALL
+               SELECT 'key:'||id AS id,name||' (access key)' AS name FROM api_keys WHERE organisation_id=?
+                 AND 'key:'||id IN (SELECT DISTINCT actor_id FROM audit_events WHERE organisation_id=? AND actor_id LIKE 'key:%')
+             ) ORDER BY name COLLATE NOCASE`,
+            org.id,
+            org.id,
             org.id,
           ),
         }),

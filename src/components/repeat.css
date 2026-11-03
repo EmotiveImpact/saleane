@@ -47,7 +47,8 @@
 .repeat-plan .repeat-left strong {
   color: var(--muted);
 }
-.repeat-plan select {
+.repeat-plan select,
+.repeat-plan .select-trigger {
   min-height: var(--target);
   min-width: 9.5rem;
 }
@@ -63,7 +64,8 @@
   .repeat-plan > li {
     grid-template-columns: minmax(0, 1fr);
   }
-  .repeat-plan select {
+  .repeat-plan select,
+  .repeat-plan .select-trigger {
     width: 100%;
   }
 }

@@ -2,8 +2,8 @@
  * LOCAL-03 retention register, decided by the owner on 7 October 2026. These periods say when a
  * record becomes due for deletion. Nothing is ever deleted automatically: a record that reaches
  * the end of its period waits for an owner or manager, who either approves its deletion or keeps
- * it longer by a number of months or years (years by default). No deletion step exists yet; when
- * one is built it must offer exactly these two choices to these roles.
+ * it longer by a number of months or years (years by default). Stage 6 built the step
+ * (retentionDue.ts, Settings, Data & privacy): it offers exactly these two choices to these roles.
  */
 export const DELETION_APPROVERS = ['owner', 'manager'] as const
 

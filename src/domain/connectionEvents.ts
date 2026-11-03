@@ -73,7 +73,13 @@ const hhmm = (minutes: number) =>
 export function connectionPayload(
   s: BusinessState,
   event: ConnectionEvent,
-  meta: { id: string; occurredAt: string; shareContact: boolean },
+  meta: {
+    id: string
+    occurredAt: string
+    shareContact: boolean
+    /** Stage 5: the access key whose software made this change, when one did. */
+    accessKey?: { id: string; prefix: string; name: string }
+  },
 ) {
   const client = s.clients.find((c) => c.id === event.clientId)
   const guest = {
@@ -94,6 +100,20 @@ export function connectionPayload(
     occurredAt: meta.occurredAt,
     studio: { id: s.organisation.id, name: s.organisation.name, timeZone: s.organisation.timeZone },
     client: guest,
+    // Stage 5: present only when other software made the change through an access key, so that
+    // software can leave its own change alone when it comes back.
+    ...(meta.accessKey
+      ? {
+          changedBy: {
+            type: 'access_key' as const,
+            accessKey: {
+              id: meta.accessKey.id,
+              prefix: meta.accessKey.prefix,
+              name: meta.accessKey.name,
+            },
+          },
+        }
+      : {}),
     ...(a
       ? {
           appointment: {

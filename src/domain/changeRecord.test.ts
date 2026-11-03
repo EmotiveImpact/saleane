@@ -7,6 +7,7 @@ import type { Command } from './commands'
 import type { BusinessState } from './model'
 import {
   actionsIn,
+  automaticSource,
   changeCsv,
   changeDetail,
   changeSummary,
@@ -71,6 +72,21 @@ describe('the words for each change', () => {
       expect.arrayContaining(['checkout', 'refund', 'card.removed']),
     )
     expect(actionsIn('visits')).toContain('guest.move')
+    // Stage 5: a guest moving their Google booking.
+    expect(changeWords['google.move']).toEqual(['visits', 'Moved through Book with Google'])
+    // Stage 5: a guest booking through ChatGPT, Claude or an assistant that did not say which.
+    expect(changeWords['ai-booking.chatgpt']).toEqual(['visits', 'Booked through ChatGPT'])
+    expect(changeWords['ai-booking.claude']).toEqual(['visits', 'Booked through Claude'])
+    expect(changeWords['ai-booking.assistant']).toEqual([
+      'visits',
+      'Booked through an AI assistant',
+    ])
+    expect(changeWords['ai-booking']).toEqual([
+      'settings',
+      'Changed booking through ChatGPT or Claude',
+    ])
+    expect(automaticSource('ai-booking.claude')).toBe('A guest, through Claude')
+    expect(automaticSource('ai-booking.assistant')).toBe('A guest, through an AI assistant')
     const all = Object.keys(changeWords)
     const grouped = (
       ['visits', 'clients', 'money', 'team', 'stock', 'messages', 'settings', 'access'] as const
@@ -197,6 +213,23 @@ describe('what changed', () => {
     const detail = changeDetail(before, after, 'hours', recordId)
     const shown = entry(after, 'hours', recordId, detail)
     expect(changeSummary(shown)).toMatch(/^Monday (09:00 to 18:00|closed) became 10:00 to 17:00$/)
+  })
+
+  it('reads a switch never set before as off, so turning it on reads no became yes', () => {
+    const state = seed('UK')
+    const on = entry(state, 'ai-booking', state.organisation.id, {
+      fields: [{ f: 'enabled', from: null, to: true }],
+    })
+    expect(on.lines).toEqual([{ what: 'switched on', from: 'no', to: 'yes' }])
+    const off = entry(state, 'ai-booking', state.organisation.id, {
+      fields: [{ f: 'enabled', from: true, to: null }],
+    })
+    expect(off.lines).toEqual([{ what: 'switched on', from: 'yes', to: 'no' }])
+    // Anything else that was empty still reads none.
+    const floor = entry(state, 'quiet-offers', state.organisation.id, {
+      fields: [{ f: 'floorMinor', from: null, to: 5000 }],
+    })
+    expect(floor.lines[0]).toMatchObject({ from: 'none' })
   })
 
   it('records nothing extra when nothing useful changed', () => {

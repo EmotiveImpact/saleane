@@ -9,6 +9,7 @@ import { expectedCash, tillCountsFor, tillDifference } from '../domain/tillCount
 import type { TillCount as TillCountRecord } from '../domain/tillCount'
 import { Button, ErrorMessage } from '../design'
 import { StudioDateField } from './StudioDateField'
+import { CashDrawer } from './CashDrawer'
 import './till.css'
 
 /**
@@ -235,6 +236,7 @@ export function TillCount() {
           <p className="till-none">No till count recorded for this day yet.</p>
         )}
       </div>
+      <CashDrawer date={date} />
     </section>
   )
 }

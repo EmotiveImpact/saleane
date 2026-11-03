@@ -106,6 +106,26 @@ Checklist:
 - [x] Built from `src/design` tokens and components, with no new raw colours; `npm run check` and `npm run format:check` pass.
 - [x] Before and after pictures above.
 
+## Someone at a new location who gives its treatments (10 October 2026)
+
+A code review of the merged wizards found that a location could be added with nobody working there who gives a treatment on its menu. For example, a location offering only facials with only a brow artist working there. Guests can book a treatment only with someone who gives it, so that location could take no bookings at all, and nothing said so.
+
+What changed:
+
+- **The Team step** will not go on while nobody chosen gives a treatment on the menu there: "Nobody you have chosen gives a treatment on the menu here, so guests could not book. Choose someone who does." Someone ticked with no days there counts for nothing.
+- **Saving** refuses the same location too, on the server as well as on screen: "Nobody working at Wells gives a treatment on its menu, so guests could not book there. Choose someone who does." A closed day or an unknown person is still named first, and nothing is saved either way.
+- **Treatments nobody there gives yet** are named, on the Team step and on Check, without stopping the owner: "Nobody working here gives Signature facial yet, so guests cannot book it at Wells until someone does." The location can still open, for instance while a new person is being found.
+- **Each person's role** now shows beside where they work on the Team step ("Brow and lash artist · Bath Mon, Tue…"), so the owner can see who gives what.
+
+Checked in Chromium on a fresh database at 1440px and 390px, through sign-up and setup with an owner who gives facials and a brow artist. Before, Wells (facials only) was added with only the brow artist and Continue never stopped. After, Continue stays off until someone who gives a facial is chosen; with brows on the menu too, the facial is named as nobody's yet; with the owner there on Friday the line goes and Wells is added. No sideways scroll on a phone.
+
+![Before: only the brow artist, and Continue open](SETUP-COVER-01-team-1440-before.jpg)
+![After: Continue stays off, and the step says why](SETUP-COVER-01-team-1440-after.jpg)
+![After: the facial named as nobody's yet, Continue open](SETUP-COVER-03-gaps-1440-after.jpg)
+![Before: Check said nothing](SETUP-COVER-02-check-1440-before.jpg)
+![After: Check names the treatment above the bill](SETUP-COVER-02-check-1440-after.jpg)
+![After, on a phone](SETUP-COVER-04-gaps-390-after.jpg)
+
 ## Limits
 
 - Adding a location says what the owner's own monthly bill becomes, read from Settings, Plan and billing (NEXT-02). Nothing is taken when it is added, because each month is billed in advance, and the screen says so, along with test mode for card payments. If the plan cannot be read, it shows the price for each location instead. A sample studio shows only the price and is never charged.

@@ -14,24 +14,45 @@ describe('the workspace read projection', () => {
         view: 'studio',
         state,
       })
-    // V1.5: guests' private feedback, V2: the team's commission rates and rent, and V5: branch
-    // visits, are for owners and managers only.
+    // V1.5: guests' private feedback, V2: the team's commission rates and rent, Stage 3: rates
+    // for treatments and products, steps by takings and targets, and V5: branch visits, are for
+    // owners and managers only. Rentals stay without their terms, so the desk's figures can leave
+    // a renter's own takings out.
     const { feedback, ...rest } = state
     const {
       payRates,
-      rentals: _rentals,
+      rentals,
       rentPayments: _paid,
+      commissionRates,
+      commissionSteps,
+      staffTargets,
       checklists: _lists,
       branchVisits,
+      // Stage 4: requests for a sign-off and the owner's rules are not the desk's either.
+      requests,
+      approvals: _rules,
+      news,
       ...operations
     } = state.operations!
-    void [_rentals, _paid, _lists]
+    void [_paid, _lists, _rules]
+    expect(requests?.length).toBeGreaterThan(0)
     expect(feedback?.length).toBeGreaterThan(0)
     expect(payRates?.length).toBeGreaterThan(0)
+    expect(commissionRates?.length).toBeGreaterThan(0)
+    expect(commissionSteps?.length).toBeGreaterThan(0)
+    expect(staffTargets?.length).toBeGreaterThan(0)
     expect(branchVisits?.length).toBeGreaterThan(0)
+    // Stage 4: messages to clients are written by leads, not the desk.
+    expect(news?.length).toBeGreaterThan(0)
+    const terms = rentals!.map((rental) => {
+      const { percentBps: _share, ...kept } = rental
+      void _share
+      return { ...kept, amountMinor: 0 }
+    })
+    expect(rentals!.some((rental) => rental.amountMinor > 0 && rental.percentBps)).toBe(true)
     expect(workspaceView({ role: 'reception', staffId: null }, state, DEMO_DATE)).toEqual({
       view: 'studio',
-      state: { ...rest, operations },
+      state: { ...rest, operations: { ...operations, rentals: terms } },
     })
   })
   it('gives a practitioner only their own visits and minimal client details', () => {

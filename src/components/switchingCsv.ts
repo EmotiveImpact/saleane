@@ -1,16 +1,15 @@
-import { contactSchema } from '../domain/commandSchema'
-import type { Command, ContactInput } from '../domain/commands'
+import type { Command } from '../domain/commands'
 import type { BusinessState, Service } from '../domain/model'
 import { parseMinor } from '../domain/money'
-import { alreadyBooked, clientsByEmail, heldVisit, placeImportedVisit } from '../domain/switching'
-import type { ImportedVisit } from '../domain/switching'
 import { readCsv } from './clientImportCsv'
 
 /**
  * PILOT-03: reading the files a studio exports from its old system. Each row is checked against
- * SALEANE's own records and shown for review; nothing here saves anything.
+ * SALEANE's own records and shown for review; nothing here saves anything. Clients and upcoming
+ * visits, gift cards, packages and credit come across through moving in (MovingIn.tsx), which
+ * reads each old system's own files.
  */
-export type SwitchKind = 'services' | 'appointments' | 'balances'
+export type SwitchKind = 'services'
 export type SwitchRow<T> = {
   record: number
   cells: string[]
@@ -23,23 +22,14 @@ export type SwitchRow<T> = {
 }
 export type SwitchPreview<T> = { rows: SwitchRow<T>[]; columns: string[]; ignored: string[] }
 export type ServiceRow = Extract<Command, { type: 'import-services' }>['services'][number]
-export type BalanceRow = Extract<Command, { type: 'import-balances' }>['balances'][number]
 
-export const SWITCH_MAX_ROWS = { services: 200, appointments: 200, balances: 500 } as const
+export const SWITCH_MAX_ROWS = { services: 200 } as const
 
 /** The headings each file needs, and the ones it may carry. */
 export const SWITCH_COLUMNS = {
   services: {
     required: ['name', 'duration', 'price'],
     optional: ['deposit', 'category', 'buffer', 'space', 'description', 'professionals'],
-  },
-  appointments: {
-    required: ['date', 'time', 'service', 'professional', 'email'],
-    optional: ['name', 'phone', 'price', 'deposit_paid', 'reference'],
-  },
-  balances: {
-    required: ['email', 'amount'],
-    optional: ['name', 'type', 'note'],
   },
 } as const
 
@@ -50,36 +40,6 @@ export function csvMoney(value: string | undefined, empty = Number.NaN) {
     .replace(/^[£$€]/, '')
     .replace(/,/g, '')
   return parseMinor(text, empty)
-}
-
-/** ISO dates always; otherwise the studio's own order, day first in the UK, month first in the US. */
-export function csvDate(value: string, locale: string) {
-  const text = value.trim()
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return validDate(text)
-  const match = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(text)
-  if (!match) return null
-  const [first, second, year] = [match[1], match[2], match[3]]
-  const [day, month] = locale === 'en-US' ? [second, first] : [first, second]
-  return validDate(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`)
-}
-function validDate(text: string) {
-  const date = new Date(`${text}T12:00:00Z`)
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text ? text : null
-}
-
-/** "14:30", "2:30 pm" or "2.30pm" as minutes after midnight. */
-export function csvTime(value: string) {
-  const match = /^(\d{1,2})[:.](\d{2})\s*([ap]\.?m\.?)?$/i.exec(value.trim())
-  if (!match) return null
-  let hour = Number(match[1])
-  const minute = Number(match[2])
-  const half = match[3]?.toLowerCase().replace(/\./g, '')
-  if (minute > 59) return null
-  if (half) {
-    if (hour < 1 || hour > 12) return null
-    hour = (hour % 12) + (half === 'pm' ? 12 : 0)
-  } else if (hour > 23) return null
-  return hour * 60 + minute
 }
 
 function table(source: string, kind: SwitchKind) {
@@ -219,194 +179,6 @@ export function previewServicesCsv(
         resourceType,
         staffIds,
       },
-    }
-  })
-  return { rows, columns: file.columns, ignored: file.ignored }
-}
-
-export function previewAppointmentsCsv(
-  source: string,
-  state: BusinessState,
-  now = new Date().toISOString(),
-): SwitchPreview<ImportedVisit> {
-  const file = table(source, 'appointments')
-  const locale = state.organisation.locale
-  // Accepted rows are held in a working copy so later rows cannot double-book them.
-  const work = structuredClone(state)
-  const newGuests = new Map<string, ContactInput>()
-  const rows = file.rows.map(({ values, record }): SwitchRow<ImportedVisit> => {
-    const cells = file.columns.map((header) => file.at(values, header))
-    if (values.length !== file.headers.length)
-      return problem(
-        record,
-        cells,
-        `Expected ${file.headers.length} columns; found ${values.length}.`,
-      )
-    const date = csvDate(file.at(values, 'date'), locale)
-    if (!date)
-      return problem(
-        record,
-        cells,
-        `date: Use ${locale === 'en-US' ? 'MM/DD/YYYY' : 'DD/MM/YYYY'} or YYYY-MM-DD.`,
-      )
-    const start = csvTime(file.at(values, 'time'))
-    if (start === null) return problem(record, cells, 'time: Use a time such as 14:30 or 2:30 pm.')
-    const services = byName(state.services, file.at(values, 'service'))
-    if (services.length !== 1)
-      return problem(
-        record,
-        cells,
-        services.length
-          ? 'service: More than one treatment has this name.'
-          : 'service: No treatment has this name. Import or add it first.',
-      )
-    const service = services[0]
-    const staff = byName(state.staff, file.at(values, 'professional'))
-    if (staff.length !== 1)
-      return problem(
-        record,
-        cells,
-        staff.length
-          ? 'professional: More than one team member has this name.'
-          : 'professional: No one on the team has this name. Add them in Team first.',
-      )
-    const priceText = file.at(values, 'price')
-    const price = priceText ? csvMoney(priceText) : service.priceMinor
-    const deposit = csvMoney(file.at(values, 'deposit_paid'), 0)
-    if (!Number.isFinite(price))
-      return problem(record, cells, 'price: Use an amount such as 65.00.')
-    if (!Number.isFinite(deposit))
-      return problem(record, cells, 'deposit_paid: Use an amount such as 20.00, or leave it empty.')
-    if (deposit > price)
-      return problem(record, cells, 'deposit_paid: It cannot be more than the price.')
-    const reference = file.at(values, 'reference')
-    if (reference.length > 40)
-      return problem(record, cells, 'reference: Use at most 40 characters.')
-    const email = file.at(values, 'email').toLowerCase()
-    const name = file.at(values, 'name')
-    const matches = clientsByEmail(state.clients, email, name)
-    let clientId: string | undefined
-    let contact: ContactInput | undefined
-    let who: string
-    if (matches.length > 1)
-      return problem(
-        record,
-        cells,
-        'email: Several clients share this email. Add a name column, or book this visit by hand.',
-      )
-    if (matches.length === 1) {
-      clientId = matches[0].id
-      who =
-        name && matches[0].name.trim().toLowerCase() !== name.toLowerCase()
-          ? `${matches[0].name}, listed as ${name}`
-          : matches[0].name
-    } else {
-      const parsed = contactSchema.safeParse({
-        name,
-        email,
-        phone: file.at(values, 'phone'),
-        marketingConsent: false,
-      })
-      if (!parsed.success)
-        return problem(
-          record,
-          cells,
-          `No client has this email. To add them, give ${parsed.error.issues
-            .map((issue) => String(issue.path[0] ?? 'details'))
-            .join(' and ')} too, or import clients first.`,
-        )
-      // One new guest per email, however their name is spelt across rows.
-      contact = newGuests.get(parsed.data.email) ?? parsed.data
-      newGuests.set(parsed.data.email, contact)
-      who = `${parsed.data.name} (new client)`
-    }
-    if (clientId && alreadyBooked(state, clientId, date, start))
-      return problem(
-        record,
-        cells,
-        'This client already has a visit at this time. The existing visit stays unchanged.',
-        'duplicate',
-      )
-    const row = { serviceId: service.id, staffId: staff[0].id, date, startMinutes: start }
-    const placed = placeImportedVisit(work, row, now)
-    if ('problem' in placed) return problem(record, cells, placed.problem)
-    work.appointments.push(heldVisit(work, row, placed.resourceId, `held-${record}`))
-    return {
-      record,
-      cells,
-      status: 'ready',
-      detail: `${who}. ${service.name} with ${staff[0].name}${deposit ? '; deposit already paid' : ''}.`,
-      amountMinor: price,
-      depositMinor: deposit,
-      value: {
-        ...(clientId ? { clientId } : { contact }),
-        ...row,
-        priceMinor: price,
-        depositPaidMinor: deposit,
-        ...(reference ? { reference } : {}),
-      },
-    }
-  })
-  return { rows, columns: file.columns, ignored: file.ignored }
-}
-
-export function previewBalancesCsv(
-  source: string,
-  state: BusinessState,
-): SwitchPreview<BalanceRow> {
-  const file = table(source, 'balances')
-  const open = new Set(
-    (state.operations?.balances ?? []).filter((b) => !b.settled).map((b) => b.clientId),
-  )
-  const rows = file.rows.map(({ values, record }): SwitchRow<BalanceRow> => {
-    const cells = file.columns.map((header) => file.at(values, header))
-    if (values.length !== file.headers.length)
-      return problem(
-        record,
-        cells,
-        `Expected ${file.headers.length} columns; found ${values.length}.`,
-      )
-    const email = file.at(values, 'email').toLowerCase()
-    const name = file.at(values, 'name')
-    const matches = clientsByEmail(state.clients, email, name)
-    if (matches.length !== 1)
-      return problem(
-        record,
-        cells,
-        matches.length
-          ? 'email: Several clients share this email. Add a name column.'
-          : 'email: No client has this email. Import clients first.',
-      )
-    const typeText = file.at(values, 'type').toLowerCase()
-    const kind =
-      !typeText || ['credit', 'gift card', 'account credit'].includes(typeText)
-        ? 'credit'
-        : ['owed', 'owing', 'debt', 'unpaid'].includes(typeText)
-          ? 'owed'
-          : null
-    if (!kind) return problem(record, cells, 'type: Use credit or owed.')
-    const amount = csvMoney(file.at(values, 'amount'))
-    if (!Number.isFinite(amount) || amount <= 0)
-      return problem(record, cells, 'amount: Use an amount above zero, such as 25.00.')
-    const note = file.at(values, 'note')
-    if (note.length > 200) return problem(record, cells, 'note: Use at most 200 characters.')
-    const client = matches[0]
-    if (open.has(client.id))
-      return problem(
-        record,
-        cells,
-        `${client.name} already has an open carried-over balance. Close it first, or leave this row out.`,
-        'duplicate',
-      )
-    open.add(client.id)
-    return {
-      record,
-      cells,
-      status: 'ready',
-      detail: `${client.name}: ${kind === 'credit' ? 'credit to use or return' : 'owed to the studio'}.`,
-      amountMinor: amount,
-      depositMinor: 0,
-      value: { clientId: client.id, kind, amountMinor: amount, note },
     }
   })
   return { rows, columns: file.columns, ignored: file.ignored }

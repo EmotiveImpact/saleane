@@ -35,7 +35,8 @@ export const specialsList = (s: BusinessState) => s.specials ?? []
 export function specialsProblem(s: BusinessState) {
   const list = specialsList(s)
   if (new Set(list.map((x) => x.id)).size !== list.length) return 'Duplicate special IDs.'
-  if (list.some((x) => x.organisationId !== s.organisation.id)) return 'Foreign workspace special.'
+  if (list.some((x) => x.organisationId !== s.organisation.id))
+    return 'A special from another studio.'
   if (list.some((x) => x.endDate < x.startDate)) return 'A special cannot end before it starts.'
   return null
 }

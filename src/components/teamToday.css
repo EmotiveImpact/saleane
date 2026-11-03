@@ -7,18 +7,13 @@
 }
 .team-today-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
 .team-today-head h2 {
   font-size: var(--text-title-s);
-}
-.team-today-head span {
-  color: var(--muted);
-  font-size: var(--text-micro);
-  white-space: nowrap;
 }
 .team-today-list {
   display: grid;
@@ -76,4 +71,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Stage 3: a day changed on the rota, named quietly as the rota names it. */
+.team-today-list .team-today-changed {
+  padding: 0 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
 }

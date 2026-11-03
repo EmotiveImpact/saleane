@@ -115,6 +115,17 @@ export type Sender = (
 ) => Promise<number>
 
 /** Node's own client: connects only to the address given, keeps the name for TLS, no redirects. */
+/** Stage 5: the prefix of the access key that made the change, when one did. */
+function accessKeyHeader(payload: string): Record<string, string> {
+  try {
+    const prefix = (JSON.parse(payload) as { changedBy?: { accessKey?: { prefix?: unknown } } })
+      .changedBy?.accessKey?.prefix
+    return typeof prefix === 'string' ? { 'Saleane-Access-Key': prefix } : {}
+  } catch {
+    return {}
+  }
+}
+
 export const nodeSender: Sender = (url, { headers, body, address }) =>
   new Promise((resolve, reject) => {
     const client = url.protocol === 'https:' ? https : http
@@ -311,12 +322,21 @@ export function createConnections(ctx: Context, transport: ConnectionTransport) 
 
   // Every saved change is compared with the one before, inside the same transaction, so an event
   // is recorded exactly when its change is.
-  ctx.onPersist((org, before, after) => {
+  ctx.onPersist((org, before, after, change) => {
     const events = connectionEvents(before, after)
     if (!events.length) return
     const targets = live(org.id)
     if (!targets.length) return
     const occurredAt = new Date(now()).toISOString()
+    // Stage 5: a change other software made through an access key says which key, so that
+    // software can recognise its own change coming back and leave it be.
+    const key = change.actorId?.startsWith('key:')
+      ? db.get<{ id: string; prefix: string; name: string }>(
+          'SELECT id,prefix,name FROM api_keys WHERE id=? AND organisation_id=?',
+          change.actorId.slice(4),
+          org.id,
+        )
+      : undefined
     for (const event of events) {
       const eventId = `evt_${randomUUID()}`
       for (const target of targets) {
@@ -329,6 +349,7 @@ export function createConnections(ctx: Context, transport: ConnectionTransport) 
             id: eventId,
             occurredAt,
             shareContact: !!target.share_contact,
+            ...(key ? { accessKey: key } : {}),
           }),
         )
       }
@@ -411,6 +432,7 @@ export function createConnections(ctx: Context, transport: ConnectionTransport) 
           'Saleane-Event': row.event_type,
           'Saleane-Delivery': row.event_id,
           'Saleane-Signature': signature(connection.secret, timestamp, row.payload),
+          ...accessKeyHeader(row.payload),
         },
         row.payload,
       )

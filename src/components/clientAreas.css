@@ -6,7 +6,8 @@
   gap: 0.6rem;
   margin: 0 0 var(--space-4);
 }
-.areas-where select {
+.areas-where select,
+.areas-where .select-trigger {
   min-width: min(14rem, 100%);
 }
 .areas-metrics {

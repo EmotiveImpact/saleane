@@ -3,6 +3,7 @@ import type { Command } from './commands'
 import { dateLabel, timeLabel } from './format'
 import type { Appointment, BusinessState } from './model'
 import { businessDate, businessMinutes, hoursFor, staffHoursFor } from './operations'
+import { staffLocationOn } from './locations'
 
 /**
  * Someone is off: a plan for their day. Each upcoming visit goes to another professional who does
@@ -123,7 +124,7 @@ export function coverPlan(
   }
 
   // Close what is left of their day, around any visit still waiting for a new time.
-  const venue = hoursFor(s, date)
+  const venue = hoursFor(s, date, staffLocationOn(s, staffId, date))
   const own = staffHoursFor(s, staffId, date)
   if (venue && !venue.closed && !own.closed) {
     let start = Math.max(venue.open, own.open, Math.ceil(from / 15) * 15)

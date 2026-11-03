@@ -1,11 +1,12 @@
 import type { Command } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent, Sale } from './model'
-import type { Holding, Offer } from './plansSchema'
+import type { CardAgreement, Holding, Offer } from './plansSchema'
 import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
-import { dateLabel, money } from './format'
+import { dateLabel, fullDateLabel, money } from './format'
 import { referenceTaken, refundReferenceTaken } from './references'
 import { salePlace } from './locations'
+import type { ImportBatch } from './operations'
 
 /**
  * V1.5: packages and memberships. A package is a number of visits bought at one price and used
@@ -15,6 +16,7 @@ import { salePlace } from './locations'
  * is deleted: plans end by being cancelled or by running out.
  */
 type PlanCommand = Extract<Command, { type: 'offer' | 'plan-sell' | 'plan-renew' | 'plan-cancel' }>
+type Processor = { provider: string; live: boolean }
 type AddEvent = (
   event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
 ) => void
@@ -40,6 +42,27 @@ export const offers = (s: BusinessState) => s.offers ?? []
 export const holdings = (s: BusinessState) => s.holdings ?? []
 export const clientHoldings = (s: BusinessState, clientId: string) =>
   holdings(s).filter((h) => h.clientId === clientId)
+
+/** Stage 1: the saved card a membership is paid from each month, while that is switched on. */
+export function openCardAgreement(holding: Pick<Holding, 'cardAgreements'>) {
+  const last = holding.cardAgreements?.at(-1)
+  return last && !last.endedAt ? last : undefined
+}
+/** The card a membership was last set to be paid from, open or not, for its record's wording. */
+export const lastCardAgreement = (holding: Pick<Holding, 'cardAgreements'>) =>
+  holding.cardAgreements?.at(-1)
+
+/**
+ * Stage 1: a month in the unused part of a membership that the provider took from the saved card.
+ * Money returned when it ends goes back to that card through the provider, up to that payment.
+ */
+export function cardRefundTarget(holding: Holding, today: string) {
+  if (holding.kind !== 'membership') return undefined
+  const periodStart = periodStartFor(holding, today)
+  return holding.payments
+    .filter((p) => p.method === 'card' && !!p.processor && (p.periodStart ?? '') >= periodStart)
+    .at(-1)
+}
 
 const sum = (rows: { amountMinor?: number; valueMinor?: number }[]) =>
   rows.reduce((total, row) => total + (row.amountMinor ?? row.valueMinor ?? 0), 0)
@@ -262,10 +285,22 @@ export function runPlanCommand(
   if (holding.status === 'cancelled') throw new Error('This plan has already ended.')
   if (command.type === 'plan-renew') {
     if (holding.kind !== 'membership') throw new Error('Only a membership is paid monthly.')
-    assertMethod(next, command.method, command.reference)
-    // A lapsed membership restarts from the month it is in now; missed months stay unpaid.
+    assertMethod(next, command.method, command.reference, command.processor)
+    // Stage 1: a card payment names the month it was taken for, since the provider may confirm
+    // it later; only the server sends one. By hand, a lapsed membership restarts from the month
+    // it is in now; missed months stay unpaid.
+    if ((command.method === 'card') !== !!command.periodStart)
+      throw new Error('Only a card payment taken by SALEANE names its month.')
     const periodStart =
-      holding.paidUntil! > today ? holding.paidUntil! : periodStartFor(holding, today)
+      command.periodStart ??
+      (holding.paidUntil! > today ? holding.paidUntil! : periodStartFor(holding, today))
+    if (
+      command.periodStart &&
+      (periodStart < holding.startedOn ||
+        periodStart > today ||
+        periodStartFor(holding, periodStart) !== periodStart)
+    )
+      throw new Error('That is not a month of this membership that has started.')
     if (periodStart > addMonths(today, 1))
       throw new Error('This membership is already paid for the coming month.')
     if (holding.payments.some((p) => p.periodStart === periodStart))
@@ -278,17 +313,20 @@ export function runPlanCommand(
       ...(command.reference ? { reference: command.reference } : {}),
       recordedAt: now,
       periodStart,
+      ...(command.processor ? { processor: command.processor } : {}),
     }
     holding.payments.push(payment)
-    holding.paidUntil = addMonths(
+    // A late confirmation for an earlier month never moves the paid-until date back.
+    const paidUntil = addMonths(
       holding.startedOn,
       monthsBetween(holding.startedOn, periodStart) + 1,
     )
+    if (paidUntil > holding.paidUntil!) holding.paidUntil = paidUntil
     addEvent({
       clientId: holding.clientId,
       type: 'plan',
       title: 'Membership paid',
-      detail: `${holding.name}: ${money(holding.priceMinor, org, true)} for the month from ${dateLabel(periodStart, org.locale)}. ${paidWith(command.method, operations(next).mode)}`,
+      detail: `${holding.name}: ${money(holding.priceMinor, org, true)} for the month from ${dateLabel(periodStart, org.locale)}. ${paidWith(command.method, operations(next).mode, command.processor, lastCardAgreement(holding))}`,
     })
     return payment.id
   }
@@ -297,6 +335,16 @@ export function runPlanCommand(
   const refundMinor = command.refundMinor ?? 0
   if (refundMinor > standing.unusedMinor)
     throw new Error(`Refund up to ${money(standing.unusedMinor, org, true)}, the unused part.`)
+  // Stage 1: a month the provider took from the card goes back to that card, never by hand.
+  const toCard = cardRefundTarget(holding, today)
+  if (refundMinor > 0 && toCard && command.method !== 'card')
+    throw new Error(
+      'This month was paid by card through SALEANE, so the money goes back to that card.',
+    )
+  if (refundMinor > 0 && command.method === 'card' && (!toCard || refundMinor > toCard.amountMinor))
+    throw new Error(
+      'Only a month paid by card through SALEANE goes back to the card, up to what it paid.',
+    )
   if (refundMinor > 0) {
     // The sample workspace asks for no reference, so a demo refund is given one.
     const refundId = makeId()
@@ -305,7 +353,7 @@ export function runPlanCommand(
       (operations(next).mode === 'sandbox' ? `DEMO-${refundId.slice(0, 8)}` : '')
     if (!command.method || !reference)
       throw new Error('Say how the money was returned and give its reference.')
-    assertMethod(next, command.method, reference)
+    assertMethod(next, command.method, reference, command.processor)
     if (refundReferenceTaken(next, reference))
       throw new Error('This refund reference is already recorded. Review the existing record.')
     holding.refunds.push({
@@ -316,15 +364,25 @@ export function runPlanCommand(
       reason: command.reason,
       createdAt: now,
       actor: '',
+      ...(command.processor ? { processor: command.processor } : {}),
     })
   }
   holding.status = 'cancelled'
   holding.cancelled = { at: now, actor: '', reason: command.reason }
+  // Stage 1: an ended membership is never charged again.
+  const agreement = openCardAgreement(holding)
+  if (agreement) Object.assign(agreement, { endedAt: now, endedBy: '', endReason: 'plan_ended' })
+  const card = lastCardAgreement(holding)
+  const returned = !refundMinor
+    ? 'No money returned.'
+    : command.processor
+      ? `${money(refundMinor, org, true)} returned to the ${card ? `${card.brand} card ending ${card.last4}` : 'saved card'} through the payment provider.${command.processor.live ? '' : ' Test refund, no money moved.'}`
+      : `${money(refundMinor, org, true)} recorded as returned. SALEANE did not process a refund.`
   addEvent({
     clientId: holding.clientId,
     type: 'plan',
     title: holding.kind === 'package' ? 'Package ended' : 'Membership ended',
-    detail: `${holding.name}: ${command.reason}. ${refundMinor ? `${money(refundMinor, org, true)} recorded as returned. SALEANE did not process a refund.` : 'No money returned.'}`,
+    detail: `${holding.name}: ${command.reason}. ${returned}${agreement ? ' Card payments stopped.' : ''}`,
   })
   return holding.id
 }
@@ -338,6 +396,98 @@ function assertNameFree(list: Offer[], input: { name: string; archived: boolean 
     throw new Error('A plan with this name is already offered.')
 }
 /** A payment reference names one payment, as at checkout and for deposits. */
+/** A carried-over package with no last day in the old system is kept for ten years. */
+export const CARRIED_NO_END_MONTHS = 120
+
+/** All the visits a package was bought with; one carried over counts those used in the old system. */
+export const planVisits = (holding: Holding) => holding.carried?.visitsBefore ?? holding.visits
+
+/**
+ * Moving in, stage 3: packages clients bought in the studio's old system, each with the visits it
+ * had left. Each visit covers the treatments the owner chose, and the package's price is what the
+ * visits left are worth, recorded as paid to the old system: held for the client and counted as
+ * takings only as visits use it, never as a sale here. Each belongs to the main location.
+ */
+export function carryPackages(
+  next: BusinessState,
+  command: Extract<Command, { type: 'import-packages' }>,
+  batch: ImportBatch,
+  now: string,
+  makeId: () => string,
+  addEvent: AddEvent,
+) {
+  const org = next.organisation
+  const today = businessDate(next, now)
+  next.holdings ??= []
+  for (const row of command.packages) {
+    const client = next.clients.find((c) => c.id === row.clientId)
+    if (!client) throw new Error('Client does not belong to this studio.')
+    const services = [...new Set(row.serviceIds)].map((id) =>
+      next.services.find((service) => service.id === id && !service.archived),
+    )
+    if (services.some((service) => !service))
+      throw new Error(`Choose treatments offered here for ${row.name}.`)
+    if (row.visitsBefore !== undefined && row.visitsBefore < row.visitsLeft)
+      throw new Error(`${row.name} has more visits left than it was bought with.`)
+    if (row.endsOn && row.endsOn < today)
+      throw new Error(`${row.name} has already ended, so it stays in ${command.source}.`)
+    if (
+      next.holdings.some(
+        (h) =>
+          h.carried &&
+          h.clientId === client.id &&
+          h.name === row.name &&
+          h.status === 'active' &&
+          planStanding(h, today).visitsLeft > 0,
+      )
+    )
+      throw new Error(`${client.name} already has ${row.name} from ${command.source}.`)
+    const startedOn = row.startedOn && row.startedOn <= today ? row.startedOn : today
+    const endsOn = row.endsOn ?? addDaysBefore(addMonths(today, CARRIED_NO_END_MONTHS))
+    const holding: Holding = {
+      id: makeId(),
+      organisationId: org.id,
+      clientId: client.id,
+      kind: 'package',
+      name: row.name,
+      serviceIds: services.map((service) => service!.id),
+      visits: row.visitsLeft,
+      priceMinor: row.valueMinor,
+      discountPercent: 0,
+      startedOn,
+      endsOn,
+      status: 'active',
+      soldAt: now,
+      actor: '',
+      payments: [
+        {
+          id: makeId(),
+          amountMinor: row.valueMinor,
+          method: 'previous_system',
+          reference: `Paid to ${command.source.slice(0, 80)} before switching · ${row.name}`,
+          recordedAt: now,
+        },
+      ],
+      uses: [],
+      refunds: [],
+      carried: {
+        importId: batch.id,
+        ...(row.visitsBefore !== undefined ? { visitsBefore: row.visitsBefore } : {}),
+        ...(row.endsOn ? {} : { noEnd: true as const }),
+      },
+    }
+    next.holdings.push(holding)
+    addEvent({
+      clientId: client.id,
+      type: 'plan',
+      title: 'Package carried over',
+      detail: `${row.name}: ${row.visitsLeft} ${row.visitsLeft === 1 ? 'visit' : 'visits'} left${row.visitsBefore ? ` of ${row.visitsBefore}` : ''}, until ${fullDateLabel(endsOn, org.locale)}${row.endsOn ? '' : ` (no last day in ${command.source})`}, worth ${money(row.valueMinor, org, true)}. Bought in ${command.source}; SALEANE took no payment.`,
+    })
+    batch.recordIds.push(holding.id)
+    batch.totalMinor += row.valueMinor
+  }
+}
+
 function assertReferenceFree(s: BusinessState, reference?: string) {
   const ref = reference?.trim()
   if (ref && referenceTaken(s, ref))
@@ -353,8 +503,19 @@ function monthsBetween(from: string, to: string) {
   while (addMonths(from, k) < to) k += 1
   return k
 }
-function paidWith(method: string, mode: string) {
+function paidWith(
+  method: string,
+  mode: string,
+  processor?: Processor,
+  card?: Pick<CardAgreement, 'brand' | 'last4'>,
+) {
   if (mode === 'sandbox') return 'Demo payment recorded. No real money was collected.'
+  if (processor) {
+    const from = card ? `the saved ${card.brand} card ending ${card.last4}` : 'the saved card'
+    return processor.live
+      ? `Taken from ${from} through the payment provider.`
+      : `Test payment, no money moved. Taken from ${from} in test mode.`
+  }
   return method === 'cash'
     ? 'Recorded as cash received.'
     : 'Recorded as paid at an external terminal. SALEANE did not process a payment.'
@@ -369,6 +530,13 @@ export function stampPlanActors(before: BusinessState, after: BusinessState, act
     if (holding.cancelled && !previous?.cancelled) holding.cancelled.actor = actor
     const refunds = new Set(previous?.refunds.map((r) => r.id))
     for (const refund of holding.refunds) if (!refunds.has(refund.id)) refund.actor = actor
+    // Stage 1: who recorded a client's agreement to pay by card, and who stopped it.
+    const agreed = new Map(previous?.cardAgreements?.map((a) => [a.id, a]))
+    for (const agreement of holding.cardAgreements ?? []) {
+      const before = agreed.get(agreement.id)
+      if (!before) agreement.recordedBy = actor
+      if (agreement.endedAt && !before?.endedAt) agreement.endedBy = actor
+    }
   }
 }
 
@@ -378,28 +546,63 @@ export function plansProblem(s: BusinessState) {
   const list = [offers(s), holdings(s)]
   for (const rows of list) {
     if (new Set(rows.map((r) => r.id)).size !== rows.length) return 'Duplicate plan IDs.'
-    if (rows.some((r) => r.organisationId !== org.id)) return 'Foreign workspace record.'
+    if (rows.some((r) => r.organisationId !== org.id)) return 'A record from another studio.'
   }
   const sandbox = operations(s).mode === 'sandbox'
   const salesById = new Map(s.sales.map((sale) => [sale.id, sale]))
   const covered = new Map<string, string>()
+  const carriedImports = new Set(
+    (operations(s).imports ?? []).filter((b) => b.kind === 'packages').map((b) => b.id),
+  )
   for (const holding of holdings(s)) {
+    // Moving in, stage 3: a package carried over from the old system was paid for there, once.
+    if (
+      holding.carried &&
+      (!carriedImports.has(holding.carried.importId) ||
+        holding.kind !== 'package' ||
+        holding.payments.length !== 1 ||
+        holding.payments[0].method !== 'previous_system' ||
+        !holding.payments[0].reference?.trim() ||
+        holding.payments[0].amountMinor !== holding.priceMinor ||
+        (holding.carried.visitsBefore ?? holding.visits) < holding.visits)
+    )
+      return 'Invalid plan.'
     if (
       !s.clients.some((c) => c.id === holding.clientId) ||
-      !offers(s).some((o) => o.id === holding.offerId) ||
+      (holding.carried
+        ? holding.offerId !== undefined
+        : !offers(s).some((o) => o.id === holding.offerId)) ||
       (holding.status === 'cancelled') !== !!holding.cancelled ||
       (holding.kind === 'package') !== !!holding.endsOn ||
       (holding.kind === 'membership') !== !!holding.paidUntil ||
       holding.payments.length === 0
     )
       return 'Invalid plan.'
-    for (const record of [...holding.payments, ...holding.refunds])
+    const paidHere = holding.carried ? holding.refunds : [...holding.payments, ...holding.refunds]
+    for (const record of paidHere)
       if (
-        ['card', 'previous_system'].includes(record.method) ||
+        record.method === 'previous_system' ||
         sandbox !== record.method.startsWith('demo_') ||
-        (record.method === 'external_card' && !record.reference?.trim())
+        (record.method === 'external_card' && !record.reference?.trim()) ||
+        // Stage 1: by card only when the provider took or returned it, for a membership month.
+        (record.method === 'card') !== !!record.processor ||
+        (record.method === 'card' && !record.reference?.trim())
       )
         return 'A plan payment record is not valid for this studio.'
+    if (
+      holding.payments.some(
+        (p) => p.method === 'card' && (holding.kind !== 'membership' || !p.periodStart),
+      )
+    )
+      return 'A plan payment record is not valid for this studio.'
+    const agreements = holding.cardAgreements ?? []
+    if (
+      (agreements.length && holding.kind !== 'membership') ||
+      agreements.slice(0, -1).some((a) => !a.endedAt) ||
+      agreements.some((a) => !!a.endedAt !== !!a.endReason) ||
+      (holding.status === 'cancelled' && openCardAgreement(holding))
+    )
+      return 'Invalid card payments for a membership.'
     if (sum(holding.refunds) + sum(holding.uses) > sum(holding.payments))
       return 'A plan cannot use or return more than was paid.'
     for (const use of holding.uses) {

@@ -83,3 +83,48 @@ test('days are written in the studio’s locale, and more can be asked for', asy
   await user.click(screen.getByRole('button', { name: 'More dates' }))
   expect(onMore).toHaveBeenCalledOnce()
 })
+
+test('a day chosen before the strip opens is shown at once; later choices glide to it', async () => {
+  // jsdom has no layout: each tile is 80px along, in a row 300px wide.
+  const index = (el: HTMLElement) => days.findIndex((d) => d.date === el.dataset.date)
+  const lefts = vi.spyOn(HTMLElement.prototype, 'offsetLeft', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return Math.max(0, index(this)) * 80
+  })
+  const widths = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(72)
+  const rowWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
+  const scrollTo = vi.fn()
+  Element.prototype.scrollTo = scrollTo
+  function Later() {
+    const [value, setValue] = useState('2026-11-06')
+    return (
+      <>
+        <DayStrip
+          days={days}
+          value={value}
+          onChange={setValue}
+          locale="en-GB"
+          label="Choose a day"
+          today="2026-11-02"
+        />
+        <button type="button" onClick={() => setValue('2026-11-01')}>
+          Back to the first
+        </button>
+      </>
+    )
+  }
+  render(<Later />)
+  expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'auto' }))
+  expect(scrollTo).not.toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }))
+  // Pretend the row now shows the chosen day, then choose one out of view.
+  Object.defineProperty(document.querySelector('.day-strip-row')!, 'scrollLeft', {
+    value: 300,
+    configurable: true,
+  })
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Back to the first' }))
+  expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: 'smooth' }))
+  lefts.mockRestore()
+  widths.mockRestore()
+  rowWidth.mockRestore()
+})

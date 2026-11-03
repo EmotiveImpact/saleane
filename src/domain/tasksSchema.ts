@@ -31,6 +31,7 @@ export const tasksList = (s: BusinessState) => s.tasks ?? []
 export function tasksProblem(s: BusinessState) {
   const list = tasksList(s)
   if (new Set(list.map((x) => x.id)).size !== list.length) return 'Duplicate reminder IDs.'
-  if (list.some((x) => x.organisationId !== s.organisation.id)) return 'Foreign workspace reminder.'
+  if (list.some((x) => x.organisationId !== s.organisation.id))
+    return 'A reminder from another studio.'
   return null
 }

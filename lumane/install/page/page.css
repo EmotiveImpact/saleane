@@ -1,0 +1,410 @@
+/* LUMANE's install page: a quiet, neutral page so the live preview carries the colour. */
+:root {
+  --page-bg: #f4f3f0;
+  --page-card: #ffffff;
+  --page-ink: #2b2b2e;
+  --page-muted: #66645f;
+  --page-line: #dedcd7;
+  --page-line-strong: #a9a6a0;
+  --page-on: #2b2b2e;
+  --page-on-ink: #ffffff;
+  --page-tick: #2f6f62;
+  --page-warn: #a5371f;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --page-bg: #19191b;
+    --page-card: #222225;
+    --page-ink: #ecebe8;
+    --page-muted: #a7a5a0;
+    --page-line: #3a3a3e;
+    --page-line-strong: #5c5b60;
+    --page-on: #ecebe8;
+    --page-on-ink: #19191b;
+    --page-tick: #8fc4b6;
+    --page-warn: #ff9c8f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --page-bg: #19191b;
+  --page-card: #222225;
+  --page-ink: #ecebe8;
+  --page-muted: #a7a5a0;
+  --page-line: #3a3a3e;
+  --page-line-strong: #5c5b60;
+  --page-on: #ecebe8;
+  --page-on-ink: #19191b;
+  --page-tick: #8fc4b6;
+  --page-warn: #ff9c8f;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  color: var(--page-ink);
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  background: var(--page-bg);
+}
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+:is(button, input, summary):focus-visible {
+  outline: 2px solid var(--page-ink);
+  outline-offset: 2px;
+}
+
+.install-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 24px 0;
+}
+.install-brand {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+.install-brand span {
+  margin-left: 6px;
+  color: var(--page-muted);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.install-apps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.install-apps > span {
+  color: var(--page-muted);
+  font-size: 14px;
+}
+
+.install-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  gap: 32px;
+  align-items: start;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 24px 48px;
+}
+.install-found {
+  max-width: 640px;
+  margin-bottom: 16px;
+}
+.install-found p {
+  margin: 0;
+}
+.install-card {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px;
+  background: var(--page-card);
+  border: 1px solid var(--page-line);
+  border-radius: 16px;
+}
+.install-card h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.install-card h1 + .install-quiet {
+  margin-top: -16px;
+}
+.install-quiet {
+  margin: 0;
+  color: var(--page-muted);
+  font-size: 14px;
+}
+.install-foot {
+  margin-top: 12px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.choice legend {
+  padding: 0;
+  font-weight: 600;
+}
+.choice-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 44px;
+  padding: 6px 16px;
+  text-align: left;
+  background: var(--page-card);
+  border: 1px solid var(--page-line);
+  border-radius: 22px;
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--page-line-strong);
+}
+.chip[aria-pressed='true'] {
+  color: var(--page-on-ink);
+  background: var(--page-on);
+  border-color: var(--page-on);
+}
+.chip small {
+  color: var(--page-muted);
+  font-size: 12px;
+}
+.chip[aria-pressed='true'] small {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.install-looks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.look-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 44px;
+  padding: 12px;
+  text-align: left;
+  background: var(--page-card);
+  border: 1px solid var(--page-line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.look-card span:last-child {
+  color: var(--page-muted);
+  font-size: 13px;
+}
+.look-card[aria-pressed='true'] {
+  border-color: var(--page-on);
+  box-shadow: 0 0 0 1px var(--page-on);
+}
+.swatches {
+  display: flex;
+  gap: 4px;
+  height: 18px;
+}
+.swatches span {
+  flex: 1;
+  border: 1px solid rgb(0 0 0 / 0.08);
+  border-radius: 5px;
+}
+.swatches-plain {
+  border: 1px dashed var(--page-line-strong);
+  border-radius: 5px;
+}
+.look-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  background: var(--page-bg);
+  border-radius: 12px;
+}
+.look-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.look-row > span:first-child {
+  width: 100%;
+  color: var(--page-muted);
+  font-size: 13px;
+}
+.colour {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--page-card);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--page-line);
+  cursor: pointer;
+}
+.colour[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--page-on);
+}
+.install-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-size: 14px;
+}
+.install-field input {
+  min-height: 44px;
+  padding: 0 14px;
+  background: var(--page-card);
+  border: 1px solid var(--page-line-strong);
+  border-radius: 10px;
+}
+.install-hex {
+  width: 120px;
+}
+.install-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.install-problems {
+  margin: 0;
+  padding: 12px 16px 12px 32px;
+  color: var(--page-warn);
+  background: var(--page-bg);
+  border-radius: 12px;
+}
+.go,
+.quiet {
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 22px;
+  cursor: pointer;
+}
+.go {
+  align-self: flex-start;
+  color: var(--page-on-ink);
+  font-weight: 600;
+  background: var(--page-on);
+  border: 1px solid var(--page-on);
+}
+.go:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.quiet {
+  background: var(--page-card);
+  border: 1px solid var(--page-line);
+}
+.install-written {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.install-written p {
+  margin: 0;
+}
+.tick::before {
+  content: '✓ ';
+  color: var(--page-tick);
+  font-weight: 600;
+}
+.install-written details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.install-written summary {
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.install-written pre {
+  max-height: 320px;
+  margin: 0 0 8px;
+  padding: 14px;
+  overflow: auto;
+  font-size: 12.5px;
+  line-height: 1.45;
+  background: var(--page-bg);
+  border-radius: 10px;
+}
+.install-handover {
+  white-space: pre-wrap;
+}
+.install-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.install-preview {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.install-preview-label {
+  margin: 0;
+  color: var(--page-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.install-window {
+  display: flex;
+  height: min(720px, calc(100vh - 80px));
+  min-height: 520px;
+  overflow: hidden;
+  background: var(--page-card);
+  border: 1px solid var(--page-line);
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.08);
+}
+.install-window > [data-lumane='panel'] {
+  flex: 1;
+  min-width: 0;
+}
+/* Plain parts carry no look, so the window only gives them room to scroll. */
+.install-window > [data-lumane='panel']:not([data-lumane-look]) {
+  padding: 12px;
+  overflow: auto;
+}
+
+@media (max-width: 960px) {
+  .install-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .install-preview {
+    position: static;
+  }
+  .install-window {
+    height: 600px;
+  }
+}
+@media (max-width: 480px) {
+  .install-top,
+  .install-main {
+    padding-inline: 16px;
+  }
+  .install-card {
+    padding: 18px 16px;
+  }
+}

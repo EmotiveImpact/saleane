@@ -70,10 +70,10 @@
 .rota-table td small {
   display: block;
 }
-/* Opening and closing times stay on one line; the table is wide enough for them. */
+/* Start and finish wrap together, never mid-time. */
 .rota-table td strong {
   font-weight: var(--weight-strong);
-  white-space: nowrap;
+  text-wrap: balance;
 }
 .rota-table td small {
   margin-top: 2px;
@@ -93,15 +93,253 @@
   color: var(--muted);
   background: transparent;
 }
+/* Stage 4: for a general manager, a day another location plans shows where only, read only. */
+.rota-table td.rota-elsewhere {
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+}
+.rota-table td.rota-elsewhere > span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+/*
+ * Stage 3: a day changed from someone's usual hours is warm stone with a small label, so it
+ * stands out from usual days without a stripe. Booked visits kept outside the hours are named
+ * in the studio's second colour until they are moved.
+ */
+.rota-table td.rota-changed {
+  background: var(--stone);
+  border-color: var(--line-strong);
+}
+.rota-tag {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  /* One line, even in a narrow day: a pill broken over two lines reads as two things. */
+  white-space: nowrap;
+}
+.rota-table td small.rota-warn {
+  color: var(--rose-ink);
+  font-weight: var(--weight-strong);
+}
+/* A day that can be changed is one button filling its cell. */
+.rota-table td:has(> .rota-cell) {
+  padding: 0;
+}
+.rota-cell {
+  display: block;
+  width: 100%;
+  min-height: var(--target);
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rota-cell:hover {
+  background: color-mix(in srgb, var(--brand) 6%, transparent);
+}
+.rota-cell:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.rota-cell > span:first-child {
+  display: block;
+}
+/* The whole week at once, tucked away until asked for. */
+.rota-more {
+  margin: 2px 0 6px;
+}
+.rota-more > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--brand-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+.rota-more > summary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.rota-more-body {
+  max-width: 62ch;
+  padding: 2px 0 12px;
+}
+.rota-more-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+/* The day and week dialogs: rows and hairlines, never a box in a box. */
+.rota-day-form .segmented {
+  margin-bottom: 4px;
+}
+.rota-day-was {
+  margin-top: 12px;
+}
+.rota-day-form .ops-fields {
+  margin-top: 18px;
+}
+.rota-why {
+  margin-top: 14px;
+  color: var(--rose-ink);
+  font-size: var(--text-small);
+}
+.rota-keep {
+  margin: 20px 0 0;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  min-width: 0;
+}
+.rota-keep legend,
+.rota-keep > strong {
+  display: block;
+  padding: 0;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+/* The heading sits under the fieldset's line rather than breaking it. */
+.rota-keep legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.rota-keep ul {
+  clear: both;
+  margin: 8px 0 10px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: var(--text-small);
+}
+.rota-keep a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rota-keep label {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: var(--target);
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+/* A small radio beside its words, not the full-width field the form gives every input. */
+.rota-keep label input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--ink);
+}
+.rota-keep label strong,
+.rota-keep label small {
+  display: block;
+}
+.rota-keep label small {
+  margin-top: 2px;
+  color: var(--muted);
+}
+.rota-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rota-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 14px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+.rota-list li:first-child {
+  border-top: 0;
+}
+.rota-list li span {
+  color: var(--muted);
+}
+.rota-skipped {
+  margin-top: 18px;
+  font-size: var(--text-small);
+}
+.rota-skipped .rota-list li:first-child {
+  border-top: 1px solid var(--line);
+}
+/* Stage 4: moving someone to another location. Each part of the check sits under a hairline,
+   as the booked visits do, never in a box of its own. */
+.move-part {
+  margin: 20px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line-strong);
+}
+.move-part > strong {
+  display: block;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.move-part .rota-list {
+  margin-top: 8px;
+}
+.move-part a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* In someone's details in Settings: a move still to come, and the way to move them. */
+.staff-move-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+.staff-move-entry .ops-help {
+  flex: 1 1 260px;
+  margin: 0;
+}
+.move-note {
+  margin-top: 14px;
+  color: var(--rose-ink);
+  font-size: var(--text-small);
+}
 /* Today's column carries a firmer outline, under the Today label in its heading. */
 .rota-table td.rota-today {
   border-color: var(--brand);
 }
 .rota-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* Two panels side by side at most, so neither is squeezed into a narrow column. */
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 22px;
   margin-top: 22px;
+}
+/* Stage 4: moving between locations runs the full width under the other two. */
+.rota-columns > .rota-moves {
+  grid-column: 1 / -1;
 }
 .rota-columns > *,
 .rota-columns > .ops-panel + .ops-panel {

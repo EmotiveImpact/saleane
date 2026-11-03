@@ -174,6 +174,12 @@ describe('the AI receptionist answering texts', () => {
     expect(sent[0].body).toMatch(/^Linden Studio AI receptionist: Linden Studio is open:/)
     expect(answers()[0].status).toBe('accepted')
     expect(await chats(login)).toBe(1)
+    // The turn left a record of what it did, without the words or the number.
+    const turns = api.database.all<Record<string, unknown>>('SELECT * FROM assistant_turns')
+    expect(turns).toMatchObject([
+      { audience: 'guests', doorway: 'sms', account_id: null, status: 'answered' },
+    ])
+    expect(JSON.stringify(turns)).not.toMatch(/open\?|7700/)
   })
 
   it('offers a time as a link that opens the booking page with it chosen, in one chat', async () => {

@@ -51,6 +51,8 @@ import {
   WizardSteps,
   photos,
   useWizardStep,
+  Select,
+  Checkbox,
 } from '../design'
 import { HoursList, RemoveButton, RoomCards } from '../components/SetupParts'
 import '../components/management.css'
@@ -83,16 +85,31 @@ const NAMES: Record<SetupStep, string> = {
   deposits: 'Deposits',
   open: 'Open',
 }
-/** A house photograph and a line for each screen, beside the form on a wide screen. */
-const STORY: Record<SetupStep, { photo: string; line: string }> = {
-  studio: { photo: photos.entrance, line: 'Make it easy to find you.' },
-  hours: { photo: photos.windowLight, line: 'Open when you are, closed when you are not.' },
-  treatments: { photo: photos.facial, line: 'Your menu, at your prices.' },
-  team: { photo: photos.calmStudio, line: 'The people behind every visit.' },
-  rooms: { photo: photos.sunlitRoom, line: 'A place for every treatment.' },
-  look: { photo: photos.hairStudio, line: 'Your colours, wherever guests meet you.' },
-  deposits: { photo: photos.tea, line: 'Clear terms, kindly put.' },
-  open: { photo: photos.reception, line: 'Ready for your first guests.' },
+/**
+ * A photograph made for each screen and a line, beside the form on a wide screen. `position`
+ * keeps its subject in view where the photograph narrows to a short band on a phone.
+ */
+const STORY: Record<SetupStep, { photo: string; position: string; line: string }> = {
+  studio: { photo: photos.setupStudio, position: '45% 72%', line: 'Make it easy to find you.' },
+  hours: {
+    photo: photos.setupHours,
+    position: '40% 62%',
+    line: 'Open when you are, closed when you are not.',
+  },
+  treatments: {
+    photo: photos.setupTreatments,
+    position: '60% 74%',
+    line: 'Your menu, at your prices.',
+  },
+  team: { photo: photos.setupTeam, position: '60% 60%', line: 'The people behind every visit.' },
+  rooms: { photo: photos.setupRooms, position: 'center 70%', line: 'A place for every treatment.' },
+  look: {
+    photo: photos.setupLook,
+    position: 'center 80%',
+    line: 'Your colours, wherever guests meet you.',
+  },
+  deposits: { photo: photos.setupDeposits, position: '55% 76%', line: 'Clear terms, kindly put.' },
+  open: { photo: photos.setupOpen, position: '60% 74%', line: 'Ready for your first guests.' },
 }
 const LENGTHS = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240]
 const KINDS = ['Skin', 'Body', 'Hair'] as const
@@ -212,7 +229,7 @@ export function StudioSetup() {
           <p className="setup-story-title">{state.organisation.name}</p>
           <p>{STORY[step].line}</p>
         </div>
-        <img src={STORY[step].photo} alt="" />
+        <img src={STORY[step].photo} alt="" style={{ objectPosition: STORY[step].position }} />
       </aside>
       <main className="setup-main" aria-labelledby={headingId}>
         <div className="setup-top">
@@ -422,7 +439,7 @@ function HoursScreen({
     <>
       <Intro>
         Guests can book only while you are open. Each person can have their own working days later,
-        in Settings under Team.
+        on the Team page.
       </Intro>
       <HoursList value={value} onChange={onChange} locale={locale} />
     </>
@@ -514,7 +531,7 @@ function TreatmentsScreen({
                 </label>
                 <label>
                   Length
-                  <select
+                  <Select
                     value={row.minutes}
                     onChange={(e) => update(row.key, { minutes: Number(e.target.value) })}
                   >
@@ -525,11 +542,11 @@ function TreatmentsScreen({
                           {lengthLabel(m)}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   Kind
-                  <select
+                  <Select
                     value={row.category}
                     onChange={(e) => {
                       const category = e.target.value as Service['category']
@@ -542,11 +559,11 @@ function TreatmentsScreen({
                     {KINDS.map((k) => (
                       <option key={k}>{k}</option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   Needs
-                  <select
+                  <Select
                     value={row.place}
                     onChange={(e) =>
                       update(row.key, { place: e.target.value as 'treatment' | 'chair' })
@@ -554,7 +571,7 @@ function TreatmentsScreen({
                   >
                     <option value="treatment">Treatment room</option>
                     <option value="chair">Styling chair</option>
-                  </select>
+                  </Select>
                 </label>
                 <RemoveButton
                   name={row.name || 'this treatment'}
@@ -608,7 +625,7 @@ function TeamScreen({
     <>
       <Intro>
         Add everyone who gives treatments and tick what each person does. Adding someone here does
-        not give them a sign-in; you can invite them from Settings when you are ready.
+        not give them a sign-in; you can invite them from the Team page when you are ready.
       </Intro>
       {!!rows.length && (
         <ul className="setup-rows" aria-label="Your team">
@@ -655,8 +672,7 @@ function TeamScreen({
                       const on = row.serviceIds.includes(service.id)
                       return (
                         <label key={service.id} className="setup-tick">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={on}
                             onChange={() =>
                               update(row.key, {
@@ -788,7 +804,7 @@ function LookScreen({
         <figure className="setup-preview" aria-label="How guests see it">
           <div
             className="setup-preview-photo"
-            style={{ backgroundImage: `url(${photos.sunlitRoom})` }}
+            style={{ backgroundImage: `url(${photos.bookingPage})` }}
             aria-hidden="true"
           />
           <div className="setup-preview-body">
@@ -926,7 +942,7 @@ function MoneyScreen({
       <div className="ops-fields">
         <label>
           Missed visit and late cancellation fee
-          <select
+          <Select
             value={value.feePercent}
             onChange={(e) => onChange({ ...value, feePercent: Number(e.target.value) })}
           >
@@ -934,15 +950,14 @@ function MoneyScreen({
             <option value={25}>Up to 25% of the booked price</option>
             <option value={50}>Up to 50% of the booked price</option>
             <option value={100}>Up to the full booked price</option>
-          </select>
+          </Select>
           <small>
             Only for a missed visit or one cancelled less than 24 hours ahead. It comes off any
             deposit paid, and a person charges it, never SALEANE by itself.
           </small>
         </label>
         <label className="ops-check">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={value.saveCard}
             onChange={(e) => onChange({ ...value, saveCard: e.target.checked })}
           />
@@ -971,8 +986,7 @@ function MoneyScreen({
             />
           </label>
           <label className="ops-check">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={value.included}
               onChange={(e) => onChange({ ...value, included: e.target.checked })}
             />
@@ -1077,7 +1091,7 @@ function OpenScreen({
       {ready && (
         <>
           <label className="ops-check setup-online">
-            <input type="checkbox" checked={online} onChange={(e) => onChange(e.target.checked)} />
+            <Checkbox checked={online} onChange={(e) => onChange(e.target.checked)} />
             <span>
               <strong>Take bookings online</strong>
               <small>Guests can book from your booking page at the times you are open.</small>

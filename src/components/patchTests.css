@@ -69,6 +69,30 @@
     flex-direction: column;
   }
 }
+/* Stage 3: the online booking rule sits like the tick box above it, its help under its words. */
+.patch-online > .ops-check {
+  gap: 7px;
+}
+.patch-online > .ops-help {
+  margin: 0;
+  padding-left: calc(1em + 9px);
+}
+/* Stage 3: the desk's booking dialog, for a treatment that needs a patch test. */
+.booking-patch-note {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: var(--text-small);
+}
+.booking-patch-note .ops-tag {
+  white-space: normal;
+  line-height: 1.4;
+}
+.booking-patch-note p {
+  margin: 0;
+  color: var(--ink);
+}
 /* V1.5: logging a missed call, on Today (the card itself is in needsYou.css). */
 .missed-form {
   display: flex;

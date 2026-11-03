@@ -37,18 +37,13 @@
 }
 .needs-you-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   padding: 0 2px;
 }
 .needs-you-head h2 {
   font-size: 24px;
-}
-.needs-you-head span {
-  color: var(--muted);
-  font-size: var(--text-micro);
-  white-space: nowrap;
 }
 .needs-card {
   min-width: 0;
@@ -124,7 +119,16 @@
   overflow-wrap: anywhere;
 }
 .needs-who a {
+  position: relative;
   color: var(--ink);
+}
+/* A name is a link to the client; on a touch screen it takes a 44px touch without moving the row. */
+@media (max-width: 650px), (pointer: coarse) {
+  .needs-who a::after {
+    content: '';
+    position: absolute;
+    inset: -12px 0;
+  }
 }
 .needs-who small {
   color: var(--muted);
@@ -166,7 +170,8 @@
   font-size: var(--text-micro);
 }
 .needs-card form input,
-.needs-card form select {
+.needs-card form select,
+.needs-card form .select-trigger {
   min-height: 38px;
   padding: 7px 10px;
   font-size: var(--text-meta);
@@ -211,6 +216,7 @@
   .needs-actions .button,
   .needs-card form input,
   .needs-card form select,
+  .needs-card form .select-trigger,
   .needs-card form .button,
   .needs-card .text-link {
     min-height: 40px;
@@ -250,4 +256,57 @@
   .today-ideas {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+/* NEXT-17: a call the AI receptionist answered: the caller's message, any link it texted, and
+ * what was said, folded away until someone opens it. */
+.answered-message {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-inner);
+  background: var(--brand-soft);
+}
+.answered-message strong {
+  color: var(--brand-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+.answered-message p {
+  font-size: var(--text-meta);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.answered-message small,
+.answered-texted {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.answered-said summary {
+  cursor: pointer;
+  color: var(--brand-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+.answered-said ol {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.answered-said li {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-meta);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.answered-said li span {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.answered-said li.is-caller span {
+  color: var(--brand-ink);
 }

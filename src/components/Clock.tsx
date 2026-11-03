@@ -6,7 +6,7 @@ import { breakLabel, clockedIn, clockTime, hoursLabel, hoursPeriod } from '../do
 import { useClock } from '../state/clock'
 import { BREAK_CHOICES } from '../domain/hoursSchema'
 import type { Staff } from '../domain/model'
-import { Avatar, Button, ErrorMessage, Modal } from '../design'
+import { Avatar, Button, ErrorMessage, Modal, Select } from '../design'
 import './clock.css'
 
 /**
@@ -30,13 +30,13 @@ export function BreakField({
   return (
     <label htmlFor={id}>
       Unpaid break
-      <select id={id} value={value} onChange={(e) => onChange(Number(e.target.value))}>
+      <Select id={id} value={value} onChange={(e) => onChange(Number(e.target.value))}>
         {choices.map((minutes) => (
           <option key={minutes} value={minutes}>
             {breakLabel(minutes)}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   )
 }

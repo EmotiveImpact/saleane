@@ -55,7 +55,7 @@ function copyFor(id: WeekStep, connected: { email: boolean; payments: boolean })
       return {
         title: 'Invite your team to sign in',
         detail: 'Each person gets their own sign-in and sees only what their role needs.',
-        link: ['/settings?section=staff', 'Invite your team'],
+        link: ['/team', 'Invite your team'],
         confirm: 'I work on my own',
       }
     case 'checkout':
@@ -82,7 +82,7 @@ function copyFor(id: WeekStep, connected: { email: boolean; payments: boolean })
         title: 'Turn on two-step sign-in',
         detail:
           'A code from your phone as well as your password, so no one else can open your records.',
-        link: ['/settings?section=staff', 'Turn it on'],
+        link: ['/you#signing-in', 'Turn it on'],
       }
   }
 }

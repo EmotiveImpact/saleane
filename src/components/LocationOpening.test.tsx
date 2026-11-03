@@ -37,10 +37,14 @@ const plan: BillingView = {
   periodEnd: null,
   plus: false,
   plusNext: false,
+  phone: false,
+  phoneNext: false,
+  phoneConnected: false,
   cancelAtPeriodEnd: false,
   card: null,
   locations: 1,
-  nextBill: { at: ends, bill: monthBill('UK', 1, false) },
+  people: 3,
+  nextBill: { at: ends, bill: monthBill('UK', 1, false, 3) },
   overdue: null,
   lockAt: null,
   locked: false,
@@ -52,6 +56,7 @@ const plan: BillingView = {
     typed: { used: 0, of: 300 },
     guestChats: { used: 0, of: 200 },
     talkSeconds: { used: 0, of: 1800 },
+    phoneSeconds: { used: 0, of: 0 },
   },
 }
 const commit = vi.fn(async (command: Command): Promise<CommandResult> => {
@@ -126,7 +131,12 @@ describe('Add a location', () => {
     const maya = within(dialog()).getByText('Maya Lewis').closest('li') as HTMLElement
     await userEvent.click(within(maya).getByRole('checkbox', { name: 'Thursday' }))
     expect(within(maya).getByRole('checkbox', { name: 'Sunday, closed' })).toBeDisabled()
+    // Maya gives skin and massage, so the hair treatments are named as nobody's here yet.
+    const gaps =
+      'Nobody working here gives Signature Cut & Finish, Gloss & Tone or Colour patch test yet, so guests cannot book them at Islington until someone does.'
+    expect(within(dialog()).getByText(gaps)).toBeInTheDocument()
     await userEvent.click(next())
+    expect(within(dialog()).getByText(gaps)).toBeInTheDocument()
 
     // Check: nothing has been saved until now.
     expect(commit).not.toHaveBeenCalled()
@@ -134,7 +144,7 @@ describe('Add a location', () => {
     // The owner sees what their own bill becomes, and that nothing is taken now.
     expect(
       await within(dialog()).findByText(
-        'Your monthly bill goes from £58.80 to £117.60, including VAT at 20%.',
+        'Your monthly bill goes from £70.80 to £141.60, including VAT at 20%.',
       ),
     ).toBeInTheDocument()
     expect(within(dialog()).getByText(/Nothing is taken during the trial\./)).toHaveTextContent(
@@ -162,6 +172,31 @@ describe('Add a location', () => {
     expect(staffLocationOn(store.state, 'staff-maya', '2026-10-08')).toBe(islington.id)
   })
 
+  it('will not go on while nobody chosen gives a treatment on the menu here', async () => {
+    show()
+    await userEvent.click(screen.getByRole('button', { name: 'Add location' }))
+    await userEvent.type(within(dialog()).getByLabelText('Name'), 'Islington')
+    await userEvent.type(within(dialog()).getByLabelText('Address'), '1 Upper Street, London')
+    await userEvent.click(next())
+    await userEvent.click(next())
+    // No hair here, and only Theo, who gives hair, works here.
+    const menu = within(dialog()).getByRole('list', { name: 'Treatments here' })
+    await userEvent.click(within(menu).getByRole('checkbox', { name: /Signature Cut & Finish/ }))
+    await userEvent.click(within(menu).getByRole('checkbox', { name: /Gloss & Tone/ }))
+    await userEvent.click(within(menu).getByRole('checkbox', { name: /Colour patch test/ }))
+    await userEvent.click(next())
+    await userEvent.click(next())
+    const theo = within(dialog()).getByText('Theo Bennett').closest('li') as HTMLElement
+    expect(theo).toHaveTextContent('Hair & styling')
+    await userEvent.click(within(theo).getByRole('checkbox', { name: 'Thursday' }))
+    expect(within(dialog()).getByRole('status')).toHaveTextContent(
+      'Nobody you have chosen gives a treatment on the menu here, so guests could not book. Choose someone who does.',
+    )
+    expect(next()).toBeDisabled()
+    const sophia = within(dialog()).getByText('Sophia Reed').closest('li') as HTMLElement
+    await userEvent.click(within(sophia).getByRole('checkbox', { name: 'Thursday' }))
+    expect(next()).toBeEnabled()
+  })
   it('shows only the price in a sample studio, where nothing is ever charged', async () => {
     show('owner', 'demo')
     await userEvent.click(screen.getByRole('button', { name: 'Add location' }))
@@ -172,7 +207,7 @@ describe('Add a location', () => {
     await userEvent.click(within(maya).getByRole('checkbox', { name: 'Thursday' }))
     await userEvent.click(next())
     expect(
-      within(dialog()).getByText('Each location is £49 a month, plus VAT.'),
+      within(dialog()).getByText('Each location is £59 a month, plus VAT.'),
     ).toBeInTheDocument()
     expect(
       within(dialog()).getByText(/This is a sample studio, so nothing is ever charged\./),

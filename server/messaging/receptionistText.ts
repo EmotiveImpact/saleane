@@ -3,17 +3,16 @@ import { digest } from '../auth'
 import type { Context } from '../context'
 import type { InboundReply } from './providers'
 import { holding, settleUse } from '../aiUsage'
-import {
-  answersSocial,
-  answersTexts,
-  askReceptionist,
-  receptionUse,
-} from '../../src/assistant/receptionist'
+import { modelOf, recordTurn } from '../assistantRecords'
+import { answersSocial, answersTexts } from '../../src/assistant/receptionist'
+import { askReceptionist, receptionUse } from '../../src/assistant/receptionistAsk'
 import type { ReceptionEffect, ReceptionTurn } from '../../src/assistant/receptionist'
 import { BOOKING_LINK, MANAGE_LINK_SPOT } from '../../src/assistant/receptionistBrain'
 import { businessDate, operations } from '../../src/domain/operations'
-import { repliesList, senderClient } from '../../src/domain/inbox'
-import { MANAGE_LINK, textNumber } from '../../src/domain/reminders'
+import { repliesList } from '../../src/domain/inbox'
+import { textingGuest } from '../../src/domain/textingGuest'
+import { MANAGE_LINK, clientsWithNumber, textNumber } from '../../src/domain/reminders'
+import { textsStopped } from '../../src/domain/textStop'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
 import type { SocialChannel } from '../../src/domain/inboxSchema'
 import type { SocialMessage } from './meta'
@@ -200,6 +199,16 @@ async function answerKept(
     (r) => r.channel === channel && r.providerRef === reply.providerRef.slice(0, 200),
   )
   if (!kept) return false
+  // Stage 1: a text that was only STOP, START or HELP is for the phone network, never answered.
+  // Nor is a number that replied STOP, or one whose client asked for no texts: the guest's
+  // message waits in the inbox for the team.
+  if (
+    channel === 'sms' &&
+    (kept.keyword ||
+      textsStopped(org.state, number) ||
+      clientsWithNumber(org.state, number).some((c) => c.noTextReminders))
+  )
+    return false
   // On the social apps, a team member's answer is the 'social' kind rather than a message.
   const person = channel === 'sms' ? 'message' : 'social'
   const time = now()
@@ -261,6 +270,8 @@ async function answerKept(
         r.from === number &&
         r.account === kept.account &&
         r.providerRef !== reply.providerRef &&
+        // Stage 1: STOP, START and HELP were for the phone network, not part of the chat.
+        !r.keyword &&
         Date.parse(r.receivedAt) > since,
     )
     .map((r) => ({ from: 'guest' as const, text: r.body, at: Date.parse(r.receivedAt) }))
@@ -274,11 +285,12 @@ async function answerKept(
       ? `text:${org.id}:${number}`
       : `${channel}:${org.id}:${kept.account}:${number}`,
   )
-  // Known for sure only by a text or WhatsApp message from the one number on a client's record. A
-  // sender the team matched by hand is not proof enough to be sent a visit's private link.
+  // Known for sure only by a text or WhatsApp message from the number on a client's records, all
+  // with one email (Stage 5, textingGuest.ts). A sender the team matched by hand is not proof
+  // enough to be sent a visit's private link.
   const guest =
     channel === 'sms' || channel === 'whatsapp'
-      ? senderClient(org.state, channel, number)
+      ? textingGuest(org.state, channel, number)
       : undefined
   const brain = ctx.ai.brainFor(org.state, 'reception')
   const allowance = ctx.plans.allowance(org)
@@ -300,8 +312,14 @@ async function answerKept(
       ...(brain ? { brain } : {}),
     }),
   )
+  // Each turn leaves a record of what it did, without any words.
+  const record = (r: typeof result) =>
+    recordTurn(ctx, org.id, 'guests', channel, null, modelOf(ctx, !!brain), r)
   if (result.status === 'refused') {
-    if (held) db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor: 0 }))
+    db.transaction(() => {
+      if (held) settleUse(ctx, org.id, use, { counted: false, costMinor: 0 })
+      record(result)
+    })
     refused?.()
     return false
   }
@@ -310,9 +328,10 @@ async function answerKept(
     console.error(
       `[SALEANE] The receptionist's AI could not answer (${result.reason}): ${result.detail}`,
     )
-    db.transaction(() =>
-      settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor }),
-    )
+    db.transaction(() => {
+      settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor })
+      record(result)
+    })
     return false
   }
   const offered = result.proposals.find((p) => p.effect.kind === 'time')
@@ -329,12 +348,18 @@ async function answerKept(
         : `${ctx.allowedOrigin}/book/${org.slug}`,
     )
     .replaceAll(MANAGE_LINK_SPOT, manage && guest ? MANAGE_LINK : '')
-  // The guest's own conversation, including a number the team matched to a client by hand.
-  const clientId = manage && guest ? guest.id : (kept.clientId ?? guest?.id ?? '')
+  // The guest's own conversation, including a number the team matched to a client by hand. A
+  // visit's link goes with the record the visit is under, which the outbox checks again.
+  const owner =
+    manage && guest
+      ? (org.state.appointments.find((a) => a.id === manage.appointmentId)?.clientId ?? guest.id)
+      : undefined
+  const clientId = owner ?? kept.clientId ?? guest?.id ?? ''
   return db.transaction(() => {
     // A real AI can take several seconds. Meanwhile the studio may have turned the receptionist
     // off, or someone from the team may have answered the guest: then the AI's answer is not
     // sent and does not count, though what it cost does.
+    record(result)
     const latest = ctx.systemOrg(org.id)
     if (!latest || !answers(latest, channel) || conversation(latest).team) {
       settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor })

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { renderEmail, saleaneSender } from '../src/email/render'
 import { digest, token } from './auth'
 import type { Context } from './context'
 
@@ -104,19 +105,23 @@ export function mailLink(ctx: Context, account: Account, kind: LinkKind) {
   }
 }
 
-const WORDING: Record<LinkKind, { subject: string; body: (name: string, link: string) => string }> =
-  {
-    reset: {
-      subject: 'Choose a new SALEANE password',
-      body: (name, link) =>
-        `Hello ${name},\n\nSomeone asked to choose a new password for your SALEANE account. If it was you, open this link within the next hour:\n\n${link}\n\nIf it was not you, ignore this email. Your password stays as it is.\n\nSALEANE`,
-    },
-    confirm: {
-      subject: 'Confirm your email for SALEANE',
-      body: (name, link) =>
-        `Hello ${name},\n\nPlease confirm this is your email address by opening this link within the next seven days:\n\n${link}\n\nSALEANE`,
-    },
-  }
+const WORDING: Record<
+  LinkKind,
+  { subject: string; button: string; body: (name: string, link: string) => string }
+> = {
+  reset: {
+    subject: 'Choose a new SALEANE password',
+    button: 'Choose a new password',
+    body: (name, link) =>
+      `Hello ${name},\n\nSomeone asked to choose a new password for your SALEANE account. If it was you, open this link within the next hour:\n\n${link}\n\nIf it was not you, ignore this email. Your password stays as it is.\n\nSALEANE`,
+  },
+  confirm: {
+    subject: 'Confirm your email for SALEANE',
+    button: 'Confirm your email',
+    body: (name, link) =>
+      `Hello ${name},\n\nPlease confirm this is your email address by opening this link within the next seven days:\n\n${link}\n\nSALEANE`,
+  },
+}
 
 type Account = { id: string; name: string; email: string }
 const firstName = (account: Account) => account.name.split(' ')[0]
@@ -133,12 +138,20 @@ export function sendAccountMail(ctx: Context, account: Account, kind: LinkKind, 
     linkInLog(ctx)
       ? `this ${kind} link was not sent to ${account.email}: ${link}`
       : `a ${kind} link for ${account.email} was not sent. It is not written here, as this server is not for this computer alone.`,
+    words.button,
   )
 }
 
 /** NEXT-04: a change to how someone signs in is always told to their inbox. */
-export type Notice = 'two-step-on' | 'two-step-off' | 'recovery-used' | 'recovery-new'
-const NOTICES: Record<Notice, { subject: string; says: string }> = {
+export type Notice =
+  | 'two-step-on'
+  | 'two-step-off'
+  | 'recovery-used'
+  | 'recovery-new'
+  | 'passkey-added'
+  | 'passkey-removed'
+/** `says` may name the device a notice is about, such as the passkey just added. */
+const NOTICES: Record<Notice, { subject: string; says: string | ((device: string) => string) }> = {
   'two-step-on': {
     subject: 'Two-step sign-in is on for SALEANE',
     says: 'Two-step sign-in is now on for your SALEANE account. Signing in will ask for a code from your authenticator app as well as your password.',
@@ -155,17 +168,29 @@ const NOTICES: Record<Notice, { subject: string; says: string }> = {
     subject: 'New SALEANE recovery codes',
     says: 'New recovery codes were made for your SALEANE account. The old ones no longer work.',
   },
+  // NEXT-15: a new way in, or one taken away, is told to the inbox like any other.
+  'passkey-added': {
+    subject: 'Face ID sign-in was added to SALEANE',
+    says: (device) =>
+      `A device called “${device}” can now sign in to your SALEANE account with Face ID, a fingerprint or its screen lock, without your password.`,
+  },
+  'passkey-removed': {
+    subject: 'Face ID sign-in was removed from SALEANE',
+    says: (device) =>
+      `The device called “${device}” can no longer sign in to your SALEANE account with Face ID or a fingerprint.`,
+  },
 }
 
 /** Sends a sign-in notice without holding up the answer. */
-export function mailNotice(ctx: Context, account: Account, notice: Notice) {
+export function mailNotice(ctx: Context, account: Account, notice: Notice, device = '') {
   const words = NOTICES[notice]
+  const says = typeof words.says === 'string' ? words.says : words.says(device)
   void deliver(
     ctx,
     account,
     'security',
     words.subject,
-    `Hello ${firstName(account)},\n\n${words.says}\n\nIf this was not you, choose a new password from the sign-in page straight away and tell the studio owner.\n\nSALEANE`,
+    `Hello ${firstName(account)},\n\n${says}\n\nIf this was not you, choose a new password from the sign-in page straight away and tell the studio owner.\n\nSALEANE`,
     `this notice was not sent to ${account.email}: ${words.subject}`,
   ).catch((error) => console.error('[SALEANE] An account email could not be recorded.', error))
 }
@@ -193,6 +218,8 @@ async function deliver(
   subject: string,
   body: string,
   unsent: string,
+  /** NEXT-13: what the button for the email's link says. */
+  button?: string,
 ) {
   const id = randomUUID()
   const provider = ctx.messaging.email
@@ -210,6 +237,18 @@ async function deliver(
     'Handed to the email service; no answer yet.',
     ctx.now(),
   )
+  // NEXT-13: in SALEANE's own look. Should the design ever fail, the plain words still go.
+  let html: string | undefined
+  try {
+    html = renderEmail({
+      subject,
+      text: body,
+      from: saleaneSender,
+      ...(button ? { labels: { alone: button } } : {}),
+    })
+  } catch (error) {
+    console.error('[SALEANE] An email design could not be made; sending the plain words.', error)
+  }
   let status: 'test' | 'accepted' | 'failed' | 'unknown'
   let ref: string | null = null
   let detail: string | null = null
@@ -221,6 +260,7 @@ async function deliver(
       subject,
       body,
       fromName: 'SALEANE',
+      ...(html ? { html } : {}),
     })
     status = result.outcome
     if (result.outcome === 'accepted') ref = result.providerRef

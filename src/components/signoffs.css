@@ -1,0 +1,58 @@
+/* Stage 4: sign-offs for refunds, prices and the rota. Rows and hairlines; no boxes in boxes. */
+.signoff-asked {
+  font-size: var(--text-small);
+}
+.signoff-then {
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.signoff-rows {
+  margin: 0;
+}
+.signoff-more > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--brand-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+.signoff-more > summary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.signoff-more[open] > summary {
+  margin-bottom: 12px;
+}
+/* On a receipt: the limit, any request for it, and asking for one. */
+.signoff-receipt {
+  display: grid;
+  gap: 10px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+.signoff-receipt p {
+  margin: 0;
+}
+.signoff-receipt .ops-actions {
+  margin-top: 4px;
+}
+@media (max-width: 760px) {
+  .signoff-receipt .ops-actions .button,
+  .signoff-form .ops-actions .button {
+    width: 100%;
+  }
+}
+/* The owner's rules under the page heading, a sentence each. */
+.signoff-rules {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 var(--space-4);
+  max-width: 72ch;
+}
+.signoff-rules p {
+  margin: 0;
+}

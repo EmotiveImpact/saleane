@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { seed } from './seed'
-import { dispatch, execute } from './commands'
+import { dispatch, execute, slots } from './commands'
 import type { Command } from './commands'
 import { DEMO_DATE, parseState } from './model'
 import type { BusinessState } from './model'
 import { can, operations, permissionFor } from './operations'
 import { conversations, repliesList, savedReplies, unreadReplies } from './inbox'
 import { planMessages } from './reminders'
+import { addDays } from './format'
 import { clientExport, clientExportText, erasureReview } from './privacy'
 
 // V1.5: the inbox. Replies kept beside the studio's messages, one conversation per guest.
@@ -345,6 +346,45 @@ describe('the inbox (V1.5)', () => {
       providerRef: 'SM-b',
     })
     expect(repliesList(later.state).find((r) => r.id === later.recordId)?.clientId).toBe('client-6')
+  })
+
+  it('keeps a text from a number on two records of one guest with their latest record (Stage 5)', () => {
+    const base = seed('UK')
+    const olivia = base.clients.find((c) => c.id === 'client-2')!
+    // Olivia booked online again, which opened a second record with her email in capitals.
+    const online = { ...olivia, id: 'client-online', email: olivia.email.toUpperCase() }
+    const visit = base.appointments.find((a) => a.clientId === 'client-2')!
+    // A visit booked under the online record, later than any under the first.
+    const both = { ...base, clients: [...base.clients, online] }
+    // Two months on, after anything booked under the first record.
+    const date = Array.from({ length: 14 }, (_, i) => addDays(DEMO_DATE, 60 + i)).find(
+      (day) => slots(both, visit.serviceId, visit.staffId, day, NOW).length,
+    )!
+    const s = run(both, {
+      type: 'book',
+      input: {
+        serviceId: visit.serviceId,
+        staffId: visit.staffId,
+        date,
+        startMinutes: slots(both, visit.serviceId, visit.staffId, date, NOW)[0],
+        clientId: online.id,
+        source: 'desk',
+      },
+    }).state
+    const text = (state: BusinessState, ref: string) => {
+      const result = run(state, {
+        type: 'reply-received',
+        channel: 'sms',
+        from: olivia.phone,
+        body: 'Can I book my usual?',
+        providerRef: ref,
+      })
+      return repliesList(result.state).find((r) => r.id === result.recordId)!
+    }
+    expect(text(s, 'SM-one-guest').clientId).toBe('client-online')
+    // A family sharing a phone, with emails of their own, stays for the team to match.
+    const family = { ...online, email: 'someone.else@example.com' }
+    expect(text({ ...s, clients: [...base.clients, family] }, 'SM-family').clientId).toBeUndefined()
   })
 
   it('never matches a message left in the booking page chat by the details the visitor typed', () => {

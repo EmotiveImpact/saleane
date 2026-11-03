@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DateField, TimeField, writtenDate } from '.'
+import { choicesIn } from '../test/choices'
 
 function Controlled({
   start = '2026-11-03',
@@ -143,15 +144,16 @@ describe('TimeField', () => {
       <TimeField aria-label="Closes" locale="en-GB" value="18:00" onChange={picked} />,
     )
     const field = screen.getByRole('combobox', { name: 'Closes' })
-    expect(within(field).getByRole('option', { name: '18:00' })).toHaveProperty('selected', true)
-    expect(within(field).getAllByRole('option')).toHaveLength(96)
+    expect(field).toHaveTextContent('18:00')
+    expect(await choicesIn(user, field)).toHaveLength(96)
     await user.selectOptions(field, '17:30')
     expect(picked).toHaveBeenCalledWith('17:30')
     rerender(<TimeField aria-label="Closes" locale="en-US" value="18:00" onChange={picked} />)
-    expect(within(field).getByRole('option', { name: '06:00 PM' })).toHaveProperty('selected', true)
+    expect(field).toHaveTextContent('06:00 PM')
   })
 
-  it('keeps a saved time that sits off the step, and submits HH:MM in a form', () => {
+  it('keeps a saved time that sits off the step, and submits HH:MM in a form', async () => {
+    const user = userEvent.setup()
     let data: FormData | undefined
     render(
       <form
@@ -165,8 +167,8 @@ describe('TimeField', () => {
       </form>,
     )
     const field = screen.getByRole('combobox', { name: 'Starts' })
-    expect(within(field).getByRole('option', { name: '09:10' })).toHaveProperty('selected', true)
-    expect(within(field).getByRole('option', { name: '09:30' })).toBeInTheDocument()
+    expect(field).toHaveTextContent('09:10')
+    expect((await choicesIn(user, field)).map((o) => o.text)).toContain('09:30')
     screen.getByRole('button', { name: 'Save' }).click()
     expect(data?.get('start')).toBe('09:10')
   })

@@ -50,7 +50,8 @@
   min-width: 0;
   cursor: pointer;
 }
-.opening-offered input:disabled {
+.opening-offered input:disabled,
+.opening-offered .tick:disabled {
   cursor: not-allowed;
 }
 .opening-offered strong,
@@ -126,13 +127,15 @@
   padding: 5px 10px;
 }
 /* The tick itself hides; the whole day lights up when chosen. */
-.opening-days .setup-tick input {
+.opening-days .setup-tick input,
+.opening-days .setup-tick .tick {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
 }
-.opening-days .setup-tick:has(input:disabled) {
+.opening-days .setup-tick:has(input:disabled),
+.opening-days .setup-tick:has(.tick:disabled) {
   border-style: dashed;
   color: var(--faint);
   cursor: not-allowed;
@@ -151,6 +154,10 @@
   position: absolute;
   top: 5px;
   right: 7px;
+}
+/* Treatments nobody here gives yet: a quiet line, spaced like the step's other notes. */
+.opening-gaps {
+  margin: 22px 0 0;
 }
 .opening-booked-note {
   display: flex;

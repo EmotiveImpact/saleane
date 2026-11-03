@@ -12,7 +12,8 @@
   max-width: 420px;
   font-weight: var(--weight-strong);
 }
-.diary-field select {
+.diary-field select,
+.diary-field .select-trigger {
   font-weight: var(--weight-body);
 }
 .diary-whose {

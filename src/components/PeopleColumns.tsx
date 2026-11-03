@@ -4,6 +4,8 @@ import { staffDay } from '../domain/selectors'
 import { timeLabel } from '../domain/format'
 import { useStore } from '../state/context'
 import { Avatar, Status } from '../design'
+import { pauses } from '../domain/moments'
+import './moments.css'
 
 function duration(minutes: number) {
   const hours = Math.floor(minutes / 60)
@@ -80,9 +82,19 @@ export function PeopleColumns({
               {day.segments.map((segment) => {
                 const from = timeLabel(segment.from, locale)
                 const to = timeLabel(segment.to, locale)
+                // Stage 6: free time between two of their visits reads as a pause; it books the same.
+                const pause = segment.kind === 'free' && pauses(day.segments).has(segment.from)
                 if (segment.kind === 'free')
                   return (
-                    <li className="person-free" key={`free-${segment.from}`}>
+                    <li
+                      className={`person-free${pause ? ' person-pause' : ''}`}
+                      key={`free-${segment.from}`}
+                    >
+                      {pause && (
+                        <span className="person-pause-label" aria-hidden="true">
+                          A pause
+                        </span>
+                      )}
                       {onBook && segment.to - Math.max(segment.from, notBefore) >= 15 ? (
                         <button
                           type="button"

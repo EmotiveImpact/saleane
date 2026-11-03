@@ -249,7 +249,7 @@ export function formsProblem(s: BusinessState) {
   const forms = formsList(s)
   if (new Set(forms.map((f) => f.id)).size !== forms.length) return 'Duplicate form IDs.'
   for (const form of forms) {
-    if (form.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (form.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (form.versions.some((v, i) => v.version !== i + 1)) return 'Form versions out of order.'
   }
   const rows = formResponses(s)
@@ -263,7 +263,7 @@ export function formsProblem(s: BusinessState) {
   for (const row of rows) {
     const form = formById.get(row.formId)
     const a = visitById.get(row.appointmentId)
-    if (row.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (row.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (!form || !versionOf(form, row.version) || !a || a.clientId !== row.clientId)
       return 'A form answer does not match its visit.'
   }

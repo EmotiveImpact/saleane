@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApiHandler } from './app'
 import type { ApiHandler, InjectResponse } from './app'
 import type { OutgoingMessage, SendResult } from './messaging/providers'
+import { emailPalette, houseLook } from '../src/email/colours'
 
 // NEXT-03: choosing a new password from an emailed link, and confirming an email address. Email
 // stays in test mode here, so the test provider keeps what would have gone and nothing is sent.
@@ -99,6 +100,22 @@ describe('forgotten password', () => {
     expect(mail[0].subject).toBe('Choose a new SALEANE password')
     expect(mail[0].body).toContain(`${origin}/reset-password#`)
     expect(mail[0].body).not.toContain('?')
+  })
+
+  it("sends the link as a button in SALEANE's own look, with the same words", async () => {
+    await register()
+    mail = []
+    await forgot('owner@example.invalid')
+    const [email] = mail
+    const link = `${origin}/reset-password#${tokenOf(email)}`
+    expect(email.html).toContain(`href="${link}"`)
+    expect(email.html).toContain('>Choose a new password</a>')
+    expect(email.html).toContain('>SALEANE</p>')
+    expect(email.html).toContain('Someone asked to choose a new password for your SALEANE account.')
+    // The house sage, deepened for white words; never a studio's own colours.
+    expect(email.html).toContain(`background:${emailPalette(houseLook).action}`)
+    // The link appears once, in the button: the plain-text part carries it for everyone else.
+    expect(email.html!.split('/reset-password#')).toHaveLength(2)
   })
 
   it('writes test-mode links in the log only when SALEANE runs for this computer alone', async () => {

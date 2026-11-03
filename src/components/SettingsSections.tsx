@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Download, Palette, RotateCcw, SlidersHorizontal, Store } from 'lucide-react'
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select, photos } from '../design'
 import { coloursFor, firstColours, saveColours, secondColours } from '../state/studioColours'
 import type { StudioColours } from '../state/studioColours'
 import type { StudioLook } from '../domain/brandRulesSchema'
@@ -144,7 +144,7 @@ export function BrandSection() {
       <ErrorMessage error={error} />
       {!canStyle && <p className="ops-help">Only owners and managers can change the colours.</p>}
       <div className="settings-booking-link">
-        <img src="/images/saleane-studio-warm-small.jpg" alt="" />
+        <img src={photos.bookingPage} alt="" />
         <div>
           <strong>Your booking page</strong>
           <p>See how guests meet your studio, in its colours.</p>
@@ -201,13 +201,13 @@ export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
           <>
             <label>
               Demo market
-              <select
+              <Select
                 value={region}
                 onChange={(e) => changeRegion(e.target.value as typeof region)}
               >
                 <option value="UK">United Kingdom · GBP · Europe/London</option>
                 <option value="US">United States · USD · America/New_York</option>
-              </select>
+              </Select>
             </label>
             <p>
               Each market is its own made-up studio. Changing market does not convert prices or move

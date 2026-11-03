@@ -65,7 +65,8 @@ describe('Ask SALEANE with a real AI', () => {
     ).toBeInTheDocument()
     expect(mocked).toHaveBeenLastCalledWith('/api/workspaces/org-1/assistant', {
       method: 'POST',
-      body: { text: 'Who is in at 2?', history: [] },
+      // Only the conversation's id: the server keeps its earlier lines itself.
+      body: { text: 'Who is in at 2?', conversation: expect.stringMatching(/^[0-9a-f-]{36}$/) },
       timeoutMs: 80_000,
     })
   })

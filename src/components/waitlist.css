@@ -3,9 +3,9 @@
 .waitlist-page {
   min-width: 0;
 }
+/* One person per row, with a hairline between them: no box inside the panel's box. */
 .waitlist-cards {
   display: grid;
-  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -13,18 +13,23 @@
 .waitlist-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-  gap: 18px;
-  padding: 16px 18px;
-  background: var(--stone);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  gap: 16px 32px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
 }
-/* Who added the request, as a small white tag that reads on the stone card. */
+.waitlist-card:first-child {
+  padding-top: 4px;
+  border-top: 0;
+}
+.waitlist-card:last-child {
+  padding-bottom: 0;
+}
+/* Who added the request: a quiet note, not a second thing to press. */
 .waitlist-card .ops-tag {
   width: fit-content;
   margin-top: var(--space-1);
-  background: var(--paper);
-  border: 1px solid var(--line);
+  background: var(--stone);
+  color: var(--muted);
   border-radius: var(--radius-pill);
 }
 .waitlist-card-copy {
@@ -59,8 +64,15 @@
   padding: 0;
   list-style: none;
 }
+/* Taking someone off is the rarer job, so it is a quiet text button under the times. */
 .waitlist-openings > .button {
   justify-self: start;
+  margin-left: -12px;
+  padding-inline: 12px;
+  color: var(--muted);
+}
+.waitlist-openings > .button:hover {
+  color: var(--ink);
 }
 .waitlist-time {
   display: grid;
@@ -71,14 +83,18 @@
   font: inherit;
   color: var(--ink);
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-panel);
+  transition:
+    background var(--motion-quick),
+    border-color var(--motion-quick);
 }
 button.waitlist-time {
   cursor: pointer;
 }
 button.waitlist-time:hover {
-  border-color: var(--brand-ink);
+  border-color: var(--brand-mid);
+  background: var(--brand-soft);
 }
 .waitlist-time small {
   color: var(--muted);

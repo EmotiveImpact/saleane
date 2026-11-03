@@ -1,5 +1,6 @@
 import { useStore } from '../state/context'
 import { asksSoldAt, places } from '../domain/locations'
+import { Select } from '../design'
 
 /**
  * V2: the location that sold a gift card, package or membership, so it counts in that location's
@@ -11,13 +12,13 @@ export function SoldAt({ value, onChange }: { value: string; onChange: (id: stri
   return (
     <label className="ops-field">
       Sold at
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <Select value={value} onChange={(e) => onChange(e.target.value)}>
         {places(state).map((place) => (
           <option key={place.id} value={place.id}>
             {place.name}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   )
 }

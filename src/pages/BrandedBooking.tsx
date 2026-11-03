@@ -5,7 +5,17 @@ import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, DateField, DateStrip, ErrorMessage, TimeChoices } from '../design'
+import {
+  Avatar,
+  Button,
+  DateField,
+  DateStrip,
+  ErrorMessage,
+  TimeChoices,
+  useStepArrival,
+  Select,
+  Checkbox,
+} from '../design'
 import { operations } from '../domain/operations'
 import { BookingFrame } from '../components/BookingFrame'
 import { TreatmentPicker } from '../components/TreatmentPicker'
@@ -18,17 +28,25 @@ import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
 import { listPrice, offeredAt, places, serviceAt, staffPlaces } from '../domain/locations'
 import { LocationChoice } from '../components/LocationChoice'
-import { patchTestSettings } from '../domain/patchTests'
+import { patchTestBooking, patchTestFirst, patchTestSettings } from '../domain/patchTests'
+import { PatchTestFirst } from '../components/PatchTestFirst'
 import { currentWording } from '../domain/consent'
 
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()
   const [step, setStep] = useState(1)
-  const [picked, setPicked] = useState(false)
+  // Stage 3: a link naming a treatment, such as the studio's patch test, opens with it chosen.
+  const [linkedService] = useState(
+    () =>
+      state.services.find(
+        (s) => !s.archived && s.id === new URLSearchParams(window.location.search).get('service'),
+      )?.id,
+  )
+  const [picked, setPicked] = useState(!!linkedService)
   // With one kind of treatment the list opens straight away, chosen as before;
   // otherwise nothing is chosen until the guest picks.
   const ready = picked || new Set(state.services.map((s) => s.category)).size < 2
-  const [serviceId, setServiceId] = useState(state.services[0].id)
+  const [serviceId, setServiceId] = useState(linkedService ?? state.services[0].id)
   // 'any' lets the guest take the first professional free at the time they choose.
   const [staffId, setStaffId] = useState('any')
   const [date, setDate] = useState(addDays(DEMO_DATE, 1))
@@ -100,6 +118,8 @@ export function BrandedBooking() {
     return null
   })()
   const steps = ['Your treatment', 'A time for you', 'Your details', 'A final look']
+  // Each new step drifts in from the side it comes from; the first simply appears.
+  const stepHolder = useStepArrival<HTMLDivElement>(step)
   // Each step starts at the top, so a guest on a phone isn't left at the foot of the last one.
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
@@ -169,14 +189,14 @@ export function BrandedBooking() {
           <label className="sr-only" htmlFor="booking-market">
             Demo market
           </label>
-          <select
+          <Select
             id="booking-market"
             value={region}
             onChange={(e) => changeRegion(e.target.value as typeof region)}
           >
             <option value="UK">London · GBP</option>
             <option value="US">New York · USD</option>
-          </select>
+          </Select>
         </>
       }
     >
@@ -263,7 +283,7 @@ export function BrandedBooking() {
               </button>
             ))}
           </nav>
-          <div className="booking-step-content">
+          <div className="booking-step-content" ref={stepHolder}>
             <h2>
               {step === 1
                 ? 'What brings you in?'
@@ -336,7 +356,36 @@ export function BrandedBooking() {
                     </button>
                   )}
                   footer={
-                    ready && (
+                    ready &&
+                    (patchTestFirst(state, serviceId) ? (
+                      // Stage 3: the studio books this only with the guest, after a patch test.
+                      <PatchTestFirst
+                        treatment={service.name}
+                        hours={patchTestSettings(state).hoursBefore}
+                        studio={{
+                          name: state.organisation.name,
+                          phone: where.phone ?? state.organisation.phone,
+                          email: where.email ?? state.organisation.email,
+                          address: where.address,
+                          region: state.organisation.region,
+                        }}
+                        test={(() => {
+                          const test = patchTestBooking(state)
+                          return test
+                            ? {
+                                href: `?service=${encodeURIComponent(test.id)}`,
+                                onChoose: () => {
+                                  setServiceId(test.id)
+                                  setStaffId('any')
+                                  setStart(null)
+                                  setError('')
+                                  setStep(2)
+                                },
+                              }
+                            : undefined
+                        })()}
+                      />
+                    ) : (
                       <div className="booking-next">
                         <span>
                           {service.name}
@@ -350,7 +399,7 @@ export function BrandedBooking() {
                           Choose a time <ArrowRight size={17} />
                         </Button>
                       </div>
-                    )
+                    ))
                   }
                 />
               </>
@@ -521,11 +570,7 @@ export function BrandedBooking() {
                     />
                   </label>
                   <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={consent}
-                      onChange={(e) => setConsent(e.target.checked)}
-                    />
+                    <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                     {currentWording(state).text}
                   </label>
                   <p className="subtle">
@@ -585,12 +630,8 @@ export function BrandedBooking() {
                   </span>
                 </div>
                 <label className="checkbox-label">
-                  <input
-                    checked={policy}
-                    onChange={(e) => setPolicy(e.target.checked)}
-                    type="checkbox"
-                  />
-                  I understand this is a demo booking and no real payment is taken.
+                  <Checkbox checked={policy} onChange={(e) => setPolicy(e.target.checked)} />I
+                  understand this is a demo booking and no real payment is taken.
                 </label>
                 <ErrorMessage error={error} />
                 <div className="booking-next">
@@ -606,7 +647,7 @@ export function BrandedBooking() {
             )}
           </div>
           <footer className="booking-powered">
-            Considered care. Connected by <span className="mini-saleane">SALEANE</span>
+            Connected by <span className="mini-saleane">SALEANE</span>
           </footer>
         </>
       )}

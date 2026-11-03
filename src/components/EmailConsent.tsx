@@ -100,7 +100,13 @@ const where = (r: ConsentRecord) =>
     ? 'on the booking page'
     : r.source === 'guest link'
       ? 'from their visit link'
-      : `at the desk by ${r.actor}`
+      : r.source === 'email link'
+        ? 'from the stop link in a message to clients'
+        : r.source === 'other software'
+          ? `as ${r.actor} reported${r.how ? `: ${r.how}` : ''}`
+          : r.source === 'previous system'
+            ? `in their previous system, brought across by ${r.actor}`
+            : `at the desk by ${r.actor}`
 
 /** Every change to a client's email permission, newest first. */
 export function ConsentHistory({ clientId }: { clientId: string }) {
@@ -125,6 +131,7 @@ export function ConsentHistory({ clientId }: { clientId: string }) {
               Version {r.wordingVersion}: <q>{wordingFor(state, r.wordingVersion)?.text}</q>
             </small>
           )}
+          {r.evidence && <small>{r.evidence}</small>}
         </li>
       ))}
     </ol>

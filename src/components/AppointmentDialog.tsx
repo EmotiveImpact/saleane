@@ -1,9 +1,9 @@
 import { useId, useState } from 'react'
+import { milestoneLine, visitMilestones } from '../domain/beforeVisit'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpRight,
   CalendarClock,
-  Check,
   ChevronRight,
   CircleX,
   CreditCard,
@@ -19,6 +19,9 @@ import type { Command } from '../domain/commands'
 import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, fullDateLabel, money, timeLabel } from '../domain/format'
+import { bookedOfferLine } from '../domain/quietOffers'
+import { settledLine } from '../domain/moments'
+import { guestBackground } from '../domain/usual'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { coverPreview, holdings, memberDiscountPercent, plansForVisit } from '../domain/plans'
 import { priceRetail, retailCharge } from '../domain/retail'
@@ -26,17 +29,30 @@ import type { RetailItems } from '../domain/retailSchema'
 import { CheckoutProducts, ReceiptProducts } from './CheckoutProducts'
 import { findGiftCard, giftCards, giftStanding } from '../domain/giftCards'
 import '../components/plans.css'
-import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices, photos } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  Status,
+  TimeChoices,
+  photos,
+  Select,
+  Checkbox,
+} from '../design'
 import { StudioDateField } from './StudioDateField'
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
+import { ReceiptActions } from './ReceiptActions'
 import { VisitPatchTest } from './PatchTests'
 import { VisitForms } from './GuestForms'
 import { VisitConsultation } from './Consultations'
+import { VisitWriteUp } from './VisitWriteUp'
 import { shownStatus } from '../domain/selectors'
 import { everyLabel, laterInRepeat, repeatLabel } from '../domain/repeat'
 import { servicePhoto } from './servicePhoto'
 import './visitPanel.css'
+import './moments.css'
 import './repeat.css'
 import { othersTogether, togetherLine, upcomingTogether } from '../domain/together'
 import './together.css'
@@ -99,6 +115,7 @@ export function AppointmentDialog({
   const [andTogether, setAndTogether] = useState(false)
   const [notice, setNotice] = useState('')
   const rebookHeading = useId()
+  const settledHeading = useId()
   if (!appointment)
     return (
       <Modal
@@ -136,16 +153,15 @@ export function AppointmentDialog({
   const photo = servicePhoto(state.services, service.id)
   const ends = appointment.startMinutes + appointment.bookedDurationMinutes
   // Earlier visits the client came to, for a line of context beside what is good to remember.
-  const earlier = state.appointments
-    .filter(
-      (a) =>
-        a.clientId === client.id &&
-        a.id !== appointment.id &&
-        (a.status === 'completed' || a.status === 'arrived') &&
-        (a.date < appointment.date ||
-          (a.date === appointment.date && a.startMinutes < appointment.startMinutes)),
-    )
-    .sort((a, b) => b.date.localeCompare(a.date) || b.startMinutes - a.startMinutes)
+  // Stage 5: from every record with the client's email, as each online booking opens a new one.
+  const background = guestBackground(state, appointment)
+  // Stage 6: the milestones this visit brings, while it is still to come or under way.
+  const moments = ['confirmed', 'arrived'].includes(appointment.status)
+    ? visitMilestones(state, appointment).map((m) =>
+        milestoneLine(m, firstName, { visitDate: appointment.date, locale }),
+      )
+    : []
+  const earlier = background.earlier
   const previous = earlier[0]
   const previousName =
     previous &&
@@ -154,7 +170,7 @@ export function AppointmentDialog({
   const nextVisit = state.appointments
     .filter(
       (a) =>
-        a.clientId === client.id &&
+        background.ids.has(a.clientId) &&
         a.id !== appointment.id &&
         a.status === 'confirmed' &&
         a.date >= today &&
@@ -169,6 +185,11 @@ export function AppointmentDialog({
   // PILOT-02: a signed-in local studio can take a card through the payment provider.
   const cardTaking = storeMode === 'server' && !sandbox
   const deposit = depositPaid(state, appointmentId)
+  // A deposit the guest paid to the studio's old system before moving in, never taken here.
+  const paidBeforeMove = state.payments.some(
+    (p) =>
+      p.appointmentId === appointmentId && p.kind === 'deposit' && p.method === 'previous_system',
+  )
   const tipMinor = parseMinor(tip, 0)
   const coverable = deposit ? [] : plansForVisit(state, appointment, today)
   const memberPercent = memberDiscountPercent(state, appointment, today)
@@ -265,8 +286,8 @@ export function AppointmentDialog({
         }}
       />
     )
-  async function run(command: Command) {
-    if (!allowed(command.type)) return false
+  async function run(command: Command, action: string = command.type) {
+    if (!allowed(action)) return false
     setPending(true)
     setError('')
     try {
@@ -282,6 +303,13 @@ export function AppointmentDialog({
     } finally {
       setPending(false)
     }
+  }
+  // NEXT-16: reception and managers write up a visit that went ahead, as a professional does.
+  async function saveWriteUp(command: Command, done: string) {
+    setNotice('')
+    const saved = await run(command, 'note')
+    if (saved) setNotice(done)
+    return saved
   }
   async function welcome() {
     await run({ type: 'arrive', appointmentId })
@@ -407,6 +435,8 @@ export function AppointmentDialog({
       )}
     </>
   )
+  // Stage 5: "Quiet-time price, £19 off £95" for a visit booked from an invitation with one.
+  const offerLine = bookedOfferLine(state, appointment)
   // The treatment as a line of the bill, with its photograph and who gives it.
   const serviceLine = (price: number) => (
     <div className="receipt-line visit-service-line">
@@ -421,6 +451,7 @@ export function AppointmentDialog({
           <small>
             {appointment.bookedDurationMinutes} minutes with {staff.name}
           </small>
+          {offerLine && <small>{offerLine}</small>}
         </span>
       </span>
       <strong>{money(price, state.organisation, true)}</strong>
@@ -477,22 +508,27 @@ export function AppointmentDialog({
       )}
       {sale ? (
         <>
-          <div className="success-strip">
-            <Check size={18} />
-            Receipt recorded ·{' '}
-            {sale.coveredMinor !== undefined && !sale.balanceMinor && !sale.giftCardMinor
-              ? `Paid by ${holdings(state).find((h) => h.id === sale.holdingId)?.name ?? 'plan'}`
-              : sale.giftCardMinor && !sale.balanceMinor
-                ? 'Paid by gift card'
-                : {
-                    demo_card: 'Demo card',
-                    demo_cash: 'Demo cash',
-                    cash: 'Cash',
-                    external_card: 'External card',
-                    card: sale.processor?.live ? 'Card' : 'Test card, no money moved',
-                    previous_system: 'Previous system',
-                  }[sale.method]}
-          </div>
+          {/* Stage 6: "Settled." The amount collected, a hairline and words true to the record. */}
+          <section
+            className={`settled-moment${checkout ? ' is-new' : ''}`}
+            aria-labelledby={settledHeading}
+          >
+            <p className="settled-amount">
+              <span className="sr-only">Collected at checkout: </span>
+              {money(sale.balanceMinor, state.organisation, true)}
+            </p>
+            <span className="settled-rule" aria-hidden="true" />
+            <h3 id={settledHeading} className="settled-word">
+              Settled.
+            </h3>
+            <p className="settled-line">
+              {settledLine(sale, {
+                sandbox,
+                planName: holdings(state).find((h) => h.id === sale.holdingId)?.name,
+                organisation: state.organisation,
+              })}
+            </p>
+          </section>
           {serviceLine(sale.serviceMinor)}
           {!!sale.coveredMinor && (
             <div className="receipt-line">
@@ -551,7 +587,7 @@ export function AppointmentDialog({
             <div
               className="rebook-moment-photo"
               aria-hidden="true"
-              style={{ backgroundImage: `url(${photos.tea})` }}
+              style={{ backgroundImage: `url(${photos.nextVisit})` }}
             />
             <div className="rebook-moment-text">
               <p className="eyebrow">Next visit</p>
@@ -581,6 +617,8 @@ export function AppointmentDialog({
               </div>
             </div>
           </section>
+          {/* The next visit comes first; a printed receipt, which can run long, sits under it. */}
+          <ReceiptActions receiptKey={`visit:${sale.id}`} />
         </>
       ) : mode === 'move' ? (
         <>
@@ -620,7 +658,7 @@ export function AppointmentDialog({
             {multiSite && (
               <label>
                 Location
-                <select
+                <Select
                   value={placeId}
                   disabled={busy}
                   onChange={(e) => {
@@ -634,12 +672,12 @@ export function AppointmentDialog({
                       {place.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             <label>
               Professional
-              <select
+              <Select
                 value={staffId}
                 disabled={busy}
                 onChange={(e) => {
@@ -662,7 +700,7 @@ export function AppointmentDialog({
                       {person.name}
                     </option>
                   ))}
-              </select>
+              </Select>
             </label>
           </div>
           <TimeChoices
@@ -917,6 +955,7 @@ export function AppointmentDialog({
           <CheckoutProducts
             items={items}
             retail={retail}
+            locationId={appointment.locationId}
             disabled={busy}
             onChange={(next) => {
               setItems(next)
@@ -1021,6 +1060,7 @@ export function AppointmentDialog({
                   <span className="checkout-gift-row">
                     <input
                       value={giftCode}
+                      data-scan-field
                       maxLength={20}
                       autoComplete="off"
                       placeholder="ABCD-EFGH-JKLM"
@@ -1047,7 +1087,7 @@ export function AppointmentDialog({
             <div className="checkout-payment">
               <label>
                 Payment method
-                <select
+                <Select
                   value={method}
                   disabled={busy}
                   onChange={(e) => {
@@ -1069,7 +1109,7 @@ export function AppointmentDialog({
                       <option value="external_card">External card payment</option>
                     </>
                   )}
-                </select>
+                </Select>
               </label>
               {!sandbox && !byCard && (
                 <>
@@ -1082,8 +1122,7 @@ export function AppointmentDialog({
                     />
                   </label>
                   <label className="checkbox-label consent-label">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={collected}
                       onChange={(event) => setCollected(event.target.checked)}
                     />
@@ -1203,12 +1242,17 @@ export function AppointmentDialog({
             {identity}
             <div className="visit-remember">
               <span>Good to remember</span>
-              <p>{client.preferences || 'No preferences recorded yet.'}</p>
+              <p>{background.remembered || 'No preferences recorded yet.'}</p>
               <p className="visit-history">
                 {previous
-                  ? `Last came ${dateLabel(previous.date, locale)}${previousName ? ` for ${previousName}` : ''}. ${earlier.length} ${earlier.length === 1 ? 'visit' : 'visits'} before this one.`
+                  ? `Last came ${dateLabel(previous.date, locale)}${previousName ? ` for ${previousName}` : ''}. ${earlier.length} ${earlier.length === 1 ? 'visit' : 'visits'} before this one${background.records > 1 ? `, across ${background.records} client records with the same email` : ''}.`
                   : 'No earlier visits.'}
               </p>
+              {moments.map((line) => (
+                <p key={line} className="visit-moment">
+                  {line}
+                </p>
+              ))}
             </div>
           </div>
           <div className="visit-notes">
@@ -1217,14 +1261,45 @@ export function AppointmentDialog({
             )}
             <VisitConsultation appointment={appointment} />
             <VisitForms appointment={appointment} />
+            {storeMode === 'server' &&
+              can(role, 'note') &&
+              (appointment.status === 'arrived' || appointment.status === 'completed') && (
+                <VisitWriteUp
+                  key={appointment.id}
+                  path={`/api/workspaces/${encodeURIComponent(state.organisation.id)}`}
+                  appointmentId={appointment.id}
+                  guest={firstName}
+                  aftercare={appointment.aftercare?.text}
+                  saving={busy}
+                  onSave={saveWriteUp}
+                />
+              )}
           </div>
           <div className="visit-money">
             <div className="receipt-line">
               <span>Treatment</span>
               <strong>{money(appointment.bookedPriceMinor, state.organisation)}</strong>
             </div>
+            {appointment.bookedOffer && (
+              <div className="receipt-line subtle">
+                <span>Quiet-time price</span>
+                <span>
+                  {money(
+                    appointment.bookedOffer.usualPriceMinor - appointment.bookedPriceMinor,
+                    state.organisation,
+                  )}{' '}
+                  off {money(appointment.bookedOffer.usualPriceMinor, state.organisation)}
+                </span>
+              </div>
+            )}
             <div className="receipt-line subtle">
-              <span>{sandbox ? 'Demo deposit recorded' : 'Deposit recorded'}</span>
+              <span>
+                {paidBeforeMove
+                  ? 'Deposit paid before switching'
+                  : sandbox
+                    ? 'Demo deposit recorded'
+                    : 'Deposit recorded'}
+              </span>
               <span>{money(deposit, state.organisation)}</span>
             </div>
           </div>

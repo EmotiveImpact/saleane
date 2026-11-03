@@ -85,7 +85,7 @@ describe('dates and times written the studio’s way in staff forms', { timeout:
       screen.getByRole('checkbox', { name: 'Follows the venue opening hours' }),
     ).not.toBeChecked()
     const starts = screen.getByRole('combobox', { name: 'Tuesday starts' })
-    expect(within(starts).getByRole('option', { name: '09:00' })).toHaveProperty('selected', true)
+    expect(starts).toHaveTextContent('09:00')
     await user.selectOptions(starts, '10:30')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Tuesday finishes' }), '17:45')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))

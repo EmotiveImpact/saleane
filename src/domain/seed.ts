@@ -1,12 +1,16 @@
 import type { WaitlistTime } from './waitlistSchema'
 import { DEMO_DATE, parseState } from './model'
-import type { Appointment, BusinessState, Region } from './model'
+import type { Appointment, BusinessState, Client, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
 import { DEMO_MINUTES, defaultOperations, hoursFor, instantFor } from './operations'
 import { standardWording } from './consent'
+import { defaultPatchTestSettings } from './patchTestsSchema'
 import { STARTER_CHECKLIST } from './branchVisits'
 import { sampleShifts } from './hours'
+import { periodDue, rentPeriods } from './rent'
 import { Diary, planRegulars, sampleRegulars, seeded } from './sampleDiary'
+import { staffDay } from './selectors'
+import { runApprovalCommand } from './approvals'
 import type { PlannedVisit, Random } from './sampleDiary'
 
 /** The first day of the sample's everyday records; a few named clients go back further. */
@@ -271,11 +275,11 @@ function build(region: Region, regularCount: number): BusinessState {
     },
     clients: [
       ['Amelia Carter', 'Prefers the quiet treatment room. Usually visits on Tuesdays.'],
-      ['Olivia James', 'Likes an early appointment. Introduced by Amelia.'],
+      ['Olivia James', 'Likes an early visit. Introduced by Amelia.'],
       ['Ellie Brooks', 'A regular cut and finish with Theo.'],
-      ['Noor Ahmed', 'Prefers appointment updates by email.'],
+      ['Noor Ahmed', 'Prefers visit updates by email.'],
       ['Ava Williams', 'Usually books a longer body treatment.'],
-      ['Grace Chen', 'Prefers a late morning appointment.'],
+      ['Grace Chen', 'Prefers a late morning visit.'],
       ['Zoe Miller', 'Enjoys a calm, unhurried visit.'],
       ['Nina Patel', 'Interested in a monthly visit.'],
       ['Luca Evans', 'Prefers afternoons with Theo.'],
@@ -283,8 +287,8 @@ function build(region: Region, regularCount: number): BusinessState {
       ['Isabel Wilson', 'Would like to return for a facial.'],
       ['Sophie Martin', 'Prefers the same professional each visit.'],
       ['Charlotte Hayes', 'Usually chooses a facial with Maya.'],
-      ['Emily Clarke', 'Prefers midweek appointments.'],
-      ['Jamie Morgan', 'Likes an afternoon appointment.'],
+      ['Emily Clarke', 'Prefers midweek visits.'],
+      ['Jamie Morgan', 'Likes an afternoon visit.'],
     ].map(([name, preferences], i) => ({
       ...scope,
       id: `client-${i + 1}`,
@@ -403,6 +407,21 @@ function build(region: Region, regularCount: number): BusinessState {
           'Wait two days before washing your hair, then use a colour-safe shampoo and cool water.',
         returnWeeks: 6,
       },
+      // Stage 3: the patch test itself, free, which guests can book online before a colour.
+      {
+        ...scope,
+        id: 'service-patch-test',
+        name: 'Colour patch test',
+        category: 'Hair',
+        description:
+          'A quick skin test behind the ear, at least 48 hours before your colour. No charge.',
+        durationMinutes: 15,
+        bufferMinutes: 0,
+        priceMinor: 0,
+        depositMinor: 0,
+        resourceType: 'chair',
+        prepNote: 'Come with clean, dry skin behind your ears.',
+      },
     ],
     // Each person works five days a week; the studio is closed on Sundays.
     staff: [
@@ -429,7 +448,7 @@ function build(region: Region, regularCount: number): BusinessState {
         id: 'staff-theo',
         name: 'Theo Bennett',
         role: 'Hair & styling',
-        serviceIds: ['service-cut', 'service-gloss'],
+        serviceIds: ['service-cut', 'service-gloss', 'service-patch-test'],
         tone: 'sand',
         hours: week([2, 3, 4, 5, 6]),
       },
@@ -448,6 +467,9 @@ function build(region: Region, regularCount: number): BusinessState {
   }
   const o = (state.operations = defaultOperations('sandbox'))
   o.hours = week([1, 2, 3, 4, 5, 6])
+  // Stage 3: the patch test guests book is set, and stopping online booking without one is left
+  // off, as in every studio, for the owner to try in Settings, Treatments.
+  o.patchTests = { ...defaultPatchTestSettings, testServiceId: 'service-patch-test' }
   seedTimeOff(state, uk)
   const at = (date: string, minutes: number) => instantFor(state, date, minutes)
   const diary = new Diary(state)
@@ -708,6 +730,65 @@ function build(region: Region, regularCount: number): BusinessState {
       .sort()[0]
     if (first) state.clients.push({ ...client, createdAt: first })
   }
+  // Stage 6: two regulars from long ago, past their keeping period, so Settings, Data & privacy has
+  // records waiting for a decision. Only with the regulars, as the demo shows the studio.
+  if (regularCount) {
+    const former: [
+      string,
+      string,
+      string,
+      string,
+      string,
+      number,
+      [string, number, 'online' | 'desk'],
+      phone: string,
+    ][] = [
+      [
+        'client-former-1',
+        'Winifred Ashby',
+        'service-facial',
+        'staff-maya',
+        '2024-03-12',
+        600,
+        ['2024-03-01', 1200, 'online'],
+        uk ? '+44 7700 900900' : '+1 212 555 0190',
+      ],
+      [
+        'client-former-2',
+        'Gideon Marlowe',
+        'service-cut',
+        'staff-theo',
+        '2024-05-16',
+        840,
+        ['2024-05-09', 660, 'desk'],
+        uk ? '+44 7700 900901' : '+1 212 555 0191',
+      ],
+    ]
+    for (const [id, name, serviceId, staffId, date, start, booked, phone] of former) {
+      const bookedAt = at(booked[0], booked[1])
+      state.clients.push({
+        ...scope,
+        id,
+        name,
+        email: `${name.toLowerCase().replace(' ', '.')}@example.com`,
+        phone,
+        preferences: '',
+        marketingConsent: false,
+        createdAt: bookedAt,
+      })
+      visit({
+        id: `history-${id}`,
+        clientId: id,
+        serviceId,
+        staffId,
+        date,
+        start,
+        status: 'completed',
+        source: booked[2],
+        bookedAt,
+      })
+    }
+  }
   state.appointments.sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)
 
   // Amelia introduced Olivia at her July visit; Maya noted how Amelia likes to be looked after.
@@ -756,10 +837,12 @@ function build(region: Region, regularCount: number): BusinessState {
   seedFeedback(state, random, at)
   seedStock(state, uk, random, at)
   seedSuppliers(state)
-  seedPay(state)
+  seedPay(state, uk)
   // NEXT-07: a fortnight of clocked hours, so Pay shows hours worked.
   ;(state.operations ??= defaultOperations('sandbox')).shifts = sampleShifts(state, DEMO_DATE)
   seedBranchVisits(state)
+  seedRota(state, at)
+  seedNews(state, at)
   seedRent(state, uk)
   seedAccounting(state, uk)
   seedArrivals(state, uk, at)
@@ -809,6 +892,48 @@ function build(region: Region, regularCount: number): BusinessState {
       createdAt: at(addDays(DEMO_DATE, -1), 600),
     }),
   )
+  // Stage 6: the long-ago regulars' private feedback, given that evening, a waitlist request
+  // whose dates passed long ago and a draft "we miss you" nobody approved in June.
+  if (regularCount) {
+    // Private feedback given that evening, and a waitlist request whose dates passed long ago.
+    const facial = state.appointments.find((a) => a.id === 'history-client-former-1')!
+    state.feedback!.push({
+      ...scope,
+      id: 'feedback-history-client-former-1',
+      appointmentId: facial.id,
+      clientId: facial.clientId,
+      staffId: facial.staffId,
+      visitRating: 5,
+      practitionerRating: 5,
+      comment: 'Calm and unhurried. Thank you, Maya.',
+      createdAt: at(facial.date, facial.startMinutes + facial.bookedDurationMinutes + 180),
+    })
+    ;(state.waitlist ??= []).push({
+      ...scope,
+      id: 'waitlist-former-1',
+      clientId: 'client-former-1',
+      serviceId: 'service-facial',
+      staffId: 'staff-maya',
+      fromDate: '2024-04-02',
+      toDate: '2024-04-19',
+      times: ['morning'],
+      note: '',
+      source: 'desk',
+      status: 'waiting',
+      createdAt: at('2024-03-28', 700),
+    })
+    // A draft "we miss you" that nobody approved, written in June.
+    o.messages.push({
+      id: 'message-former-2',
+      clientId: 'client-former-2',
+      purpose: 'marketing',
+      subject: `We miss you at ${state.organisation.name}`,
+      body: 'It has been a while since your last cut with Theo. We would love to see you again. Reply to this email or book online whenever suits you.',
+      status: 'draft',
+      createdAt: at('2026-06-04', 610),
+      actor: 'Front desk',
+    })
+  }
   // V1.5: two gift cards on sale already, so the desk can try spending one at checkout. Olivia
   // bought one for her sister as she paid for her massage on 15 September; Luca bought a facial
   // for his partner after his cut on 1 September.
@@ -967,7 +1092,7 @@ function build(region: Region, regularCount: number): BusinessState {
               {
                 id: 'q-quiet',
                 kind: 'yes_no',
-                label: 'Would you like a quiet appointment, with little conversation?',
+                label: 'Would you like a quiet visit, with little conversation?',
                 required: false,
               },
             ],
@@ -1107,6 +1232,63 @@ function build(region: Region, regularCount: number): BusinessState {
       actor: 'Text line',
     },
   ]
+  // Stage 6: a regular booked her next visit online, which opened a second record with the same
+  // email, as online booking always does. She wrote from each, and the Inbox shows one
+  // conversation. Only the full sample has regulars, so the quieter test sample is unchanged.
+  const lastEvening = at(addDays(DEMO_DATE, -1), 1265)
+  const twice = state.clients
+    .filter((c) => c.id.startsWith('client-r'))
+    .map((client) => {
+      const own = state.appointments.filter((a) => a.clientId === client.id)
+      const seen = own.filter((a) => a.status === 'completed').map((a) => a.date)
+      const last = seen.sort().at(-1)
+      const online = own.find(
+        (a) =>
+          a.status === 'confirmed' &&
+          a.source === 'online' &&
+          // A patch test belongs to a record, so a colour visit stays with the one that has it.
+          !state.services.find((x) => x.id === a.serviceId)?.patchTest &&
+          !!last &&
+          a.createdAt > at(last, 1170) &&
+          a.createdAt < lastEvening,
+      )
+      return last && online ? { client, last, online } : undefined
+    })
+    .find((x) => !!x)
+  if (twice) {
+    const { client: regular, last, online } = twice
+    const again: Client = { ...regular, id: `${regular.id}-online`, createdAt: online.createdAt }
+    state.clients.push(again)
+    // The visit she booked online, and its history, belong to the record it opened.
+    online.clientId = again.id
+    for (const e of state.events) if (e.appointmentId === online.id) e.clientId = again.id
+    state.replies.push(
+      {
+        ...scope,
+        id: 'reply-regular-thanks',
+        clientId: regular.id,
+        channel: 'email',
+        from: regular.email,
+        body: 'Thank you for today, it was lovely. I will book my next one online.',
+        receivedAt: at(last, 1170),
+        providerRef: 'sample-email-2',
+        actor: 'Email line',
+        readAt: at(addDays(last, 1), 560),
+        readBy: 'Maya Lewis',
+      },
+      {
+        ...scope,
+        id: 'reply-regular-online',
+        clientId: again.id,
+        channel: 'email',
+        from: again.email,
+        body: 'I have booked online for my next visit. Could I have the same room as last time?',
+        receivedAt: lastEvening,
+        providerRef: 'sample-email-3',
+        actor: 'Email line',
+      },
+    )
+  }
   state.savedReplies = [
     {
       id: 'saved-thanks',
@@ -1124,12 +1306,17 @@ function build(region: Region, regularCount: number): BusinessState {
       body: 'Thank you for letting us know. We will hold your time for 15 minutes. If you will be later than that, reply and we will find you a new time.',
     },
   ]
+  // Stage 6: with the regulars, Monday 12 October fills up completely, so the calendar and Today
+  // can show "Fully booked. Beautifully done." on a day of the sample.
+  if (regularCount) fillSampleDay(state, FULL_DAY, visit, at)
   // Receipts are numbered in the order they were paid, as checkout numbers them.
   ;[...state.sales]
     .sort((a, b) => a.paidAt.localeCompare(b.paidAt))
     .forEach((sale, i) => {
       sale.receiptNumber = `SL-${i + 1}`
     })
+  // Stage 4: once receipts have their numbers, so a refund request names its receipt.
+  seedSignOffs(state, at)
   return parseState(state, region)
 }
 
@@ -1279,37 +1466,49 @@ function seedAccounting(state: BusinessState, uk: boolean) {
       fees: '270',
       refunds: '215',
       clearing: '610',
+      // Stage 3: Theo's own takings come through the till and are held for him.
+      renters: '835',
     },
   }
 }
 
-/** V2: Theo rents the styling chair by the week from 21 September; two weeks paid, this week owed. */
+/**
+ * V2: Theo rents the styling chair by the week from 21 September; two weeks paid, this week owed.
+ * Stage 3: his rent is a fixed amount plus 10% of his treatments on the days he rents, so each
+ * week's rent follows his takings. Products he sells come off the studio's shelf and stay its sales.
+ */
 function seedRent(state: BusinessState, uk: boolean) {
   const o = (state.operations ??= defaultOperations('sandbox'))
-  const amountMinor = (uk ? 180 : 220) * 100
-  o.rentals = [
-    {
-      id: 'rental-theo',
-      staffId: 'staff-theo',
-      space: 'chair',
-      resourceId: 'chair-one',
-      amountMinor,
-      every: 'week',
-      from: '2026-09-21',
-      createdAt: instantFor(state, '2026-09-15', 600),
-      actor: 'Owner',
-    },
-  ]
-  // He paid the first week in cash when he was next in, and the second by bank transfer.
+  const rental = {
+    id: 'rental-theo',
+    staffId: 'staff-theo',
+    space: 'chair' as const,
+    resourceId: 'chair-one',
+    amountMinor: (uk ? 50 : 60) * 100,
+    percentBps: 1000,
+    every: 'week' as const,
+    from: '2026-09-21',
+    createdAt: instantFor(state, '2026-09-15', 600),
+    actor: 'Owner',
+  }
+  o.rentals = [rental]
+  // He paid the first week in cash when he was next in, and the second by bank transfer, each
+  // once the week had ended and its share was known.
   const paid: [string, 'cash' | 'bank_transfer', string][] = [
-    ['2026-09-21', 'cash', instantFor(state, '2026-09-22', 590)],
-    ['2026-09-28', 'bank_transfer', instantFor(state, '2026-09-28', 660)],
+    ['2026-09-21', 'cash', instantFor(state, '2026-09-29', 590)],
+    ['2026-09-28', 'bank_transfer', instantFor(state, '2026-10-05', 660)],
   ]
+  const periods = rentPeriods(rental, DEMO_DATE)
   o.rentPayments = paid.map(([periodStart, method, paidAt], i) => ({
     id: `rent-payment-${i + 1}`,
     rentalId: 'rental-theo',
     periodStart,
-    amountMinor,
+    amountMinor: periodDue(
+      state,
+      rental,
+      periods.find((p) => p.start === periodStart)!,
+      DEMO_DATE,
+    ).dueMinor,
     method,
     ...(method === 'bank_transfer' ? { reference: `THEO-RENT-${i + 1}` } : {}),
     paidAt,
@@ -1342,11 +1541,168 @@ function seedTimeOff(state: BusinessState, uk: boolean) {
     createdAt,
     actor: 'Owner',
   }))
+  // Stage 4: Sophia's holiday was first booked to the Thursday and later changed to run to the
+  // Friday. The earlier days stay on record, cancelled and naming the change.
+  const wedding = o.timeOff[2]
+  const changedAt = instantFor(state, '2026-10-02', 615)
+  o.timeOff[2] = {
+    ...wedding,
+    to: '2026-10-22',
+    cancelledAt: changedAt,
+    cancelledBy: 'Owner',
+    changedTo: 'time-off-4',
+  }
+  o.timeOff.push({ ...wedding, id: 'time-off-4', createdAt: changedAt, changedFrom: 'time-off-3' })
   o.leaveAllowances = state.staff.map((person) => ({ staffId: person.id, days: uk ? 28 : 15 }))
 }
 
-/** V2: commission rates for the team, so Pay has figures to show. Fictional. */
-function seedPay(state: BusinessState) {
+/**
+ * Stage 3: two days changed on the sample week's rota, after the diary is made so they leave every
+ * booked visit inside the hours. Maya finishes early on Friday and works an extra Saturday.
+ */
+function seedRota(state: BusinessState, at: (date: string, minutes: number) => string) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.rotaChanges = [
+    {
+      id: 'rota-maya-friday',
+      staffId: 'staff-maya',
+      date: addDays(DEMO_DATE, 3),
+      working: true,
+      open: 540,
+      close: 900,
+      note: 'Training from three',
+      createdAt: at(addDays(DEMO_DATE, -4), 610),
+      actor: 'Owner',
+    },
+    {
+      id: 'rota-maya-saturday',
+      staffId: 'staff-maya',
+      date: addDays(DEMO_DATE, 4),
+      working: true,
+      open: 600,
+      close: 960,
+      note: 'Covering Saturday',
+      createdAt: at(addDays(DEMO_DATE, -4), 612),
+      actor: 'Owner',
+    },
+  ]
+}
+
+/**
+ * Stage 4: a refund limit for general managers, extra rota days needing a sign-off, and one
+ * request of each new kind waiting for the owner: a refund over the limit on a recent facial, a
+ * new price for the facial from 1 November, and an extra Monday for Theo. Raised through the
+ * ordinary command, so each is routed and described exactly as a real one would be.
+ */
+function seedSignOffs(state: BusinessState, at: (date: string, minutes: number) => string) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.approvals = { regionalLimitMinor: 500_00, generalRefundLimitMinor: 50_00, rotaSignOff: 'extra' }
+  const main = state.organisation.locationId
+  const named = new Set(Array.from({ length: 15 }, (_, i) => `client-${i + 1}`))
+  const facial = state.sales
+    .filter((sale) => {
+      const visit = state.appointments.find((a) => a.id === sale.appointmentId)
+      return (
+        visit?.serviceId === 'service-facial' &&
+        named.has(visit.clientId) &&
+        sale.paidAt < at(DEMO_DATE, 0) &&
+        sale.totalMinor >= 60_00
+      )
+    })
+    .sort((a, b) => b.paidAt.localeCompare(a.paidAt))[0]
+  const raise = (
+    id: string,
+    input: Parameters<typeof runApprovalCommand>[1] & { type: 'request-raise' },
+    raisedAt: string,
+  ) => {
+    runApprovalCommand(state, input, raisedAt, () => id)
+    const request = o.requests!.find((r) => r.id === id)!
+    request.raisedBy = 'Nadia Ross'
+  }
+  if (facial)
+    raise(
+      'request-refund-facial',
+      {
+        type: 'request-raise',
+        input: {
+          locationId: main,
+          kind: 'refund',
+          refund: { saleId: facial.id },
+          amountMinor: 60_00,
+          note: 'Skin felt tight after the peel. A goodwill refund on the treatment, agreed at the desk.',
+        },
+      },
+      at(DEMO_DATE, 560),
+    )
+  raise(
+    'request-price-facial',
+    {
+      type: 'request-raise',
+      input: {
+        locationId: main,
+        kind: 'price',
+        price: {
+          serviceId: 'service-facial',
+          priceMinor:
+            (state.services.find((x) => x.id === 'service-facial')?.priceMinor ?? 0) + 10_00,
+          startsOn: addDays(DEMO_DATE, 26),
+        },
+        note: 'The new serum costs more from November. Our nearest studios charge more already.',
+      },
+    },
+    at(addDays(DEMO_DATE, -1), 1010),
+  )
+  raise(
+    'request-rota-theo',
+    {
+      type: 'request-raise',
+      input: {
+        locationId: main,
+        kind: 'rota',
+        rota: {
+          type: 'rota-day',
+          input: {
+            staffId: 'staff-theo',
+            date: addDays(DEMO_DATE, 6),
+            working: true,
+            open: 600,
+            close: 960,
+            note: 'Colour launch week',
+          },
+        },
+        note: 'Monday is full of colour bookings. Theo is happy to come in.',
+      },
+    },
+    at(DEMO_DATE, 575),
+  )
+}
+
+/**
+ * Stage 4: a message to every client, drafted by a manager and waiting for the owner, so the
+ * sample shows the numbers it would reach and the approval. A sample studio never queues it.
+ */
+function seedNews(state: BusinessState, at: (date: string, minutes: number) => string) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.news = [
+    {
+      id: 'news-thursday-evenings',
+      subject: `Thursday evenings at ${state.organisation.name}`,
+      body: 'From November we stay open until eight on Thursdays. Come in after work for an unhurried facial or a cut and finish, with a pot of tea to end the day. Evening times are open to book now.',
+      by: 'either',
+      bookLink: true,
+      status: 'draft',
+      createdAt: at(addDays(DEMO_DATE, -1), 1010),
+      actor: 'Sophia Reed',
+    },
+  ]
+}
+
+/**
+ * V2: commission rates for the team, so Pay has figures to show. Fictional. Stage 3: Lymphatic
+ * Drainage and the Hydrating Serum earn rates of their own, Sophia is on steps by takings, and
+ * Maya and Sophia have monthly targets.
+ */
+function seedPay(state: BusinessState, uk: boolean) {
   const o = (state.operations ??= defaultOperations('sandbox'))
   const rates: [string, number, number, string][] = [
     // person, services %, products %, from
@@ -1364,6 +1720,59 @@ function seedPay(state: BusinessState) {
     createdAt: instantFor(state, from, 600),
     actor: 'Owner',
   }))
+  const set = instantFor(state, '2026-08-28', 600)
+  o.commissionRates = [
+    {
+      id: 'commission-rate-1',
+      item: { kind: 'treatment', serviceId: 'service-lymphatic' },
+      bps: 4500,
+      from: '2026-09-01',
+      createdAt: set,
+      actor: 'Owner',
+    },
+    {
+      id: 'commission-rate-2',
+      item: { kind: 'product', productId: 'product-hydrating-serum' },
+      bps: 1500,
+      from: '2026-09-01',
+      createdAt: set,
+      actor: 'Owner',
+    },
+  ]
+  o.commissionSteps = [
+    {
+      id: 'commission-steps-1',
+      staffId: 'staff-sophia',
+      on: 'treatments',
+      kind: 'marginal',
+      steps: [
+        { fromMinor: 0, bps: 3500 },
+        { fromMinor: (uk ? 3000 : 4000) * 100, bps: 4000 },
+      ],
+      from: '2026-09-01',
+      createdAt: set,
+      actor: 'Owner',
+    },
+  ]
+  o.staffTargets = [
+    {
+      id: 'staff-target-1',
+      staffId: 'staff-maya',
+      from: '2026-09',
+      takingsMinor: (uk ? 6000 : 7500) * 100,
+      createdAt: set,
+      actor: 'Owner',
+    },
+    {
+      id: 'staff-target-2',
+      staffId: 'staff-sophia',
+      from: '2026-09',
+      takingsMinor: (uk ? 12000 : 15000) * 100,
+      productsMinor: (uk ? 600 : 750) * 100,
+      createdAt: set,
+      actor: 'Owner',
+    },
+  ]
 }
 
 /** V5: the starter branch checklist and one visit, so Branch visits has something to show. */
@@ -1395,6 +1804,17 @@ function seedBranchVisits(state: BusinessState) {
   ]
 }
 
+/** Stage 2: the sample shelf's barcodes, in shelf order, each with a correct check digit. */
+export const SAMPLE_BARCODES = [
+  '2000000000015',
+  '2000000000022',
+  '2000000000039',
+  '2000000000046',
+  '2000000000053',
+  '2000000000060',
+  '2000000000077',
+]
+
 /**
  * V2: a small shelf of products. Guests buy them with about one visit in six; deliveries keep the
  * shelf stocked, the treatment rooms use oil and peel, and one guest bought body oil without a
@@ -1418,11 +1838,14 @@ function seedStock(
     ['massage-oil', 'Massage Oil, 1 litre', 0, 0, 22, 3, 2, false],
     ['enzyme-peel', 'Enzyme Peel, professional size', 0, 0, 30, 1, 2, false],
   ]
-  for (const [id, name, gbp, usd, cost, , reorderAt, forSale = true] of shelf)
+  // Stage 2: fictional in-store barcodes (the GS1 range starting 20 is never a real product's),
+  // so a scanner or a typed code finds each sample product.
+  for (const [index, [id, name, gbp, usd, cost, , reorderAt, forSale = true]] of shelf.entries())
     o.products.push({
       id: `product-${id}`,
       name,
       sku: id.toUpperCase(),
+      barcode: SAMPLE_BARCODES[index],
       priceMinor: price(gbp, usd),
       reorderAt,
       archived: false,
@@ -1591,7 +2014,8 @@ function seedStock(
 
 /**
  * V1.5: two calls nobody could answer this morning, one from Emily, who is due back, and a guest
- * who has told the desk from her private link that she has arrived.
+ * who has told the desk from her private link that she has arrived. NEXT-17: and one call the AI
+ * receptionist answered.
  */
 function seedArrivals(
   state: BusinessState,
@@ -1621,6 +2045,40 @@ function seedArrivals(
       actor: 'Front desk',
     },
   ]
+  // NEXT-17: a call the AI receptionist answered while the desk was with a guest.
+  o.answeredCalls = [
+    {
+      id: 'answered-call-1',
+      number: uk ? '+447700900321' : '+12125550142',
+      at: time(9, 37),
+      seconds: 160,
+      turns: [
+        { from: 'guest', text: 'Hello, have you got anything for a facial on Saturday morning?' },
+        {
+          from: 'receptionist',
+          text: `Yes, the Skin Renewal Facial with Maya Lewis is free on Saturday at ${uk ? '10:30' : '10:30 AM'}. I can text you a link to book it. Nothing is booked until you confirm there.`,
+        },
+        {
+          from: 'guest',
+          text: 'Yes please. And could someone tell me if I can bring my sister along?',
+        },
+        {
+          from: 'receptionist',
+          text: 'I have texted you the link. I will pass your question about your sister to the team, and they will come back to you.',
+        },
+      ],
+      texted: [
+        uk
+          ? 'Skin Renewal Facial with Maya Lewis, Saturday 10 October at 10:30'
+          : 'Skin Renewal Facial with Maya Lewis, Saturday, October 10 at 10:30 AM',
+      ],
+      message: {
+        name: 'Hannah Cole',
+        contact: uk ? '07700 900321' : '(212) 555-0142',
+        message: 'Can I bring my sister along to my facial on Saturday? She would like one too.',
+      },
+    },
+  ]
   const noor = state.appointments.find((a) => a.id === 'visit-noor')
   if (!noor) return
   noor.guestHereAt = time(10, 42)
@@ -1635,4 +2093,73 @@ function seedArrivals(
     occurredAt: noor.guestHereAt,
     actor: 'Guest (private link)',
   })
+}
+
+/** Stage 6: the sample day that is fully booked once the regulars are in the diary. */
+export const FULL_DAY = addDays(DEMO_DATE, 6)
+
+/**
+ * Books regulars who already have a visit to come into every stretch of the day still long enough
+ * for a treatment, each with their own professional's treatments (never colour, which needs a
+ * patch test), so the day reads as fully booked.
+ */
+function fillSampleDay(
+  state: BusinessState,
+  date: string,
+  book: (v: {
+    id: string
+    clientId: string
+    serviceId: string
+    staffId: string
+    date: string
+    start: number
+    status: Appointment['status']
+    source: Appointment['source']
+    bookedAt: string
+  }) => unknown,
+  at: (date: string, minutes: number) => string,
+) {
+  const bookedAt = at(addDays(DEMO_DATE, -2), 610)
+  const taken = new Set(state.appointments.filter((a) => a.date === date).map((a) => a.clientId))
+  const pool = state.clients.filter(
+    (c) =>
+      c.id.startsWith('client-r') &&
+      !taken.has(c.id) &&
+      c.createdAt < bookedAt &&
+      state.appointments.some(
+        (a) => a.clientId === c.id && a.date > DEMO_DATE && a.status === 'confirmed',
+      ),
+  )
+  let n = 0
+  for (const person of state.staff) {
+    const choices = state.services
+      .filter((x) => person.serviceIds.includes(x.id) && !x.archived && !x.patchTest)
+      .sort((a, b) => b.durationMinutes + b.bufferMinutes - (a.durationMinutes + a.bufferMinutes))
+    for (;;) {
+      const day = staffDay(state, person.id, date)
+      if (!day.working || n >= pool.length) break
+      const opening = day.segments
+        .filter((segment) => segment.kind === 'free')
+        .map((segment) => {
+          const start = Math.ceil(segment.from / 15) * 15
+          const fit = choices.find((x) => start + x.durationMinutes + x.bufferMinutes <= segment.to)
+          return fit && { start, fit }
+        })
+        .find(Boolean)
+      if (!opening) break
+      book({
+        id: `visit-full-${n + 1}`,
+        clientId: pool[n].id,
+        serviceId: opening.fit.id,
+        staffId: person.id,
+        date,
+        start: opening.start,
+        status: 'confirmed',
+        source: n % 2 ? 'online' : 'desk',
+        bookedAt,
+      })
+      n += 1
+    }
+  }
+  state.appointments.sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)
 }

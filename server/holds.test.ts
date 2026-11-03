@@ -360,7 +360,7 @@ describe('tax during a hold', () => {
     expect(changed.statusCode, changed.body).toBe(200)
     const refused = await book(owner.slug, held)
     expect(refused.statusCode).toBe(409)
-    expect(refused.json().error).toMatch(/changed during the reservation/)
+    expect(refused.json().error).toMatch(/changed while you were booking/)
     // A fresh hold under the new setting books normally.
     const again = (await hold(owner.slug, { startMinutes: 720 })).json<{ hold: string }>().hold
     expect((await book(owner.slug, again)).statusCode).toBe(200)

@@ -2,14 +2,335 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## 2026-10-10 · SALEANE website homepage
+## 2026-11-03 · SALEANE website homepage
 
-**Status: built locally on 10 October 2026; a demo page, not deployed.**
+**Status: built locally on 10 October and updated 3 November 2026; a demo page, not deployed.**
 
 - A new `web/` folder holds SALEANE's own public homepage, the page a salon or studio owner lands on: plain HTML and CSS with no build step, separate from the app. It uses the house photographs, Newsreader headings and Figtree text, and the warm ivory, sage and soft rose colours.
-- It shows the booking page, a day on the Today screen, Ask Saleane and the prices from `src/domain/pricing.ts` (£49 a month per location for five people who take bookings, then £9 each; Plus £39; phone receptionist £79; 14 days free; plus VAT). People and visits on it are made up.
+- It shows the booking page, a day on the Today screen, Ask Saleane and the prices from `src/domain/pricing.ts` (£59 a month per location for five people who take bookings, then £9 each; Plus £39; phone receptionist £79; 14 days free; plus VAT). People and visits on it are made up.
 - Also brings in the best of the earlier website draft: three promises, "For every kind of care" with six crafts, a switch between the studio's Today screen and the guest booking screen, client and money panels, a UK or US price switch and six common questions. Its "every feature included, however many people" line was left out because it contradicts the £9 per extra person.
 - Checked in a browser at 1440px and 390px with no sideways scrolling. A preview is at https://claude.ai/artifact/PwAP5qTojHNnBaRdACLZ4C.
+
+## 2026-10-13 · Today on a phone, in three tabs with counts
+
+**Status: built locally on 13 October 2026 and checked in Chromium at 1440, 1024, 768, 390 and 320 px, not yet in Safari or Firefox. The owner said yes on 13 October 2026 and it was merged to main the same day on the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/TODAY-TABS.md).
+
+- On a phone, Today has three tabs under the greeting: The day, Needs you and Team, each with its count ("10", "5", "3"). Today opens on The day, which holds the figures, the visits, before they arrive, clients worth a nudge and specials. Needs you holds the calls to return, the calls the AI answered, patch tests and reminders; Team holds who is working, clocking in and out, and your booking page. The page on The day is about 3,900px instead of 5,700px, and Needs you is a tap away instead of 2,600px down.
+- The Needs you count turns soft rose when something waits; the others stay plain. A screen reader hears each tab with its count in words, such as "Needs you 5 waiting", and the arrow keys move between them.
+- On a computer the columns stay side by side, and each heading carries the same count: "10 to come" beside The day ahead, "5 waiting" beside Needs you and "3 professionals" beside Your team today. The counts come from one place, so the tabs, the headings and the cards always agree, and they follow the day: logging a call raises Needs you at once.
+- The strip under the greeting that named what was waiting on a phone is gone; the tabs take its place.
+- `Count` joins the design library for a figure beside a tab or heading, and `/design-language` shows it on a tab row.
+
+## 2026-10-12 · The studio's name reads properly on a practitioner's phone
+
+**Status: built locally on 12 October 2026 and checked in Chromium at 320, 390, 768 and 1440 px.** The owner said yes on 12 October 2026.
+
+- On a phone, a practitioner's day squeezed the studio's name, their own name and the location into a narrow gap beside the wordmark, so "The Linden Rooms" broke over two lines and ran into four. At 560 px and narrower the studio's name now has its own line under the wordmark and the buttons, kept to one line. The practitioner's name and location are left out there, since "Your day, Maya." says who it is. A regional manager's page keeps its area line on the same row. Laptops and tablets are unchanged.
+
+## 2026-10-11 · A tidier SALEANE: Money, Team, a shorter Settings and You
+
+**Status: built locally on 11 October 2026 and checked in Chromium at 1440px and 390px, not yet in Safari or Firefox. The owner chose "Build all" on the plan of 11 October 2026; merged to main on 13 October 2026 on the owner's "merge it all". Nothing is deployed.** [Evidence](docs/evidence/TIDIER-LAYOUT.md).
+
+- Money and Team have their own places in the sidebar, after Marketing. Money holds Takings, Gift cards, Stock and Accounts; Team holds People (who does what, and who can sign in), Rota and Pay. Business keeps how the studio is doing: Overview, Feedback, Client areas and How you compare, with Branch visits and Requests once there are several locations or sign-offs. Reception has no Business and lands on Money.
+- Settings is four groups (Studio; Treatments and payments; Guests; Studio account) instead of five, with 19 sections instead of 21. On a computer, Find a setting narrows them by name or by everyday words such as "VAT", "parking" or "Google".
+- Studio details is about a quarter of its old length. Tax moved to Payments & tax; the online booking switch, the bot check, booking links, Book with Google, booking through ChatGPT or Claude and social accounts moved to Booking page & colours; notes for before and after a visit have their own section; the Google and Apple diaries joined Connected software. "Switching over" is now "Moving in".
+- You, from your name at the top, holds what is yours alone: your preferences, your password, two-step sign-in and Face ID, and your accounts and studios. The owner's switch asking everyone to use two-step sign-in stays on Team and links there.
+- The six moves from the finishing check: Inbox loses its old "Messages to clients" button (Marketing has it); the look of visit emails stays in Settings and the birthday email is shown only in Marketing; the quiet-time price sits on the Waitlist; Design language shows in the demo only and Refresh records is gone from the footer.
+- Older links still land: `/business/money`, `/business/rota` and the rest open their new pages, and `?section=staff`, `preferences` and `diaries` open Team, You and Connected software. Help's guides and every link in the app point at the new places, and a new guide explains opening or closing online booking.
+
+## 2026-10-11 · Moving in, stage 3: gift cards, packages and credit from the old system's own files
+
+**Status: built locally on 11 October 2026; the owner approved merging on 13 October 2026; nothing deployed.** [Evidence](docs/evidence/MOVING-03.md).
+
+- Moving in now brings across the money the studio already holds for its clients, from the reports the old system already gives: gift cards and vouchers with their codes and what is left on them, packages and courses with their visits left, and credit on account. Before, those files were set aside, and Settings refused a credit file unless it was rebuilt by hand with every client's email.
+- A money file adds a Money held step. It asks only what SALEANE cannot tell (which treatment a package is for, or which way round a credit file's amounts go), shows what comes across, checks each total against the old system's own (a totals row in the file, or Fresha's liability summary), and lists what stays behind and why: expired, cancelled or used up, already in SALEANE, listed twice, or left behind by choice.
+- Timely's gift voucher, package and credit details, Phorest's vouchers outstanding and client courses, Vagaro's packages, Square's gift cards and Fresha's liability summary are recognised by their headings; any other file is read by meaning. "Your files" says where to download each report in each system.
+- Gift cards keep the codes printed on them, so guests use the card they already have; Square's, which give only the last four digits, get a new code with the old digits kept for searching. A package keeps its visits left and what they are worth, and the client's page counts visits used in the old system ("4 of 6 visits left"). Credit is recorded on each client's record for the desk.
+- All of it was paid for in the old system, so none of it counts as takings: it stays out of the day's takings, Accounts, receipts, "Sold in total" on Gift cards and "Taken for plans" on Money. No card is charged, no money is given back and nobody is sent a message. Only owners and managers can bring it across.
+- Settings, Switching over has Gift cards, packages and credit, opening the same steps; the older balances CSV step is gone.
+- A package's last day in another year now shows its year ("use by 30 June 2027").
+- The help guide, now "Bring clients, visits and gift cards across from another system", describes the new step.
+
+## 2026-10-11 · Ask's screen parts, for any app's design, and LUMANE's installer
+
+**Status: built locally on 11 October 2026 and checked in a browser; no screen in SALEANE looks different. The installer has been tried only on two pretend apps.** The owner approved stage 2 and the installer on 11 October 2026. [Evidence](docs/evidence/LUMANE-SCREENS.md).
+
+- The Ask panel's working parts now belong to LUMANE: the conversation, the approval card, the question box, the talk button and bar, and the usage line. They carry no look of their own, so any app dresses them in its own design. SALEANE's Ask panel is built from them and looks exactly as it did; the before and after pictures match.
+- The approval card takes one answer at a time, however fast someone taps, and only says "Done" once the change has saved. If saving fails, Approve comes back so they can try again.
+- An app without a design system can take LUMANE's own look, set by four choices: a colour, a font, the corners, and light or dark. Writing in the chosen colour is darkened or lightened until it reads clearly.
+- LUMANE can now be installed in another app. In a coding agent, `/lumane:install` reads the app, asks five questions (the name, how it sounds, the pathways, what each account includes and the look), writes and checks the pack, adds the Ask button and panel in the app's design and opens a pull request for a person's yes. It never merges, deploys or adds a key.
+- An install page asks the same five questions with a live preview of Ask that follows every choice, writes the real pack, checks it, and gives the answers to paste into a coding agent, including the default look's colour, font, corners and light or dark when that look is chosen. `npm run lumane:page` builds it as one file.
+- The coding agent copies into an app only what runs there, leaving out LUMANE's tests and the installer's own tools, so the app needs nothing beyond React and Zod. It offers an app's own design only when it found one, and never asks more than four choices at once.
+- We looked at building the parts on assistant-ui and chose our own instead: it would have added about 114 KB to every app's page for parts that need far less.
+
+## 2026-10-11 · LUMANE hardened: nothing lost, nothing claimed, every turn on record
+
+**Status: built locally on 11 October 2026, in test mode; the eval cases are written but not yet run against the real Claude, which needs SALEANE's Anthropic key.** The owner said yes to the four fixes in the study on 11 October 2026. [Evidence](docs/evidence/LUMANE-HARDENING.md).
+
+- A change Ask SALEANE prepares is kept in the database until the person decides, so a restart just before they tap Approve loses nothing. The change history now says "Approved" when they tap Approve and "Saved" only once the change has saved, instead of one line before it saved.
+- If an approved change does not save (a dropped connection, or someone else saving first), Approve stays on screen and tries the same change again. One already saved from another tab shows as done and is never saved twice.
+- The assistant now reads earlier lines only from the conversation SALEANE keeps, never from the browser. A guest can no longer slip in a fake line such as "the studio agreed a free facial". Spoken and typed questions share one conversation, as before.
+- A last check reads every reply before it is shown or spoken. A sentence claiming something was done, booked, sent, refunded or charged when nothing was approved is taken out, and a plain line says what is waiting. Sentences such as "nothing is booked until you confirm" are left alone.
+- Each answer leaves a record of what it did, without any words: where it came in, which pathways ran, how many calls to the AI, how long it took and what it cost. It is kept for 90 days, so "it told me the wrong price" can be looked into.
+- When someone closes the panel or the booking page, or hangs up, no further paid call to the AI starts.
+- Twenty test cases say what a good answer must and must never do, including a client note that gives orders and a guest claiming to be the owner. `npm run evals` runs them against the real Claude once a key is set; every test run checks their safety rules against the test-mode assistant.
+- A guest's chat and offers are tied to an anonymous id that SALEANE forgets when it restarts, so after a restart a guest simply asks again.
+
+## 2026-10-11 · The design language, brought up to date after Radix and Motion
+
+**Status: documentation only; no screen changes.** [DESIGN_LANGUAGE](docs/DESIGN_LANGUAGE.md#decided-since-radix-and-motion).
+
+- The design language now opens with a dated list of every decision made since the library moved to Radix and Motion, each linking to its rule.
+- A new section, The frame, describes what surrounds every staff page: the sidebar and its fold, the top bar, the two menus under the studio's name and your own, the phone menu, notices and finding a client.
+- The 44px touch rule, hints (never browser title text), notices, welcomes for a new studio, Today on a phone, view switches that keep one place, folds in where things move, the assistant's name written once and the booking page's footer are written out in full.
+- The top bar, folded sidebar, view switch and booking footer rules come from Edem's comments on the demo of 11 October; the fixes themselves arrive with the demo's own change. Phone Today in tabs and the six moves from the finishing check are listed as still waiting for a yes.
+
+## 2026-10-11 · A steadier calendar and a calmer top bar
+
+**Status: built locally on 11 October 2026 from the owner's comments on the demo, and checked in Chromium at 390, 800, 1024, 1180, 1440 and 1600px, not yet in Safari or Firefox.**
+
+- **Calendar.** Today, Week and Month sit at the far right of the calendar's toolbar and hold the same spot in every view and on every day. The date and the day layout buttons keep their room in Week and Month, so nothing beside them moves. On a phone the switch keeps its own row under the date.
+- **Top bar.** The page's name gives way before any button covers it. Below 1200px the assistant's button reads "Ask" with its icon, and Find a client, Help and your menu become round icons, each keeping its full name for screen readers. The "things to mention" words are read out but no longer shown; the dot shows them.
+- **Phone.** Your avatar sits inside its button, as far from the edge as the menu button on the left.
+- **Folded sidebar.** Hovering it swaps the S for the button that opens it, in the same spot, and a click on any empty part of the sidebar opens it. Its icons still go straight to their pages.
+- **Help.** The "All help" arrow has the same room inside its hover shade as the words.
+- **Booking page.** The footer reads "Connected by SALEANE".
+
+## 2026-10-11 · The new photographs, on their screens
+
+**Status: built locally on 11 October 2026 and checked in a browser. The owner approved every placement on 11 October 2026.** [Evidence](docs/evidence/APP-PHOTOGRAPHS-IN-PLACE.md).
+
+- The 21 photographs made for particular screens now show there: one for each of the eight setup steps and the three welcome screens, sign-in, the booking page, a guest's visit page, Today, Clients, Waitlist, closing up and the next visit after checkout. Each keeps its subject in view on a phone.
+- The calendar photograph goes on Today's "All in hand" card and on the Calendar's welcome while nobody is on the team, and the stock photograph welcomes an empty Stock page, since Calendar and Stock have no photo band once they are in use.
+- An empty Stock page opens with one welcome and "Add your first product", as Clients and Waitlist do, instead of four figures at zero and empty panels.
+- The small "Your booking page" pictures in the sidebar, Settings, the setup Look step and Business show the booking page's own photograph.
+- Two photographs that arrived as empty files were saved again from their originals, and the set is sorted into setup, welcome and screens folders.
+
+## 2026-10-11 · The polish pass: SALEANE's own controls, and calm movement
+
+**Status: built locally on 11 October 2026; checked in Chromium at 1440px and 390px, not yet in Safari or Firefox.** [Evidence](docs/evidence/POLISH-PASS.md).
+
+- **A calmer sidebar.** The line under the SALEANE wordmark is gone and the items sit higher, leaving room for one or two more without scrolling. On a computer it folds to its icons, each with a hint, and remembers that choice. On a phone the menu slides in from the side as a drawer instead of a box in the middle, and shows the same counts as the sidebar.
+- **Menus.** The studio's name and your own name at the top each open a short menu (switching studio or sample, your preferences, help, signing out) instead of a button that only opened Settings. Each Stock row keeps Delivery on the row and puts Used in treatments, Correct the count, Move and Edit details in one menu. Arrow keys move through a menu, typing a letter jumps, and Escape closes it with the focus back on its button.
+- **Every drop-down is SALEANE's own list.** Every drop-down, about 130 across 57 screens, opens the same soft list with a tick beside the current choice, in the app's own type, instead of each browser's grey list. They still type to jump, work by keyboard and fill in forms as before.
+- **Ticks and switches.** Ticks are soft squares with an ink tick that settles in; a setting that takes effect as a whole ("Send reminders") is an on and off switch whose knob slides across. Round choices keep the browser's own arrow keys and are drawn to match.
+- **Hints.** Arrows and icons whose meaning is not written on them (calendar, rota and date strip arrows, a visit in the week view, a saved reply, a bar on the takings chart, a mark on a client's year) show a short hint on hover and keyboard focus. A phone has no hover, so nothing depends on one.
+- **Notices.** Stock now confirms a delivery, a count, stock used or a move between locations in a small notice at the corner of the screen, which screen readers hear too. Other screens already show a saved line beside the button, so they keep it.
+- **Search.** Find a client opens a list you can move through with the arrow keys and open with Enter, and "/" or Ctrl or Cmd with K opens it from anywhere.
+- **Movement, only where something answers you.** Side panels slide in and back out the way they came; dialogs, menus, lists, hints and the phone menu open and close softly; the underline under a tab and the chosen part of a switch slide to the new choice; a visit arriving on Today or the waitlist settles in and the rows around it move aside instead of jumping; a new calendar view or day fades up in place of the last; a visit dragged to a new time glides into place; and the guest booking steps slide forward and back. Folds open and close to their height in browsers that can. Pages loading, scrolling and typing never move, and a device set to reduce motion sees every change at once. Motion (formerly Framer Motion) does this, on the same timing as the quality bar's calm motion.
+- **A new studio meets welcomes.** Business, Accounts, Client areas, Marketing's Audience and the Calendar (until someone is on the team) open with a photograph, one line on what will appear and the next step, instead of figures at nought or an empty grid. An owner who has not finished setting up is taken back to where they left off. Today drops its four figures until the first visit is booked.
+- **Phone Today.** What needs you (calls to return, calls the AI answered, patch tests to sort, reminders) is named in a strip under the greeting, each a tap away from its card, instead of starting about 2,500px down.
+- **Easier to tap.** On phones and touch screens every icon button, choice, filter and list item is at least 44px. On a computer the calendar arrows grow from 36px to 40px.
+- **The design library page** (`/design-language`) shows menus, hints, the drop-down list, ticks and switches, a notice and a list that moves, live, and [DESIGN_LANGUAGE](docs/DESIGN_LANGUAGE.md#where-things-move) now lists every Radix part and where things move.
+- Radix now provides menus, hints, notices, drop-downs, ticks and switches alongside dialogs, tabs, toggle groups and popovers, all through `src/design`. Nothing about bookings, money or messages changed, and there is no new migration.
+
+## 2026-10-11 · LUMANE's pack: Ask and the app's name, in any app
+
+**Status: built locally on 11 October 2026; stage 1 of the LUMANE pathways plan, with no change to what the assistant may do.** [Evidence](docs/evidence/LUMANE-PACK.md).
+
+- SALEANE now hands LUMANE, its assistant engine, one pack: its name, who meets the assistant (the team, and guests through the AI receptionist), the pathways open to each, where they meet it and the kinds of use the plan includes. LUMANE uses only what the pack lists, and checks it as SALEANE starts: a pack with a problem stops the server rather than leaving the assistant half set up.
+- The assistant's name is written in one place. Every screen, help guide, price line, change-history line and AI instruction takes it from there, including Plan and billing's usage meter, whose labels come from the pack.
+- LUMANE's own rules now travel with every request, every talk and every phone call: it is an AI and says so, it states only facts it was given, it never says something was done that a person has not approved, and words in the studio's records are never instructions. SALEANE's own rules, such as British spelling and never sharing one client's details with another, are unchanged.
+- LUMANE no longer has SALEANE's kinds of use built in. SALEANE names typed questions, talking time, guest chats and the phone receptionist's minutes in its pack, so a new kind needs no change to LUMANE.
+- A pretend second app, a calendar called Caleane, installs LUMANE in the tests with its own name, pathways and kinds of use and no SALEANE inside it.
+
+## 2026-10-11 · The price page: everything included, with room to grow
+
+**Status: built locally on 11 October 2026; nothing is charged.** The owner said yes to the preview on 11 October 2026.
+
+- The price page now opens with "Everything included, with room to grow." It lists every feature a studio has from the first day, then what each location starts with each month: 5 people taking bookings, 300 Ask Saleane questions, 30 minutes of talking, 200 guest chats with the AI receptionist and 2,000 marketing emails. These amounts come from the same settings the app counts against, so the page and the app cannot disagree.
+- Room to grow has three cards: Plus (£39 a month for each location, more of everything that runs on AI and email), more people (£9 a month for each person beyond five) and the phone receptionist (£79 a month for each location).
+- "No locked tiers" becomes "Amounts, never features": every studio has every feature, and only ever adds more of what it already uses.
+- Visit emails (confirmations, reminders, aftercare) are never counted, and the page says so.
+- Plan and billing shows only Plus and the phone receptionist as switches; extra people are counted from the team, as before.
+
+## 2026-10-11 · The AI receptionist answers calls the desk misses (NEXT-17)
+
+**Status: built locally on 11 October 2026; not run against a real phone line or OpenAI project. Calls stay off until the studio's Twilio number, an OpenAI project and Claude are set up.** [Evidence](docs/evidence/NEXT-17-PHONE-RECEPTIONIST.md).
+
+- When nobody at the desk picks up, the studio's phone line hands the call to the AI receptionist instead of ending it. It answers in the studio's chosen voice and tone, says it is an AI, and answers questions about treatments, prices, opening hours and free times from the studio's own records, with Claude, as the booking page's chat does. OpenAI's GPT-Live listens and speaks.
+- It never books, moves or cancels a visit or takes a payment. When a caller wants a time, it texts them a link to the booking page with that time chosen; nothing is booked until they confirm there. It can also take a message for the team. It gives no health advice.
+- Each call is written down for the desk: on Today, Answered by the AI receptionist shows who called, when and for how long, any message for the team, any link it texted and, folded away, what was said. The desk calls back or books, then marks it followed up. A call from a client's number is matched to them, and it is part of their export.
+- The phone receptionist is an add-on of £79 a month for each location ($99 in the US, still a placeholder), with 300 minutes of calls a month. Plan and billing offers it only once phone calls are connected on SALEANE's server, and until then shows Not yet; added part way through a paid month it is charged for the days left, like Plus. The owner or a manager then ticks Also answer calls the desk misses in AI receptionist settings, which says how many minutes are left.
+- A call holds up to ten minutes before it is answered, ends itself when its time or the month's minutes run out, and is counted from what OpenAI reports. A call the AI cannot take (switched off, no minutes left, or no answer from OpenAI within 15 seconds) is written down as a missed call for a call back, as before.
+- The price page's phone receptionist line now says what it really does, instead of "books visits".
+
+## 2026-10-10 · A new location needs someone who gives its treatments
+
+**Status: built locally on 10 October 2026.** [Evidence](docs/evidence/SETUP-WIZARDS.md#someone-at-a-new-location-who-gives-its-treatments-10-october-2026).
+
+- Adding a location no longer lets it open with nobody working there who gives a treatment on its menu, which left it unable to take a single booking. The Team step says so and waits, and saving refuses it on the server too.
+- Treatments on its menu that nobody working there gives yet are named on the Team step and on Check, so the owner knows guests cannot book those there until someone does. The location can still open.
+- The Team step shows each person's role beside where they work, so the owner can see who gives what.
+
+## 2026-10-10 · Marketing, in its own section (NEXT-14)
+
+**Status: built locally on 10 October 2026; email stays in test mode, so nothing is sent.** [Evidence](docs/evidence/NEXT-14-MARKETING.md).
+
+- Marketing has its own item in the sidebar, between Inbox and Business, for owners, managers and general managers. It has four parts: Campaigns, Automatic, Audience and Results.
+- Campaigns are the messages to clients, as before, now with a line under each saying what it did.
+- Automatic gathers the emails SALEANE sends by itself (aftercare, due back, birthday and we miss you), each with an on or off switch, how many went in the last 30 days and a look at the email as a guest would get it. They moved here from Settings, Messages, which keeps the booking messages.
+- Audience counts who may hear from the studio, who has not agreed, and how people stopped (the link in an email, the desk, the booking page), month by month. It shows only numbers, never a list of names. The words guests agree to moved here from Settings.
+- Results show what each campaign and automatic email did each month: how many went, how many could not and why, who stopped hearing from the studio, and who booked within two weeks. Nothing follows whether an email was opened.
+- Each location's price includes 2,000 marketing emails a month, or 10,000 with Plus (the owner's decision, 10 October 2026). A campaign that would go over is not approved, and says so in plain words; an automatic marketing email past the month's limit is not sent. Booking, reminder and aftercare emails never count.
+- A mail app's own Unsubscribe button now stops a guest's news at once (one-click unsubscribe, RFC 8058), with no page and no sign-in.
+
+## 2026-10-10 · Signing in with Face ID or a fingerprint (NEXT-15)
+
+**Status: built locally on 10 October 2026; checked in Chromium with its stand-in authenticator, not on a real phone.** [Evidence](docs/evidence/NEXT-15-FACE-ID.md).
+
+- Settings, Team has Face ID and fingerprint. Anyone can add the phone or computer they are on: they name it, type their password (and a code from their app when two-step sign-in is on), and the device checks their face, fingerprint or screen lock.
+- The sign-in page then offers Sign in with Face ID or fingerprint, with no email, password or code to type. Browsers that can also offer the saved passkey under the email field.
+- The face or finger never leaves the device. SALEANE keeps only the passkey's public key, the device's name and when it was added and last used.
+- Each device is listed with when it was added and last used, and whether it is shared with the person's other devices. Removing one needs the password; the device stops signing in at once, and the next time it offers the passkey it is asked to forget it.
+- Every device added or removed is emailed to the account, and the owner's team list shows who signs in with Face ID.
+- Restoring a backup stops every passkey, since one may have been removed since the backup; each person adds their device again.
+- It needs SALEANE on a secure web address. On this computer it works at localhost, not at 127.0.0.1, and the settings say so.
+
+## 2026-10-10 · How the AI speaks, and voice notes after a visit (NEXT-16)
+
+**Status: built locally on 10 October 2026; the AI, talking and voice notes stay in test mode until the studio's Anthropic and OpenAI keys are set.** [Evidence](docs/evidence/NEXT-16-TONE-AND-VOICE-NOTES.md).
+
+- Settings, AI and voice has How your AI speaks. The owner or a manager chooses a tone (Warm and friendly, Calm and polished, or Bright and cheerful), each shown with a sample answer, and may add up to 400 characters on how the studio likes to speak, such as what it calls its treatments. The AI receptionist answers guests in that tone; in test mode its greeting, the times it offers, the time it holds and its thanks change with the tone. Ask SALEANE writes the messages it drafts for clients in the same tone. The studio's words are passed on as a note on style only and never change what the AI may do; it still always says it is an AI.
+- The same panel chooses Ask SALEANE's voice for talking, from the six on the shortlist, with Vesper as SALEANE's own. Anyone who talks to Ask SALEANE can choose their own voice in the panel, and their next talk uses it; nobody can choose for someone else.
+- After a visit, a professional can speak a note of up to two minutes, or type one, on the visit's brief in their own day. SALEANE sorts it into a note for the studio and aftercare for the guest, and nothing is saved until they have checked and changed both and pressed Save. The note joins the guest's history; the aftercare joins the treatment's own advice in the aftercare email, as "A note from Maya: …" when the professional wrote it (written at the desk it goes unsigned), and can be removed. Once that email has gone, or two days after checkout, it says plainly that the aftercare is kept on the visit only, and if SALEANE cannot check just after saving, or the email went as it saved, it says only that the aftercare is kept on the visit. The help for both says the same. It works for their own visits once the guest has arrived, and reception and managers can write up any visit at their studio that went ahead, from the visit's panel on Today or the calendar.
+- In test mode the words are sorted by themselves, free, and nothing leaves SALEANE. With Claude switched on, typed words are written up by Claude; with talking switched on as well, a voice note is written down by OpenAI's gpt-4o-mini-transcribe first. The recording is never kept. Each write-up counts as one Ask SALEANE question, its worst cost is held before anything is sent, and a write-up that fails says so plainly and is not counted, though what it cost still is.
+
+## 2026-10-10 · £59 a location, and what SALEANE earns from card payments
+
+**Status: built locally on 10 October 2026; test mode only, no money moves.**
+
+- Each location is now £59 a month in the UK and $69 in the US, up from £49 and $59 (the owner's decision, 10 October 2026). The price page, Plan and billing, adding a location and every bill follow from the one setting in `src/domain/pricing.ts`. Extra people stay £9 ($12 in the US); Plus and the phone receptionist are unchanged.
+- The price page's card line now says openly how SALEANE earns from card payments: studios pay Stripe's standard rate, the same as going to Stripe themselves, and never anything on top, and once SALEANE joins Stripe's partner programme Stripe will share part of its own fee with SALEANE. It says "once" because joining is a later step on the owner's own Stripe account; card payments are still not connected.
+
+## 2026-10-10 · Email from any sender (NEXT-13, part 2)
+
+**Status: built locally on 10 October 2026; not run against any real email account.** [Evidence](docs/evidence/NEXT-13-SENDERS.md).
+
+- SALEANE's guest and account emails can now go through Postmark, Resend, SendGrid, Mailgun, Amazon SES, any mail server that speaks SMTP, a Google Workspace mailbox or a Microsoft 365 mailbox. One setting chooses the service (`SALEANE_EMAIL_PROVIDER`), and the server will not start if a key the chosen service needs is missing. Until then email stays in test mode.
+- Every service sends the same email: the plain words, the designed email in the studio's colours, and the studio's name as the sender. Visit messages and news are labelled apart so each service can keep them apart.
+- Delivery receipts from Resend, SendGrid and Mailgun are checked by each service's own signature, as Postmark's and Twilio's already were, and only a receipt from the service in use is believed. A receipt more than five minutes old is refused, or nine hours for Mailgun, which posts the same signed receipt again for up to eight hours. A bounce that comes back after delivery marks the email failed. Resend is sent an idempotency key, so the same email sent again within a day goes once. Only a receipt marks an email delivered; the others stay "handed over".
+- A service that was busy is tried again; one that refused says why. If the line drops after the email was handed over, it is marked unclear for a person to check, never sent twice by itself.
+- One-click unsubscribe (RFC 8058) is ready on every service for news, for the Marketing section to switch on with its stop links.
+- Settings, Messages names whichever service handled each message.
+
+## 2026-10-10 · Paying for each person beyond five
+
+**Status: built locally on 10 October 2026; test mode only, no money moves.** [Evidence](docs/evidence/PRICE-PER-PERSON.md).
+
+- Each location's £49 (or $59) now includes 5 people who take bookings. Each person beyond that is £9 a month, or $12 in the US, plus VAT or any sales tax (the owner's decision, 10 October 2026). Anyone who gives no treatments, such as reception or a manager, is free; a manager who also gives treatments counts.
+- People are counted across the whole studio, so two locations include 10. Someone counts when they are not archived and give at least one treatment that is still offered.
+- Each bill adds a line such as "2 more people taking bookings, beyond the 5 included", counted when the bill is made, so adding or archiving someone applies from the next bill. Nothing is charged part way through a month for a person.
+- Settings, Plan and billing shows how many people take bookings, how many are included and what the extra people add, and the price page says what is included. The new location's last step counts people too: a new location includes 5 more, so the bill can rise by less than £49.
+- On the team screen, the owner of a studio of their own is told before saving when a change moves the bill, for example "Saving makes 6 people taking bookings, and your location includes 5, so the monthly bill goes up by £9, plus VAT, from the next bill."
+
+## 2026-10-10 · Emails in each studio's own colours (NEXT-13, part 1)
+
+**Status: built locally on 10 October 2026; email is still in test mode, so nothing is sent.** [Evidence](docs/evidence/NEXT-13-EMAILS.md).
+
+- Every email to a guest now goes as a designed email as well as plain words: the studio's name in the serif on a warm off-white page, one white card with the subject as its heading, the visit's treatment, time and place on the studio's soft tint, and a rounded button in the studio's first colour, deepened just enough for white words to read. The studio's address and phone sit at the foot, and the line about keeping in touch moves there too.
+- The design is made from the plain words when the email goes, and nothing is added or reworded: every word of the plain version appears in the email, in the same order, and email apps that show no design show the plain version. A line ending in a link becomes a button: "View, add to your calendar or cancel" stands on the button itself; a longer sentence stays, followed by a button named for what it does ("Rate your visit and Maya", "Book this time", "Leave a review").
+- Password, email confirmation, sign-in and billing emails go in SALEANE's own sage and soft rose, with the link on a button ("Choose a new password", "Confirm your email").
+- Settings, Messages has How your emails look: the booking confirmation, reminder, after the visit and birthday emails as a guest sees them, written for a made-up guest, Alex, on the studio's own first treatment tomorrow at 10:00. Each email in a Sent list has See the email. Neither makes a private link, so the button to manage a visit goes nowhere there.
+- Birthday, "we miss you", due back emails and news go on Postmark's broadcast stream, apart from visit messages, as Postmark asks (`POSTMARK_BROADCAST_STREAM`, required with Postmark: the stream's Stream ID, copied from Postmark).
+- A Sent list now shows a message's booking page link as the address it went with, where it showed `{{book_link}}`.
+
+## 2026-10-10 · Diaries checked by a calendar app's own reader
+
+**Status: tests only; nothing on screen changes.** [Evidence](docs/evidence/NEXT-10-DIARIES.md#tests).
+
+- The team diaries and a guest's "Add to calendar" file are now read back in the tests by ical.js, Mozilla's open-source iCalendar reader (MPL 2.0, a development dependency that is never shipped), so a file Google or Apple Calendar would misread fails before a studio sees it. It checks times either side of the clocks changing in London and New York, long names with accents and punctuation, whole-day time off and cancelled visits.
+
+## 2026-10-10 · Talking to Ask SALEANE (NEXT-12, part 2)
+
+**Status: built locally on 10 October 2026; not run against a real OpenAI or Anthropic account.** [Evidence](docs/evidence/NEXT-12-TALKING.md).
+
+- With Claude switched on and an OpenAI key added (`SALEANE_VOICE_PROVIDER=openai`), Ask SALEANE has a Talk button. OpenAI's voice listens and speaks; Claude answers with the same studio records, permissions and approvals as a typed question. The voice says it is an AI and never says a change was made.
+- While talking the panel shows "Talking · 9:55 left" with Stop, what was said with a small microphone, and each answer. A change prepared while talking waits on screen for Approve or Not now, as a typed one does.
+- Each talk can run up to ten minutes, or what is left of the month's talking time. SALEANE holds that time and its most it could cost before the talk starts, ends the talk when its time is up, and counts only the seconds it ran. With less than 30 seconds left it says "This month's talking time is used up. It resets on the 1st, or the owner can add Plus. You can still type." Spoken questions count as talking time, not typed questions.
+- The meter adds "1 of 30 talking minutes used." A refused microphone says "SALEANE needs your microphone to talk. Allow it in your browser, or type instead." Closing the panel hangs up, even while a talk is still starting. If the line fails, the microphone stops and SALEANE ends the talk at once, counting only the time used. Starting a talk in a second tab ends the first. Questions asked while an earlier one is still being answered each keep their own words. The browser gathers every way it can be reached before it offers to connect, as OpenAI asks, so talking works on networks that need a relay.
+- OpenAI's key never reaches the browser. The help guide and the privacy notes say what is sent to OpenAI while talking. Unset, there is no Talk button, and a sample studio never talks.
+- Each location's AI now also has a monthly spend ceiling (2,000 cents, or 6,000 with Plus), alongside the daily one, so a studio that reached the daily ceiling every day still cannot cost more than it pays. A busy location's included use comes to about half of it. Past it, Ask SALEANE says "The assistant has reached this month's limit. It will be back on the 1st."
+
+## 2026-10-10 · Finish and feel (left-out Stage 6)
+
+**Status: built locally on 10 October 2026 and checked in a browser; test mode only, so no message is sent, no map service is connected and nothing is deployed.** No migration. Evidence: [small moments](docs/evidence/LEFT-6A-SIGNATURE-MOMENTS.md), [two-step sign-in for everyone](docs/evidence/LEFT-6B-TWO-STEP-FOR-EVERYONE.md), [privacy approvals](docs/evidence/LEFT-6C-PRIVACY-APPROVALS.md), [the Inbox and leftovers](docs/evidence/LEFT-6D-INBOX-AND-LEFTOVERS.md), [page tops, voice and design](docs/evidence/LEFT-6E-PAGE-TOPS-VOICE-AND-DESIGN.md) and [dragging on a tablet](docs/evidence/LEFT-6F-DRAGGING-ON-A-TABLET.md).
+
+- **Small moments.** A paid checkout ends on "Settled." with the receipt and the next visit. A day with no free time says "Fully booked. Beautifully done.", and a gap of half an hour or more between visits reads "A pause". Needs you says "All in hand." when nothing waits. Business closes the day with a short ledger: guests seen, first-timers, rebooked before leaving, takings, products, tips, and who starts tomorrow.
+- **The guest's visit page** greets them by first name ("Your visit, Naomi."), shows the studio's photo, and has a Your studio panel with the address, directions and Add to calendar. The map itself appears once a map service is connected.
+- **Two-step sign-in for everyone.** The owner can ask everyone to use two-step sign-in, once they use it themselves. Settings, Team says who has it on and who has not. Anyone without it is asked to set it up straight after signing in and cannot open the studio until they have; people invited are asked as they join. The booking page, guests' visit links and partner keys work as before.
+- **Privacy decisions.** Nothing is deleted automatically. Settings, Privacy lists client records past the studio's keeping time, and the owner or a manager chooses Delete or Keep for each. A deleted client becomes "Former client"; money records are always kept.
+- **One Inbox conversation per guest.** Messages from a guest's email or number on several records join one conversation, and the reply box is compact, so the conversation has room. Business's empty chart no longer reads "£0.01", and about twenty internal words on screen became plain ones, with a test that keeps them out.
+- **One page top everywhere.** Every page opens the same way, with the photo band kept for the six arrival pages. A wording guide ([How SALEANE speaks](docs/HOW_SALEANE_SPEAKS.md)) and the design language page now set out the voice.
+- **Dragging on a tablet.** On a touch screen a visit is held for a moment before it moves, so the calendar scrolls normally and a visit is never moved by accident.
+- **Before they arrive.** Today's side column opens with the next guest still to come: their treatment and who they see, what is good to remember, their last visit, a patch test not in order, and whether their next visit is booked. The visit window and a professional's own day carry the same milestone.
+- **Quiet milestones.** A first visit, the fifth, tenth, twenty-fifth or fiftieth, a year since the first visit, a birthday within three days, or coming back after six months, counted across every record with the guest's email and only from visits they came to. The day's list shows a small tag. Today also says when the day carries the studio past its hundredth, five hundredth or thousandth visit.
+- **Gentle motion on key moments.** The greeting rises softly as the day opens, a guest's row changes softly when they are welcomed or checked out, the closing ledger writes itself line by line, the guest's own visit page and booking confirmation settle in, and a milestone's hairline draws itself. Nothing loops or bounces, and with reduced motion everything is simply there.
+- **The wizards fit on every screen.** On phones and upright tablets the setup guide and Add a location now name only the step you are on, in full; before, a long name such as Treatments was cut to "St…" or "Treatm…". The wizards' own step motion arrives with the quality bar change.
+- In the browser pass: a short pause is tinted without words that would not fit, and Two-step for everyone says "Nobody has it on yet" rather than "0 of 1 person".
+- **Help** has seven new guides: small moments, before they arrive and quiet milestones, two-step sign-in, asking everyone to use it, privacy decisions, one conversation per guest, and how SALEANE speaks.
+
+## 2026-10-10 · Ask SALEANE, the receptionist and other software, built properly (left-out Stage 5)
+
+**Status: built locally on 10 October 2026 and checked in a browser; test mode only, so no message is sent, ChatGPT, Claude and Google cannot reach SALEANE until it is online, and nothing is deployed.** Migration 34 adds the quiet-time price links and migration 35 keeps the answers to writes from other software. Evidence: [my usual](docs/evidence/LEFT-5A-MY-USUAL.md), [a lower price for a quiet time](docs/evidence/LEFT-5B-QUIET-TIME-OFFERS.md), [moving a Google booking](docs/evidence/LEFT-5C-GOOGLE-TIME-CHANGE.md), [booking through ChatGPT or Claude](docs/evidence/LEFT-5D-BOOK-THROUGH-CHATGPT-CLAUDE.md) and [keys for other software](docs/evidence/LEFT-5E-KEYS-FOR-OTHER-SOFTWARE.md).
+
+- **"My usual".** SALEANE works out the treatment a guest keeps coming back for, who they see, and the day and time they like, from their completed visits, with the client page's own rules. A guest who texts "can I book my usual?" is offered free times and a booking link; their visit page offers "Come back for your usual?"; and Ask SALEANE answers "what is Amelia's usual?" and prepares "book Amelia her usual on Friday" for approval. Records with the same email count as one guest, so a regular whose online booking opened a second record is never treated as new.
+- **A lower price for a quiet time.** The owner can set a percentage or an amount off, a floor, how long it stays open and treatments left out. Invitations to a time a cancellation freed, or to one of Today's open times, can then carry that price for that time only. The guest books it once through the private link in their email; any other time, or the link again, is at the usual price. The visit shows what was given, and Cancelled times shows the last 30 days.
+- **Booking through ChatGPT or Claude.** The owner can let AI assistants book through the studio's own address. They see only what the booking page shows, book with the same checks after the guest says yes, give the guest their private link and never sign anyone up for news. In test mode only the computer SALEANE runs on can reach it.
+- **Moving a Google booking.** Guests can move a visit booked on Google to another free time, under the same rules as their own link.
+- **Keys that send things in.** An access key can now book, move and cancel visits, add and change clients, and send in a chain's own till sales and refunds, only as far as the owner ticked. Every change goes through the desk's checks, is recorded under the key's name and is never made twice for one Idempotency-Key. Sales from other tills show in Money and Business, apart from treatment takings.
+- In the browser pass: a guest's texts from a number on two of their records now join one conversation; Ask SALEANE no longer asks which record is meant; Ask SALEANE and the receptionist read a written date such as "Saturday 31 October"; the booking page shows a day chosen weeks ahead; the quiet-time and access key choices sit small beside their words; a visit lists the guest's earlier visits across their records; Who changed what reads a first switch-on as "no became yes"; and Business shows tips, products, gift cards, rent and other tills on tablets and phones, where they were hidden.
+- **Help** has six new guides: a guest's usual, a discount on a quiet time, booking through ChatGPT or Claude, letting other software send things in, what it can send, and sales from other tills. The Google guide covers moving a visit.
+
+## 2026-10-10 · Several locations, built properly (left-out Stage 4)
+
+**Status: built locally on 10 October 2026 and checked in a browser; test mode only, so no message to clients is sent and nothing is deployed.** Migration 33 adds the stop links for messages to clients. Evidence: [one message to clients across the group](docs/evidence/LEFT-4A-GROUP-MESSAGE.md), [moving gift cards and team members between locations](docs/evidence/LEFT-4B-MOVING-BETWEEN-BRANCHES.md), [general managers and their own team](docs/evidence/LEFT-4C-GENERAL-MANAGER-TEAM.md), [sign-offs for refunds, prices and the rota](docs/evidence/LEFT-4D-SIGN-OFFS.md).
+
+- **One message to many clients.** Inbox, Messages to clients: one message for every client who agreed to news and offers, or for the clients of chosen locations, by email or by text where they agreed to texts. Each person gets it once, between 09:00 and 19:00 on the studio's clock. The draft shows how many it would reach, by email and by text, at each location, and who is left out and why. The owner, a manager or a general manager writes it; only the owner approves it, and the numbers are worked out again at that moment. Each email has its own link to stop news, and each text ends with Reply STOP. In test mode copies are queued, not sent; a sample studio queues nothing.
+- **A gift card can move to another location.** The money already taken and spent stays where it happened. What is left counts at the new location from then on, and the card can still be spent anywhere. The reason is kept on its history, and a general manager can move only their own location's cards.
+- **A team member can move to another location from a date.** Their usual days and hours carry on there from that day, and days before it stay where they were, with their pay, hours worked and figures. Booked visits are never moved, cancelled or messaged: the owner moves them first or keeps them, and the rota says how many are still at the old location. A move still to come can be cancelled.
+- **General managers plan their own team.** A general manager sees their own team on the rota, including someone moving there from the week they arrive, changes their days at their own location, adds and changes their time off, and adds, renames and archives their location's rooms and chairs. Time off can now be changed by anyone who may change the rota, keeping the earlier record.
+- **Sign-offs for refunds, new prices and rota changes.** The owner sets what a general manager can give back on one receipt without asking, and which rota changes need a sign-off. Requests go to the location's regional manager up to their limit, and to the owner above it. An approved refund can be given back once from the receipt within 7 days, a new price starts by itself on its date, and a rota change happens as soon as it is approved.
+- In the browser pass: choice circles in the message editor drawn far too big are now small; the sample message takes the studio's own name; someone moving to a location shows on its general manager's rota from the week they arrive; kept visits say "still at" the old location and are no longer counted at the new one; a request says plainly why it went to the owner; Moving between locations runs full width under the rota; the Moved here tag stays on one line; and the team's description says what a general manager can now do.
+- **Help** has nine new guides: three on messages to clients (writing one, who receives it, approving it), moving a gift card, moving a team member, a general manager's team and rooms, a refund over the limit, a new price, and sign-off rules.
+
+## 2026-10-10 · Pay, rota and patch tests, built properly (left-out Stage 3)
+
+**Status: built locally on 10 October 2026 and checked in a browser; SALEANE works out and shows pay but never pays anyone, rent is only recorded once paid outside SALEANE, no message is sent and nothing is deployed.** No migration. Evidence: [commission and targets](docs/evidence/LEFT-3A-COMMISSION-AND-TARGETS.md), [chair rent as a share](docs/evidence/LEFT-3B-CHAIR-RENT-PERCENT.md), [rota day changes](docs/evidence/LEFT-3C-ROTA-WEEK-CHANGES.md), [patch tests before booking](docs/evidence/LEFT-3D-PATCH-TEST-BOOKING.md).
+
+- **Commission for one treatment or product.** The owner can set a rate for a treatment, a product or a kind of treatment, for one person or everyone. The most specific rate wins, and every rate is kept with who set it and when, so a past month is worked out with the rates in force at the time.
+- **Steps by takings.** A higher rate once someone's takings for the month reach a step, paid either only on the takings above each step or on the whole month once a step is reached. Each month starts afresh.
+- **Monthly targets.** Owners and managers can give each person a monthly target, optionally split into treatments and products. Pay shows the progress, and each person sees their own on their page. Tips never count.
+- **How commission was worked out.** Each person's Details lists every part of their commission and every visit under it, and Download for payroll carries the same working.
+- **Chair rent as a share.** Rent can be a fixed amount a week or month, a share of the renter's treatments (and products, if they are theirs), or both. A renter's takings are kept out of the studio's figures, and Pay shows the fixed rent owed now and the share so far.
+- **The rota, one day at a time.** Any single day can have different hours or be a day off, or a day can be added that someone does not usually work, without touching their usual hours. Booked visits outside new hours are listed, and nothing saves until the owner chooses to move them first or keep them with a warning. Last week's changes can be copied onto the next. Online booking, the calendar, Today and each person's own page follow the rota.
+- **A patch test comes first, online too.** A studio can stop online booking for a treatment that needs a patch test when the guest has no clear test, on the booking page, through the AI receptionist and on Google. Every online guest reads the same words, and Book a patch test goes straight to its times. The desk can still book, with a reminder and Book the patch test first.
+- In the browser pass: choice circles in the rota and pay windows, and in the tips window, drawn far too big are now small and beside their words; a finished month's target no longer says "so far"; reception is no longer told it can change the rota; an empty setting is no longer shown as "yes" in Who changed what.
+- **Help** has new guides for rates, steps and targets, chair rent as a share, changing a day on the rota, and patch tests before online booking.
+
+## 2026-10-09 · The till, built properly (left-out Stage 2)
+
+**Status: built locally on 9 October 2026 and checked in a browser; test mode only, so no receipt printer, cash drawer or email service is connected, no money moves and nothing is deployed.** Evidence: [barcodes and product photos](docs/evidence/LEFT-2A-BARCODES-AND-PHOTOS.md), [receipts, the receipt printer and the cash drawer](docs/evidence/LEFT-2B-RECEIPTS-PRINTER-DRAWER.md).
+
+- **Barcodes and scanning.** Each product can carry one barcode, checked by its check digit and never shared with another product. An ordinary USB or Bluetooth scanner works anywhere on the screen: at checkout and Sell without a visit a scan adds the product, on Stock it finds it, and in a delivery, count, move or supplier order each scan adds one. A phone or tablet can scan with its camera where the browser allows it. An unknown code is said plainly, and owners and managers can add it to a product there and then. Migration 31.
+- **Product photos.** A product can have a photo, taken on a phone or chosen from the computer, made smaller before it is sent and checked by the server. It shows as a small square tile wherever products are picked.
+- **Receipts.** Every visit, walk-in sale, gift card and plan payment has a receipt with the studio, the VAT number or tax ID, each line, tax as the studio shows it, the deposit, the total and how it was paid in honest words. It prints through the computer's print window on an 80 mm or 58 mm roll, on a receipt printer on the studio's network, or on the test printer, which shows what it would have printed. A receipt can also be emailed to the client. Money lists gift card and plan receipts too. Migration 32.
+- **The cash drawer.** A drawer connected through a network receipt printer opens for cash payments and cash refunds, and "Open the drawer" asks why for a no sale. Money's till count lists every opening for the day. SALEANE says the drawer was sent the signal, never that it opened.
+- **A card refund puts products back on the shelf** once the card service confirms it.
+- Money files receipts, recorded funds and refunds under the studio's own day, so one paid just after midnight is no longer listed under the day before.
+- **Help** has six new guides: barcodes, product photos, receipts, the cash drawer, setting up the receipt printer step by step (finding its address, the port, a test page) and which receipt printer and cash drawer to buy.
+
+## 2026-10-09 · Clients and memberships, built properly (left-out Stage 1)
+
+**Status: built locally on 9 October 2026 and checked in a browser; test mode only, so no card is charged, no message is sent and nothing is deployed.** Evidence: [membership card payments](docs/evidence/LEFT-1A-MEMBERSHIP-CARD-PAYMENTS.md), [guest plans](docs/evidence/LEFT-1B-GUEST-PLANS.md), [STOP replies](docs/evidence/LEFT-1C-STOP-REPLIES.md), [at a glance](docs/evidence/LEFT-1D-CLIENT-INSIGHT.md).
+
+- **Memberships paid from a saved card each month.** Selling a membership can now take it from the client's saved card: the desk reads the client the exact words of the agreement and ticks that they agreed. SALEANE reminds the client three days before each payment, takes it on the day from 09:00, and records the month only when the card service confirms it. A declined card is tried again after 1, 3 and 7 days, then SALEANE stops and tells the client and the team. An unclear answer is never retried by itself; "Check again" asks the same question. Ending a month the card paid can refund it to the card. Money, Plans shows this month's card payments, and the till never counts them as cash. Sample studios never charge. Migration 30.
+- **Guests see their package or membership** on their visit page: what is left, when the next month starts, which card pays it each month, and what it can mean for this visit, using checkout's own rules. Never a price, a payment or a record ID.
+- **STOP and START by text.** A client who texts STOP has texts turned off and nothing more is texted to that number; START turns them back on only where STOP turned them off. HELP is left for the team. The Inbox labels each one, and the client page says when they replied STOP. Owners and managers can deliver a test text from the Inbox to try it, with nothing sent.
+- **At a glance on each client page:** when they usually come, when they are due back, their favourite treatment and professional, what they spent in the last 12 months, how reliable they are and how often they book ahead, with one suggested next step (invite them back, book their usual, a patch test, a membership to mention or a month to pay). Nothing is sent from it.
+- **While a studio is read only for its SALEANE bill,** no membership reminder goes and no client's card is tried. Money, Plans says card payments are paused, and a month that fell due meanwhile is taken at the desk once the bill is paid. Only a reminder that went out counts, so a month is never taken while its reminder is still waiting, stopped or refused.
+- **Help** has three new guides: taking a membership from a saved card each month, when a client texts STOP, and seeing a client at a glance.
+- On the client page a plan now reads top to bottom instead of squeezing its name beside its buttons, and visit messages are rows divided by hairlines.
 
 ## 2026-10-10 · Claude behind Ask SALEANE and the receptionist (NEXT-12, part 1)
 
@@ -24,6 +345,29 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Each question's or guest message's share of the allowance is held before Claude is asked and settled with its real cost, so many at the same moment cannot spend past the month's or the day's limit. A share held by a request that never finished, as when the server stopped, comes back after five minutes. A reply Claude could not finish within its length limit is never used. Fill-ins the AI writes, such as `{{manage_link}}`, are removed; only SALEANE adds links.
 - The booking page conversation can be scrolled from the keyboard once it is long.
 - The health check lists the AI among the services. Two test phone numbers moved into the fictional range and private folder paths left four documents, now the code is public.
+
+## 2026-10-10 · Moving in, stage 2: upcoming visits from the old system's own files
+
+**Status: built locally on 10 October 2026, awaiting the owner's "merge" together with stage 1; nothing deployed.** [Evidence](docs/evidence/MOVING-02.md).
+
+- Moving in now brings upcoming visits across from the file the old system already gives, such as Fresha's appointments list, alongside the client list or on its own. Before, that file was set aside, and Settings refused it unless it was rebuilt in SALEANE's own layout with every guest's email.
+- The steps follow the files: a Visits step appears when a visits file is added. "Your files" says where to download both lists in each system; where a system only gives upcoming visits through its support team, it says so.
+- SALEANE reads dates and times in each system's style (slots such as 10:30:00-11:30:00, "14 Oct 2026, 10:30am", Excel times), recognises Fresha's appointments list and Vagaro's appointments summary, and reads any other file by meaning. A treatment or person it cannot match is asked about with the studio's own list to choose from, or left behind; a likely match ("Theo", most likely Theo Bennett) is confirmed with one press.
+- Each visit is checked against the calendar and the visits before it, the way the server checks it, and any that cannot come across says why in plain words: time away, a day the studio is closed, outside opening hours, a clash, a treatment the person is not set up for, a walk-in, a client with no details, or a request still waiting in the old system. Reasons are grouped with a few of their visits, and totals to check against the old system's report come first.
+- Visits keep the price the guest was quoted and only the deposit they paid, which is recorded as paid before switching; SALEANE takes no payment and sends no confirmation. Past, cancelled and missed visits stay behind. A visit already in SALEANE is left alone, and the same visit in two files comes across once.
+- Visits find their clients by email, then phone, then name, including clients arriving in the same move. A client named only in the visits file, with an email or phone, comes across as a new client with marketing off. A household sharing an email is never merged.
+- Settings, Switching over, Upcoming visits opens the same steps; the older CSV path for visits is gone. Treatments and balances keep their CSV steps.
+- A visit whose deposit was paid to the old system now says "Deposit paid before switching" instead of "Demo deposit recorded".
+- Fixed: saving stalled after the first part when a second part followed. On a phone the save button reads "Bring them across", so it fits.
+- The help guide "Bring clients and visits across from another system" describes the steps as they are now.
+
+## 2026-10-10 · App photograph assets
+
+**Status: 21 photographs saved for review.** [Asset notes](docs/assets/app-photographs-2026-10-10.md).
+
+- Added 13 portrait, six landscape and two square fictional studio photographs with the requested names and shared sunlit style.
+- Preserved generated PNG originals and added WebP copies at quality 80 without resizing or cropping, plus a dimensions and checksum manifest.
+- This asset-only addition does not change screen references. All 42 image files decode and have the requested aspect ratios. Application checks and browser journeys were not run for this addition.
 
 ## 2026-10-10 · Filling a cancelled time (NEXT-11)
 
@@ -113,6 +457,34 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Write to the SALEANE team: anyone signed in can say what they need, with the screen they were on and the studio they were in. The request is kept first, then emailed to the team's address. The panel says honestly whether it was sent, kept because no help address is set, not sent because email is in test mode, or could not be sent, and lists what the person has written. Five an hour each.
 - Error messages that said "Please contact support" now say to write to the SALEANE team from Help.
 - Migration 28 adds the help requests.
+
+## 2026-10-09 · Quality bar for every screen
+
+**Status: built locally on 9 October 2026; nothing deployed.** [Evidence](docs/evidence/QUALITY-01.md).
+
+- The design guide has a [quality bar](docs/DESIGN_LANGUAGE.md#quality-bar): what makes the wizards feel calm, ten rules that also suit everyday screens, and a checklist every screen passes at 1440px and 390px before anyone is asked to merge. CLAUDE.md points every thread at it.
+- New shared pieces: `Empty` can open a page with nothing in it yet as a welcome in place of its header, with the words on warm stone, a house photograph fading softly into them in the wizards' manner, and one next step; `LoadingShapes` shows soft shapes of what is coming instead of a blank space; `MoreOptions` keeps rarely used settings behind one quiet line; `--motion-calm`, `--ease-calm` and `.settle` give one gentle way of arriving, now used by every dialog and side panel. Reduced motion removes it.
+- A new studio's Clients page opens with the reception photograph and "Your clients will gather here.", with one way to add a client and one to import, instead of a header, an empty table and five filters at zero. Searching with no match now says "No clients match" without a photograph.
+- A waitlist nobody has used yet, with no cancelled time to fill, opens with the tea photograph, "Nobody is waiting yet." and one button, instead of three figures at zero. The list itself has one person per row with a line between them, no box inside the panel's box, and "Take off the list" as a quiet button under the times.
+- Pages show loading shapes while they first open, as does "Who changed what" while it reads the record. The page for a missing link has a photograph and a button back to Today.
+- Small empty notes across the app now use the light serif heading.
+- Every dialog's close button is now a full 44px target at every width, with the cross where it was.
+
+## 2026-10-09 · Moving in, stage 1: clients from any system
+
+**Status: built locally on 9 October 2026, awaiting the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/MOVING-01.md).
+
+The owner said yes to the five moving-in answers. Stage 1 brings the client list across from Fresha, Phorest, Timely, Treatwell, Booksy and any other system.
+
+- Clients, Import clients, and Settings, Switching over, Clients, open "Move your clients in", four short steps with one job each: the old system (large tiles, the UK five first), its files (download help for that system, then as many CSV or Excel files as they come), a check (any question first, then who is ready, already here or needing a look), and bringing them across (what will happen in plain sentences, one tick, one button). Back and Continue stay at the bottom of the window, Continue waits until a step is complete, each step starts at the top with its heading read out, and going back asks for the tick again.
+- SALEANE recognises the system and report from the columns, skips title and totals rows, reads Excel dates, and matches columns by meaning, checking each against what is inside. Only an unsure column becomes a question, with examples.
+- Clients come across with notes, birthdays (month and day), postcode area, other phone numbers and international mobiles. The same person in several rows or files is combined; anyone already in SALEANE is left exactly as they are.
+- Email marketing comes across only when the old file records that the client agreed. The consent record keeps the old system's own words as evidence with source "previous system", and the client page and privacy file show it. Anything else starts off.
+- A moved-in client may have a phone number and no email. Guest booking and new clients at the desk still need an email.
+- Long lists are saved in parts the server accepts; a dropped connection keeps the files and says how many came across.
+- Visit, gift card, package and payment files are recognised and named, not saved; the screen says a later step brings them across. The older one-file client import is replaced by this screen.
+- Questions and column choices are rows with a fine line between them, not boxes inside boxes; Continue fills the width at the foot of each step on a phone; each step settles in with the shared calm motion.
+- The step bar, large choice tiles, the footer that stays in reach and the step focus are shared design pieces (`WizardSteps`, `ChoiceTiles`, `WizardFooter`, `useWizardStep` in `src/design`), so later wizards such as studio setup look and behave the same.
 
 ## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
 
@@ -672,6 +1044,8 @@ Behind the scenes:
 - Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
 - The London studio has the AI receptionist switched on, so the booking page shows "Ask a question". Connected software and access keys work in test mode; the demo never looks up an address or sends anything.
 - Each demo build keeps its own saved copy of the sample studios, so a refreshed demo always opens on the newest sample data.
+- Two-step sign-in works in the demo: its stand-ins for Node now make SHA-1 authenticator codes, whole random numbers for recovery codes, and the big-endian Buffer reads and writes the codes use.
+- The demo draws email previews with its own small renderer, which a test keeps identical to React's, because React's server renderer stopped the page publishing. Sample commission steps moved to today stay on the first of their month.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 

@@ -8,5 +8,5 @@ Read [docs/AI_HANDOFF.md](docs/AI_HANDOFF.md) before changing code, then the [ro
 - Scoped people never get a whole-studio payload: practitioners get `PractitionerView`, regional managers `AreaView`, general managers `branchView`, guests `GuestView` for one visit through a hashed, revocable link (they can cancel or move it).
 - Inspect branch/status, concurrent work and existing server before edits. Keep one server on 127.0.0.1:5173; disk has been tight. Reuse dependencies. Check main for the next free migration number before adding one.
 - Preserve tenant, money, booking, retry and history invariants. Never claim a recorded manual payment or queued message was processed/sent.
-- Run `npm run check` and `npm run format:check`; exercise changed journeys in a browser. Update PRD status, changelog and evidence honestly.
+- Run `npm run check` and `npm run format:check`; exercise changed journeys in a browser. Every screen change passes the [quality bar](docs/DESIGN_LANGUAGE.md#quality-bar) checklist at 1440px and 390px before anyone is asked to merge. Update PRD status, changelog and evidence honestly.
 - Merging: the roadmap build thread merges its own green stage PRs ("merge as you go", 7 October 2026). Any other PR waits for the user's "merge". Nothing is ever deployed without a separate instruction.

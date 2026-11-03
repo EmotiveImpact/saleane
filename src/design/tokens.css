@@ -128,8 +128,14 @@
   --shadow-float: 0 12px 36px #2e2b331a;
   --shadow-dialog: 0 24px 70px #2e2b3324;
 
-  /* Motion answers an action; reduced motion removes it. */
+  /*
+   * Motion answers an action; reduced motion removes it. Quick is for hover and focus. Calm is
+   * the one way things arrive: a dialog opening, a step changing, a saved line, a page filling
+   * in. It fades in and settles a few pixels, never bounces, slides far or spins.
+   */
   --motion-quick: 0.15s;
+  --motion-calm: 0.28s;
+  --ease-calm: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* Touch targets. */
   --target: 44px;

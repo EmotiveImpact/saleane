@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover } from 'radix-ui'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { addDays } from '../../domain/format'
 import { addMonths, daysIn, firstWeekday, isDate, monthOf, noon, writtenDate } from './dates'

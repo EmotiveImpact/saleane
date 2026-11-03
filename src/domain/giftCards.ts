@@ -1,13 +1,20 @@
 import type { Command } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent, Sale } from './model'
 import type { GiftCard } from './giftCardsSchema'
-import { GIFT_CODE_ALPHABET } from './giftCardsSchema'
+import {
+  CARRIED_CODE,
+  CARRIED_NO_EXPIRY_MONTHS,
+  GIFT_CODE_ALPHABET,
+  GIFT_MOVE_LIMIT,
+  giftCodeSchema,
+} from './giftCardsSchema'
+import type { ImportBatch } from './operations'
 import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
 import { addMonths } from './plans'
 import { referenceTaken, refundReferenceTaken } from './references'
 import { fullDateLabel, money } from './format'
-import { salePlace } from './locations'
+import { giftHome, placeOf, salePlace } from './locations'
 
 /**
  * V1.5: gift cards and vouchers. The money paid for one is held until it pays for a visit, so the
@@ -16,7 +23,7 @@ import { salePlace } from './locations'
  */
 type GiftCommand = Extract<
   Command,
-  { type: 'gift-card-sell' | 'gift-card-extend' | 'gift-card-cancel' }
+  { type: 'gift-card-sell' | 'gift-card-extend' | 'gift-card-cancel' | 'gift-card-move' }
 >
 type AddEvent = (
   event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
@@ -36,6 +43,15 @@ const sum = (rows: { amountMinor: number }[]) => rows.reduce((total, r) => total
 export function normaliseCode(typed: string) {
   const raw = typed.toUpperCase().replace(/[^A-Z0-9]/g, '')
   return raw.length === 12 ? `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8)}` : raw
+}
+
+/**
+ * Moving in, stage 3: the code printed on a card from the old system, as SALEANE keeps it, or null
+ * when it is too short or long to keep. Codes under four characters are too easy to guess.
+ */
+export function carriedCode(printed: string) {
+  const code = normaliseCode(printed)
+  return CARRIED_CODE.test(code) ? code : null
 }
 
 export function findGiftCard(s: BusinessState, typed: string) {
@@ -204,6 +220,8 @@ export function runGiftCardCommand(
   }
   const card = giftCards(next).find((c) => c.id === command.giftCardId)
   if (!card) throw new Error('This gift card was not sold here.')
+  if (command.type === 'gift-card-move')
+    return moveGiftCard(next, card, command, now, makeId, addEvent)
   if (card.status === 'cancelled') throw new Error('This gift card has already been cancelled.')
   if (command.type === 'gift-card-extend') {
     if (command.expiresOn <= card.expiresOn || command.expiresOn < today)
@@ -252,6 +270,165 @@ export function runGiftCardCommand(
   return card.id
 }
 
+/** How a card's payment to the old system is referenced, so it reads plainly in Money. */
+export const carriedCardReference = (source: string, code: string) =>
+  `Paid to ${source.slice(0, 80)} before switching · gift card ${code}`
+
+/**
+ * Moving in, stage 3: cards the studio sold in its old system, each with what is left to spend.
+ * The code on the card is kept (a card without one is given a SALEANE code to pass on), and the
+ * balance becomes its value, recorded as paid to the old system, so it is held for the guest and
+ * never counted as takings. Each belongs to the main location. Nothing already here changes.
+ */
+export function carryGiftCards(
+  next: BusinessState,
+  command: Extract<Command, { type: 'import-gift-cards' }>,
+  batch: ImportBatch,
+  now: string,
+  makeId: () => string,
+  addEvent: AddEvent,
+) {
+  const org = next.organisation
+  const today = businessDate(next, now)
+  next.giftCards ??= []
+  const taken = new Set(next.giftCards.map((c) => normaliseCode(c.code)))
+  for (const row of command.cards) {
+    const printed = row.code?.trim()
+    const kept = printed ? carriedCode(printed) : null
+    if (printed && !kept)
+      throw new Error(`Gift card code ${printed} cannot be kept. Leave it out, or remove its code.`)
+    if (kept && taken.has(kept))
+      throw new Error(`A gift card with the code ${kept} is already in SALEANE.`)
+    let code = kept ?? giftCode(makeId())
+    for (let tries = 0; !kept && taken.has(code); tries += 1) {
+      if (tries > 5) throw new Error('A new code could not be made. Try again.')
+      code = giftCode(makeId())
+    }
+    taken.add(code)
+    if (row.valueBeforeMinor !== undefined && row.valueBeforeMinor < row.balanceMinor)
+      throw new Error(`Gift card ${code} has more left than it was bought for.`)
+    if (row.expiresOn && row.expiresOn < today)
+      throw new Error(`Gift card ${code} has already expired, so it stays in ${command.source}.`)
+    const client = row.clientId ? next.clients.find((c) => c.id === row.clientId) : undefined
+    if (row.clientId && !client) throw new Error('Client does not belong to this studio.')
+    const issuedOn = row.issuedOn && row.issuedOn <= today ? row.issuedOn : today
+    const expiresOn = row.expiresOn ?? addMonths(today, CARRIED_NO_EXPIRY_MONTHS)
+    const purchaserName =
+      [row.purchaserName, client?.name, row.recipientName]
+        .map((name) => name?.trim() ?? '')
+        .find((name) => name.length >= 2) ?? `A ${command.source} customer`.slice(0, 100)
+    const card: GiftCard = {
+      id: makeId(),
+      organisationId: org.id,
+      code,
+      kind: 'money',
+      valueMinor: row.balanceMinor,
+      ...(client ? { clientId: client.id } : {}),
+      purchaserName,
+      recipientName: row.recipientName,
+      message: '',
+      issuedOn,
+      expiresOn,
+      soldAt: now,
+      actor: '',
+      payment: {
+        id: makeId(),
+        amountMinor: row.balanceMinor,
+        method: 'previous_system',
+        reference: carriedCardReference(command.source, code),
+        recordedAt: now,
+      },
+      redemptions: [],
+      extensions: [],
+      status: 'active',
+      refunds: [],
+      carried: {
+        importId: batch.id,
+        ...(row.valueBeforeMinor !== undefined ? { valueBeforeMinor: row.valueBeforeMinor } : {}),
+        ...(row.expiresOn ? {} : { noExpiry: true as const }),
+        ...(!kept && row.codeBefore ? { codeBefore: row.codeBefore } : {}),
+      },
+    }
+    next.giftCards.push(card)
+    if (client)
+      addEvent({
+        clientId: client.id,
+        type: 'gift_card',
+        title: 'Gift card carried over',
+        detail: `${code}${!kept && row.codeBefore ? ` (was ${row.codeBefore} in ${command.source})` : ''}${row.recipientName ? ` for ${row.recipientName}` : ''}, with ${money(row.balanceMinor, org, true)} left to spend${row.valueBeforeMinor ? ` of ${money(row.valueBeforeMinor, org, true)}` : ''}, until ${fullDateLabel(expiresOn, org.locale)}${row.expiresOn ? '' : ` (no last day in ${command.source})`}. Bought in ${command.source}; SALEANE took no payment.`,
+      })
+    batch.recordIds.push(card.id)
+    batch.totalMinor += row.balanceMinor
+  }
+}
+
+/**
+ * Stage 4: a card moves to another location, with a reason. Its code, balance, last day and
+ * history stay as they are, and so does where it was sold, so money already taken and spent stays
+ * where it happened. From now on it belongs to the new location: its money waiting to be spent
+ * counts there, any money returned when it is cancelled leaves that location's drawer, and only
+ * that location's general manager can move it again. It can still be spent at any location.
+ */
+function moveGiftCard(
+  next: BusinessState,
+  card: GiftCard,
+  command: Extract<GiftCommand, { type: 'gift-card-move' }>,
+  now: string,
+  makeId: () => string,
+  addEvent: AddEvent,
+) {
+  const org = next.organisation
+  const standing = giftStanding(card, businessDate(next, now))
+  if (standing.state === 'cancelled')
+    throw new Error(
+      card.refunds.length
+        ? `Gift card ${card.code} was cancelled and its money returned, so it cannot move.`
+        : `Gift card ${card.code} was cancelled, so it cannot move.`,
+    )
+  if (standing.state === 'used')
+    throw new Error(`Gift card ${card.code} has been used up, so there is nothing to move.`)
+  if (standing.state === 'expired')
+    throw new Error(
+      `Gift card ${card.code} expired on ${fullDateLabel(card.expiresOn, org.locale)}. Give it more time first if it is still to be spent.`,
+    )
+  const site = placeOf(next, command.locationId)
+  if (!site || site.archived) throw new Error('Choose an open location.')
+  const from = giftHome(next, card)
+  if (site.id === from) throw new Error(`Gift card ${card.code} already belongs to ${site.name}.`)
+  const fromName = placeOf(next, from)?.name ?? 'its location'
+  if ((card.moves?.length ?? 0) >= GIFT_MOVE_LIMIT)
+    throw new Error(
+      `Gift card ${card.code} has moved as often as one card can. Ask SALEANE support to look at it.`,
+    )
+  card.moves = [
+    ...(card.moves ?? []),
+    { id: makeId(), from, to: site.id, reason: command.reason, at: now, actor: '' },
+  ]
+  if (card.clientId)
+    addEvent({
+      clientId: card.clientId,
+      type: 'gift_card',
+      title: card.kind === 'service' ? 'Voucher moved' : 'Gift card moved',
+      detail: `${card.code} moved from ${fromName} to ${site.name}. Its balance, last day and history are unchanged, and it can still be spent at any location.`,
+    })
+  return card.id
+}
+
+/**
+ * Stage 4: money waiting to be spent on cards that can still be spent, by the location each card
+ * belongs to now. Only cards with a balance are named.
+ */
+export function heldByHome(s: BusinessState, today: string) {
+  const held = new Map<string, number>()
+  for (const card of giftCards(s)) {
+    const standing = giftStanding(card, today)
+    if (standing.state !== 'active') continue
+    const home = giftHome(s, card)
+    held.set(home, (held.get(home) ?? 0) + standing.balanceMinor)
+  }
+  return held
+}
+
 /** Puts the person's name on cards, extensions, refunds and cancellations this command made. */
 export function stampGiftCardActors(before: BusinessState, after: BusinessState, actor: string) {
   const old = new Map(giftCards(before).map((c) => [c.id, c]))
@@ -262,7 +439,21 @@ export function stampGiftCardActors(before: BusinessState, after: BusinessState,
     card.extensions.slice(previous?.extensions.length ?? 0).forEach((e) => (e.actor = actor))
     const refunds = new Set(previous?.refunds.map((r) => r.id))
     for (const refund of card.refunds) if (!refunds.has(refund.id)) refund.actor = actor
+    // Stage 4: moves, likewise.
+    card.moves?.slice(previous?.moves?.length ?? 0).forEach((m) => (m.actor = actor))
   }
+}
+
+/**
+ * Stage 4, for who changed what: which card moved, from where to where. The reason is typed
+ * wording, so it stays on the card and is never copied into the record.
+ */
+export function giftMoveDetail(after: BusinessState, action: string, recordId: string) {
+  if (action !== 'gift-card-move') return null
+  const move = giftCards(after)
+    .find((c) => c.id === recordId)
+    ?.moves?.at(-1)
+  return move ? { fields: [{ f: 'locationId', from: move.from, to: move.to }] } : null
 }
 
 /** Ledger checks for parseState: every card, what it paid for and the receipts must agree. */
@@ -270,8 +461,12 @@ export function giftCardsProblem(s: BusinessState) {
   const org = s.organisation
   const cards = giftCards(s)
   if (new Set(cards.map((c) => c.id)).size !== cards.length) return 'Duplicate gift card IDs.'
-  if (new Set(cards.map((c) => c.code)).size !== cards.length) return 'Duplicate gift card codes.'
-  if (cards.some((c) => c.organisationId !== org.id)) return 'Foreign workspace record.'
+  if (new Set(cards.map((c) => normaliseCode(c.code))).size !== cards.length)
+    return 'Duplicate gift card codes.'
+  const carriedImports = new Set(
+    (operations(s).imports ?? []).filter((b) => b.kind === 'giftCards').map((b) => b.id),
+  )
+  if (cards.some((c) => c.organisationId !== org.id)) return 'A record from another studio.'
   const sandbox = operations(s).mode === 'sandbox'
   const salesById = new Map(s.sales.map((sale) => [sale.id, sale]))
   const spent = new Set<string>()
@@ -284,7 +479,20 @@ export function giftCardsProblem(s: BusinessState) {
       card.expiresOn < card.issuedOn
     )
       return 'Invalid gift card.'
-    for (const record of [card.payment, ...card.refunds])
+    // Moving in, stage 3: a carried-over card keeps its old code and was paid for in the old
+    // system; a card sold here has a SALEANE code and was paid for here.
+    if (card.carried) {
+      if (
+        !carriedImports.has(card.carried.importId) ||
+        card.kind !== 'money' ||
+        card.payment.method !== 'previous_system' ||
+        !card.payment.reference?.trim() ||
+        (card.carried.valueBeforeMinor ?? card.valueMinor) < card.valueMinor
+      )
+        return 'Invalid gift card.'
+    } else if (!giftCodeSchema.safeParse(card.code).success) return 'Invalid gift card.'
+    const paidHere = card.carried ? card.refunds : [card.payment, ...card.refunds]
+    for (const record of paidHere)
       if (
         ['card', 'previous_system'].includes(record.method) ||
         sandbox !== record.method.startsWith('demo_') ||
@@ -293,6 +501,15 @@ export function giftCardsProblem(s: BusinessState) {
         return 'A gift card payment record is not valid for this studio.'
     if (sum(card.redemptions) + sum(card.refunds) > card.valueMinor)
       return 'A gift card cannot pay or return more than it holds.'
+    // Stage 4: each move starts where the card belonged and goes somewhere else.
+    let home = card.locationId ?? org.locationId
+    for (const move of card.moves ?? []) {
+      if (move.from !== home || move.to === move.from || move.at < card.soldAt)
+        return 'A gift card move does not follow on from where the card belonged.'
+      home = move.to
+    }
+    if (new Set((card.moves ?? []).map((m) => m.id)).size !== (card.moves ?? []).length)
+      return 'Duplicate gift card move IDs.'
     for (const use of card.redemptions) {
       const sale = salesById.get(use.saleId)
       if (

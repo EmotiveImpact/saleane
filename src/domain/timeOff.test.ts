@@ -8,7 +8,8 @@ import { createWorkspace } from './workspace'
 import { seed } from './seed'
 import { availableMinutes } from './selectors'
 import { scheduleImpact } from './schedule'
-import { holidaySummary, mondayOf, rotaWeek, workingDaysAway } from './timeOff'
+import { holidaySummary, mondayOf, workingDaysAway } from './timeOff'
+import { rotaWeek } from './rota'
 
 // V2: rotas, holidays and time off.
 const now = '2026-10-06T08:00:00.000Z'

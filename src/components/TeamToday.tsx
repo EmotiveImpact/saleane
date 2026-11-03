@@ -5,10 +5,12 @@ import { useStore } from '../state/context'
 import { availableMinutes, dayAppointments } from '../domain/selectors'
 import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { clockedIn, clockTime } from '../domain/hours'
-import { Avatar, Button } from '../design'
-import { can } from '../domain/operations'
+import { Avatar, Button, Count } from '../design'
+import { can, rotaChangeOn, timeOffOn } from '../domain/operations'
+import { changeKind } from '../domain/rota'
 import { useClock } from '../state/clock'
 import { TeamClock } from './Clock'
+import { useTeamToday } from './todayCounts'
 import './teamToday.css'
 
 /**
@@ -20,7 +22,7 @@ export function TeamToday() {
   const { state, today, role, blocked } = useStore()
   const [clocking, setClocking] = useState(false)
   const now = Date.parse(useClock(30_000))
-  const team = state.staff.filter((p) => !p.archived)
+  const team = useTeamToday()
   if (!team.length) return null
   const day = dayAppointments(state, today)
   const multiSite = hasLocations(state)
@@ -28,9 +30,7 @@ export function TeamToday() {
     <section className="team-today" aria-labelledby="team-today-title">
       <div className="team-today-head">
         <h2 id="team-today-title">Your team today</h2>
-        <span>
-          {team.length} {team.length === 1 ? 'professional' : 'professionals'}
-        </span>
+        <Count n={team.length} words={team.length === 1 ? 'professional' : 'professionals'} shown />
       </div>
       <ul className="team-today-list">
         {team.map((staff) => {
@@ -42,6 +42,11 @@ export function TeamToday() {
             ? placeOf(state, staffLocationOn(state, staff.id, today))?.name
             : undefined
           const shift = clockedIn(state, staff.id, now)
+          // Stage 3: a day changed on the rota says so, as the rota does.
+          const change = timeOffOn(state, staff.id, today)
+            ? undefined
+            : rotaChangeOn(state, staff.id, today)
+          const kind = change && changeKind(state, change)
           return (
             <li key={staff.id}>
               <span
@@ -59,6 +64,15 @@ export function TeamToday() {
                 </small>
               )}
               {place && <small className="team-today-place">{place}</small>}
+              {kind && (
+                <small className="team-today-changed">
+                  {kind === 'extra'
+                    ? 'Extra day'
+                    : kind === 'off'
+                      ? 'Day changed'
+                      : 'Hours changed'}
+                </small>
+              )}
               {shift && (
                 <small className="team-today-in">In since {clockTime(state, shift.start)}</small>
               )}

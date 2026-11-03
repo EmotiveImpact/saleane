@@ -10,22 +10,24 @@ export function useRun() {
   const { commit } = useStore()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
-  async function run(command: Command) {
-    if (pending) return false
+  /** Saves a command and returns what it made, or null when it was not saved. */
+  async function record(command: Command) {
+    if (pending) return null
     setPending(true)
     setError('')
     try {
       const result = await commit(command)
       if (!result.ok) setError(result.error)
-      return result.ok
+      return result.ok ? result : null
     } catch {
       setError('This could not be saved. Your entries are still here; try again.')
-      return false
+      return null
     } finally {
       setPending(false)
     }
   }
-  return { run, pending, error, setError }
+  const run = async (command: Command) => !!(await record(command))
+  return { run, record, pending, error, setError }
 }
 
 export function usePayment() {

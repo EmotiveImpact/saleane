@@ -5,6 +5,7 @@ import { defaultPatchTestSettings } from './patchTestsSchema'
 import { instantFor, operations } from './operations'
 import { addMonths } from './plans'
 import { addDays, dateLabel } from './format'
+import { bookablePlaces } from './locations'
 
 /**
  * V1.5: patch test records and reminders. A treatment can be marked as needing a patch test. For a
@@ -156,6 +157,13 @@ export function runPatchTestCommand(
 ) {
   const org = next.organisation
   if (command.type === 'patch-test-settings') {
+    const chosen = command.settings.testServiceId
+    if (chosen) {
+      const service = next.services.find((x) => x.id === chosen)
+      if (!service || service.archived) throw new Error('Choose a treatment on the menu.')
+      if (service.patchTest)
+        throw new Error('The patch test itself cannot be a treatment that needs a patch test.')
+    }
     next.operations = { ...operations(next), patchTests: command.settings }
     return org.id
   }
@@ -248,7 +256,7 @@ export function patchTestsProblem(s: BusinessState) {
   const tests = patchTests(s)
   if (new Set(tests.map((t) => t.id)).size !== tests.length) return 'Duplicate patch test IDs.'
   for (const test of tests) {
-    if (test.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (test.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (!s.clients.some((c) => c.id === test.clientId)) return 'A patch test names no client.'
     if (test.result && Date.parse(test.result.at) < Date.parse(test.testedAt))
       return 'A patch test result comes before the test.'
@@ -262,3 +270,52 @@ export function patchTestBlocksVisit(s: BusinessState, a: Appointment) {
   if (standing?.state !== 'reaction') return null
   return `${standing.label}. Change the treatment, or record a new clear test first.`
 }
+
+/**
+ * Stage 3: the treatment guests book for a patch test, when the studio chose one and a guest can
+ * book it: on the menu, needing no test itself, and offered somewhere by someone who does it.
+ */
+export function patchTestBooking(s: BusinessState) {
+  const id = patchTestSettings(s).testServiceId
+  const service = id ? s.services.find((x) => x.id === id) : undefined
+  if (!service || service.archived || service.patchTest) return undefined
+  return bookablePlaces(s, service).length ? service : undefined
+}
+
+/**
+ * Stage 3: the one rule for every way a guest books without the desk: the booking page, the AI
+ * receptionist (whose times are booked on that page), Book with Google and a guest moving their
+ * own visit from its private link. Returns what the guest is told when the booking stops, or null
+ * when it may go ahead.
+ *
+ * It stops only when the studio turned the rule on and the treatment needs a patch test. Then a
+ * guest goes ahead only with a clear test that counts for the visit's time under the studio's
+ * rules; a test still waiting for its result, one too close to the visit, one out of date and a
+ * recorded reaction all stop it.
+ *
+ * `known` is the client and the visit's start, given only when the path knows who the guest is
+ * for sure. Online, that is only the holder of a visit's private link. Everyone else is unknown:
+ * a guest's typed email or phone number proves nothing and is never matched to a client, so an
+ * unknown guest is always stopped, with the same words, and nobody can learn from the answer
+ * whether someone is a client or has had a test.
+ */
+export function onlinePatchTestStop(
+  s: BusinessState,
+  serviceId: string,
+  known?: { clientId: string; start: string },
+): string | null {
+  if (!patchTestSettings(s).stopOnline || !serviceNeedsPatchTest(s, serviceId)) return null
+  if (known && patchTestStanding(s, known.clientId, known.start).state === 'clear') return null
+  const name = s.services.find((x) => x.id === serviceId)!.name
+  if (known)
+    return `${name} needs a clear patch test that covers the new time, so it cannot be moved there online. Choose one of the times shown, or contact the studio to move it.`
+  return `${name} needs a patch test first, so it cannot be booked online. ${
+    patchTestBooking(s)
+      ? 'Book a patch test, or if you have had one recently, contact the studio to book.'
+      : 'Contact the studio to arrange one, or to book if you have had one recently.'
+  }`
+}
+
+/** Stage 3: whether a treatment is kept off every way of booking without the desk. */
+export const patchTestFirst = (s: BusinessState, serviceId: string) =>
+  onlinePatchTestStop(s, serviceId) !== null

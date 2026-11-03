@@ -13,6 +13,7 @@ import {
   openingBill,
   openingCommand,
   openingDraft,
+  openingGaps,
   openingImpact,
   openingProblem,
   startingRooms,
@@ -155,6 +156,41 @@ describe('add a location', () => {
     ).toBe('Tick the treatments Ines gives.')
   })
 
+  it('needs someone working here who gives a treatment on its menu', () => {
+    const s = studio()
+    // Hair only, with Maya, who gives facials: nobody here could take a booking.
+    const hairOnly = where(s, {
+      menu: Object.fromEntries(
+        s.services.map((x) => [
+          x.id,
+          { offered: x.category === 'Hair', price: (x.priceMinor / 100).toFixed(2) },
+        ]),
+      ),
+      days: { 'staff-maya': [4] },
+    })
+    expect(openingProblem(s, 'team', hairOnly)).toBe(
+      'Nobody you have chosen gives a treatment on the menu here, so guests could not book. Choose someone who does.',
+    )
+    expect(openingGaps(s, hairOnly)).toBeNull()
+    // Someone new who gives a cut is enough, and the treatment nobody gives yet is named.
+    const withIdris = {
+      ...hairOnly,
+      newTeam: [
+        { key: 'n', name: 'Idris', role: 'Stylist', serviceIds: ['service-cut'], days: [5] },
+      ],
+    }
+    expect(openingProblem(s, 'team', withIdris)).toBeNull()
+    expect(openingGaps(s, withIdris)).toBe(
+      'Nobody working here gives Gloss & Tone or Colour patch test yet, so guests cannot book them at Islington until someone does.',
+    )
+    // Theo gives both hair treatments, so nothing is left out.
+    expect(openingGaps(s, { ...hairOnly, days: { 'staff-theo': [4] } })).toBeNull()
+    // Someone ticked with no days here gives nothing here.
+    expect(
+      openingProblem(s, 'team', { ...hairOnly, days: { 'staff-maya': [4], 'staff-theo': [] } }),
+    ).toMatch(/^Nobody you have chosen/)
+  })
+
   it('keeps the house rules: core treatments stay and prices stay in the band', () => {
     const s = apply(studio(), {
       type: 'house-rules',
@@ -218,10 +254,14 @@ describe('what one more location does to the bill', () => {
     periodEnd: null,
     plus: false,
     plusNext: false,
+    phone: false,
+    phoneNext: false,
+    phoneConnected: false,
     cancelAtPeriodEnd: false,
     card: null,
     locations: 1,
-    nextBill: { at: ends, bill: monthBill('UK', 1, false) },
+    people: 3,
+    nextBill: { at: ends, bill: monthBill('UK', 1, false, 3) },
     overdue: null,
     lockAt: null,
     locked: false,
@@ -233,16 +273,17 @@ describe('what one more location does to the bill', () => {
       typed: { used: 0, of: 300 },
       guestChats: { used: 0, of: 200 },
       talkSeconds: { used: 0, of: 1800 },
+      phoneSeconds: { used: 0, of: 0 },
     },
     ...extra,
   })
 
   it('gives the whole monthly bill before and after, with VAT, and takes nothing during a trial', () => {
     const bill = openingBill(plan(), org)
-    expect(bill.before.totalMinor).toBe(5880)
-    expect(bill.after.totalMinor).toBe(11760)
+    expect(bill.before.totalMinor).toBe(7080)
+    expect(bill.after.totalMinor).toBe(14160)
     expect(bill.heading).toBe(
-      'Your monthly bill goes from £58.80 to £117.60, including VAT at 20%.',
+      'Your monthly bill goes from £70.80 to £141.60, including VAT at 20%.',
     )
     expect(bill.detail).toBe(
       `Your first bill is on ${planDate(org, ends)}, when the free trial ends. Nothing is taken during the trial.`,
@@ -255,7 +296,7 @@ describe('what one more location does to the bill', () => {
       org,
     )
     expect(bill.heading).toBe(
-      'Your monthly bill goes from £117.60 to £176.40, including VAT at 20%.',
+      'Your monthly bill goes from £141.60 to £212.40, including VAT at 20%.',
     )
     expect(bill.detail).toBe(
       `The new amount starts with your next bill on ${planDate(org, ends)}. Nothing is taken today.`,
@@ -265,7 +306,7 @@ describe('what one more location does to the bill', () => {
   it('counts Plus for the new location too', () => {
     const bill = openingBill(plan({ plusNext: true }), org)
     expect(bill.heading).toBe(
-      'Your monthly bill, with Plus, goes from £105.60 to £211.20, including VAT at 20%.',
+      'Your monthly bill, with Plus, goes from £117.60 to £235.20, including VAT at 20%.',
     )
   })
 
@@ -284,10 +325,21 @@ describe('what one more location does to the bill', () => {
     )
   })
 
+  it('counts the new hires who take bookings, as the next bill will', () => {
+    // Five people already, all included; a second location includes five more, and six new
+    // professionals make eleven, so one is paid for.
+    const bill = openingBill(plan({ people: 5 }), org, 6)
+    expect(bill.before.totalMinor).toBe(7080)
+    expect(bill.after.totalMinor).toBe(14160 + 1080)
+    expect(bill.heading).toBe(
+      'Your monthly bill goes from £70.80 to £152.40, including VAT at 20%.',
+    )
+  })
+
   it('leaves US sales tax to the provider', () => {
     const us = createWorkspace({ name: 'Linden Studio', region: 'US', locationName: 'Austin' })
     expect(openingBill(plan({ region: 'US' }), us.organisation).heading).toBe(
-      'Your monthly bill goes from $59.00 to $118.00, plus any sales tax.',
+      'Your monthly bill goes from $69.00 to $138.00, plus any sales tax.',
     )
   })
 })

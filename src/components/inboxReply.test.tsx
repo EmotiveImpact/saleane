@@ -141,4 +141,51 @@ describe('saved reply chips', () => {
       body: `${defaultQuickReplies[1].body}\n\n${defaultQuickReplies[0].body}`,
     })
   })
+
+  it('stays one short line until someone replies, then opens and grows (Stage 6)', async () => {
+    const user = userEvent.setup()
+    const client = seed('UK').clients.find((c) => c.id === 'client-3')!
+    render(
+      <MemoryRouter>
+        <button type="button">Elsewhere</button>
+        <InboxReply
+          client={client}
+          answering
+          lastChannel="sms"
+          saved={seed('UK').savedReplies!}
+          studio="Atelier House"
+          allowed
+          pending={false}
+          sends={false}
+          live={false}
+          canEditSaved
+          onSave={vi.fn(async () => ({ ok: true }))}
+        />
+      </MemoryRouter>,
+    )
+    const box = screen.getByRole('textbox', { name: 'Reply to Ellie' })
+    const form = box.closest('form')!
+    // Folded: one line, with the saved replies and the note about drafts waiting.
+    expect(form).toHaveClass('is-compact')
+    expect(box).toHaveAttribute('rows', '1')
+    await user.click(box)
+    expect(form).toHaveClass('is-open')
+    expect(box).toHaveAttribute('rows', '3')
+    // Choosing a saved reply keeps the box open and the words in focus.
+    const chips = screen.getByRole('group', { name: 'Saved replies' })
+    await user.click(within(chips).getByRole('button', { name: 'Running late' }))
+    expect(form).toHaveClass('is-open')
+    expect(box).toHaveFocus()
+    // Leaving with words written keeps them in view.
+    await user.click(screen.getByRole('button', { name: 'Elsewhere' }))
+    expect(form).toHaveClass('is-open')
+    // Leaving with nothing written folds it back.
+    await user.clear(box)
+    await user.click(screen.getByRole('button', { name: 'Elsewhere' }))
+    expect(form).toHaveClass('is-compact')
+    // Saying what is missing opens it again, with the words in focus.
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Write a reply to Ellie first')
+    expect(form).toHaveClass('is-open')
+  })
 })

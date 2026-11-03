@@ -2,13 +2,20 @@ import type { ReactNode } from 'react'
 import { PhotoStrip } from './PhotoStrip'
 
 /**
- * The page title row every staff page shares: a small capitalised eyebrow naming the part of
- * SALEANE, the serif title, one line of description and the page's actions on the right. A
- * page that opens a part of the studio (Clients, the waitlist) can lead with a thin band of one
- * of the house photographs.
+ * The one page top every staff page shares (docs/DESIGN_LANGUAGE.md, "Page tops"):
  *
- * `editorial` keeps the large serif greeting for moments of arrival (Today, guest booking,
- * accounts). `compact` is for working screens where the content below needs the space.
+ * 1. an eyebrow: the small capitalised label naming the part of SALEANE (Calendar, Clients,
+ *    Business, Settings), or the date on a page that greets;
+ * 2. the serif title, a short human line;
+ * 3. one line of description saying what the page is for;
+ * 4. the page's actions on the right (below the words on a phone), with one primary button.
+ *
+ * A page people arrive at (Clients, the waitlist, guest feedback, a professional's day, a
+ * regional manager's area) leads with `photo`, one house photograph that fades into the words.
+ * Dense working tools and forms (Calendar, Money, Stock, Settings) never carry it.
+ *
+ * `editorial` keeps the large serif greeting for moments of arrival. `compact` is for every
+ * other page, where the content below needs the space.
  */
 export function PageHeader({
   title,
@@ -23,7 +30,7 @@ export function PageHeader({
   description?: ReactNode
   eyebrow?: ReactNode
   actions?: ReactNode
-  /** A house photograph shown as a thin band above the heading. */
+  /** A house photograph shown as a band above the heading, fading into it. */
   photo?: { src: string; position?: string }
   variant?: 'editorial' | 'compact'
   /** Only the design library changes this, to show headers as specimens. */

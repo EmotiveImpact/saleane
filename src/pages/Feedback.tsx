@@ -5,7 +5,7 @@ import { MessageSquareQuote, Star } from 'lucide-react'
 import { useStore } from '../state/context'
 import { feedbackDay, feedbackList, feedbackSince, feedbackSummary } from '../domain/feedback'
 import { dateLabel } from '../domain/format'
-import { Avatar, Empty, PageHeader, SegmentedControl, Stat, Stats } from '../design'
+import { Avatar, Empty, PageHeader, SegmentedControl, Stat, Stats, photos } from '../design'
 import '../components/management.css'
 import '../feedback.css'
 
@@ -42,6 +42,7 @@ export function Feedback() {
     <div className="feedback-page">
       <PageHeader
         variant="compact"
+        photo={{ src: photos.endOfDay, position: 'center 55%' }}
         eyebrow="Business"
         title="What guests tell you."
         description="Private ratings and notes after each visit. Nothing here is published; public reviews stay on your Google page."

@@ -128,6 +128,7 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
                 wording: wordingFor(state, r.wordingVersion)?.text ?? '',
               }
             : {}),
+          ...(r.evidence ? { evidence: r.evidence } : {}),
           source: r.source,
           recordedBy: r.actor,
         })),
@@ -144,6 +145,8 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       bookedAt: a.createdAt,
       bookedPriceMinor: a.bookedPriceMinor,
       bookedDepositMinor: a.bookedDepositMinor,
+      // Stage 5: booked at a quiet-time price, below the usual price then.
+      ...(a.bookedOffer ? { quietTimeUsualPriceMinor: a.bookedOffer.usualPriceMinor } : {}),
       durationMinutes: a.bookedDurationMinutes,
       ...(a.rebookedFromId && ref.has(a.rebookedFromId)
         ? { rebookedFrom: ref.get(a.rebookedFromId) }
@@ -270,6 +273,18 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
           ? { bookedVisit: ref.get(c.appointmentId) }
           : {}),
       })),
+    // NEXT-17: calls from this client's number that the AI receptionist answered, as said.
+    answeredCalls: (ops.answeredCalls ?? [])
+      .filter((c) => c.clientId === client.id)
+      .map((c) => ({
+        from: c.number,
+        answeredAt: c.at,
+        seconds: c.seconds,
+        conversation: c.turns,
+        ...(c.texted.length ? { textedLinks: c.texted } : {}),
+        ...(c.message ? { messageForTeam: c.message } : {}),
+        ...(c.doneAt ? { followedUpAt: c.doneAt } : {}),
+      })),
     // V1.5: the private feedback this client gave about their visits.
     feedback: (state.feedback ?? [])
       .filter((f) => f.clientId === client.id)
@@ -327,6 +342,17 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
           reason: r.reason,
           recordedAt: r.createdAt,
         })),
+        // Stage 1: what the client agreed to about paying from a saved card, and when it stopped.
+        ...(h.cardAgreements?.length
+          ? {
+              cardPayments: h.cardAgreements.map((a) => ({
+                card: `${a.brand} ending ${a.last4}`,
+                agreed: a.wording,
+                agreedAt: a.agreedAt,
+                ...(a.endedAt ? { stoppedAt: a.endedAt } : {}),
+              })),
+            }
+          : {}),
       })),
     // V1.5: gift cards and vouchers this client bought, and what each has paid for since.
     giftCards: (state.giftCards ?? [])
@@ -509,6 +535,8 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Receipts', count: r.sales.length },
       { label: 'Payments and deposits', count: r.payments.length },
       { label: 'Refunds', count: r.operations.refunds.length },
+      // Stage 5: sales and refunds a chain's own tills sent in. They name no client.
+      { label: 'Sales and refunds from other tills', count: (r.otherTillSales ?? []).length },
       { label: 'Timeline entries', count: r.events.length },
       { label: 'Messages written in the inbox', count: r.operations.messages.length },
       { label: 'Guests’ replies, as written', count: (r.replies ?? []).length },
@@ -617,6 +645,11 @@ export function erasureReview(
         label: 'Missed calls from their number',
         count: (ops.missedCalls ?? []).filter((c) => c.clientId === client.id).length,
         reason: 'Only for calling them back. Not linked to money.',
+      },
+      {
+        label: 'Calls from their number the AI receptionist answered',
+        count: (ops.answeredCalls ?? []).filter((c) => c.clientId === client.id).length,
+        reason: 'What they said on the call, for following it up. Not linked to money.',
       },
       {
         label: 'Waitlist requests',
@@ -734,20 +767,20 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     '',
     'PROFILE',
     `Name: ${file.subject.name}`,
-    `Email: ${file.subject.email}`,
+    `Email: ${file.subject.email || 'Not recorded'}`,
     `Telephone: ${file.subject.phone || 'Not recorded'}`,
     `Client since: ${file.subject.clientSince.slice(0, 10)}`,
     `Good to remember: ${file.subject.goodToRemember || 'Nothing recorded'}`,
     `Email marketing: ${file.consent.emailMarketing ? 'agreed' : 'not agreed'}`,
     ...file.consent.records.map(
       (r) =>
-        `  ${r.recordedAt.slice(0, 10)} · ${r.given ? `agreed to version ${r.wordingVersion}: “${r.wording}”` : 'withdrawn'} · ${r.source}`,
+        `  ${r.recordedAt.slice(0, 10)} · ${!r.given ? 'withdrawn' : r.wordingVersion ? `agreed to version ${r.wordingVersion}: “${r.wording}”` : `agreed in their previous system: ${r.evidence ?? 'no detail kept'}`} · ${r.source}`,
     ),
     '',
     `VISITS (${file.visits.length})`,
     ...file.visits.map(
       (v) =>
-        `${v.visit} · ${v.date} ${v.time} · ${v.service} with ${v.professional} · ${v.status} · booked at ${amount(v.bookedPriceMinor, cur, locale)}`,
+        `${v.visit} · ${v.date} ${v.time} · ${v.service} with ${v.professional} · ${v.status} · booked at ${amount(v.bookedPriceMinor, cur, locale)}${v.quietTimeUsualPriceMinor === undefined ? '' : `, a quiet-time price (usually ${amount(v.quietTimeUsualPriceMinor, cur, locale)})`}`,
     ),
     '',
     `RECEIPTS (${file.receipts.length})`,

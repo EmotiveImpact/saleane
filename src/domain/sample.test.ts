@@ -40,7 +40,7 @@ function instants(value: unknown, found: string[] = []): string[] {
 const ends = (a: BusinessState['appointments'][number]) =>
   a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes
 
-describe.each(every)('the %s', (_, region, s) => {
+describe.each(every)('the %s', (label, region, s) => {
   it('is a valid studio record, the same every time', () => {
     expect(parseState(structuredClone(s), region)).toEqual(s)
     expect(seed(region, { regulars: s.clients.length > 15 })).toEqual(s)
@@ -166,7 +166,11 @@ describe.each(every)('the %s', (_, region, s) => {
       'Emily Clarke',
       'Charlotte Hayes',
     ])
-    expect(unusual(s, DEMO_DATE).map((n) => n.kind)).toEqual(['low-stock'])
+    // Stage 3: Theo rents his chair, so his takings are his own and comparisons leave him out.
+    // The named clients alone took less this week than in the month before.
+    expect(unusual(s, DEMO_DATE).map((n) => n.kind)).toEqual(
+      label.includes('named') ? ['takings-down', 'low-stock'] : ['low-stock'],
+    )
   })
 
   it('gives fictional contact details only', () => {

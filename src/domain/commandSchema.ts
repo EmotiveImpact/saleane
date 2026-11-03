@@ -4,15 +4,30 @@ import { TOGETHER_MOST } from './together'
 import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
+import { rotaCommandSchemas } from './rotaSchema'
+import { newsCommandSchemas } from './newsSchema'
+import { otherTillCommandSchemas } from './otherTillSchema'
+import { quietOfferCommandSchemas } from './quietOffersSchema'
+import { retentionCommandSchemas } from './retentionSchema'
+import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
-import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
+import { tillCommandSchemas } from './tillSchema'
+import { twoStepRuleCommandSchemas } from './twoStepRule'
+import {
+  aiVoiceSchema,
+  googleBookingSchema,
+  receptionistSettingsSchema,
+} from './receptionistSchema'
+import { aiBookingSchema } from './aiBookingSchema'
 import { missedCallSources } from './missedCallsSchema'
+import { answeredCallSchema } from './answeredCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
 import { taskInputSchema } from './tasksSchema'
 import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
-import { giftCardInputSchema } from './giftCardsSchema'
+import { giftCardInputSchema, giftCardMoveCommandSchema } from './giftCardsSchema'
+import { staffMoveCommandSchemas } from './staffMovesSchema'
 import {
   patchTestInputSchema,
   patchTestResultSchema,
@@ -29,7 +44,8 @@ import {
 } from './setupSchema'
 import {
   GUEST_NOTE_LIMIT,
-  bookingChannels,
+  VISIT_AFTERCARE_LIMIT,
+  visitChannels,
   paymentMethodSchema,
   processorSchema,
   clientSchema,
@@ -44,6 +60,7 @@ import {
   payRulesInputSchema,
   protectionSchema,
   productInputSchema,
+  timeOffChangeInputSchema,
   timeOffInputSchema,
   weeklyHoursSchema,
 } from './operations'
@@ -71,6 +88,8 @@ const importSource = z.string().trim().min(2).max(100)
 export const contactSchema = clientSchema
   .pick({ name: true, email: true, phone: true, marketingConsent: true })
   .extend({
+    // A guest booking or a new client at the desk always gives an email.
+    email: z.email(),
     phone: z
       .string()
       .trim()
@@ -81,6 +100,35 @@ export const contactSchema = clientSchema
       ),
   })
 export const importContactSchema = contactSchema
+const internationalPhone = (value: string) => /^\+[1-9]\d{6,14}$/.test(value.replace(/[ ()-]/g, ''))
+/**
+ * Moving in: a client brought across from the studio's old system. The old system may have only
+ * an email or only a phone number. Marketing permission comes across only with what the old
+ * system recorded (`consentEvidence`).
+ */
+const movingContactBase = clientSchema
+  .pick({ name: true, marketingConsent: true, birthday: true, postcodeArea: true })
+  .extend({
+    email: z.union([z.email().max(254), z.literal('')]),
+    phone: z
+      .string()
+      .trim()
+      .max(30)
+      .refine(
+        (value) => !value || internationalPhone(value),
+        'Use an international telephone number with a country code.',
+      ),
+    preferences: z.string().trim().max(1000).optional(),
+    consentEvidence: z.string().trim().min(2).max(300).optional(),
+    /** The old system recorded that the client agreed to marketing texts; noted on their timeline. */
+    textMarketing: z.boolean().optional(),
+  })
+export const movingContactSchema = movingContactBase
+  .refine((c) => c.email || c.phone, 'Each client needs an email or a phone number.')
+  .refine(
+    (c) => !c.marketingConsent || !!c.consentEvidence,
+    'Marketing permission needs what the old system recorded.',
+  )
 export const bookingSchema = z.object({
   resourceId: id.optional(),
   /** V2: where the visit is. Absent means the main location. */
@@ -92,7 +140,7 @@ export const bookingSchema = z.object({
   clientId: id.optional(),
   contact: contactSchema.optional(),
   source: z.enum(['desk', 'online', 'rebook']),
-  channel: z.enum(bookingChannels).optional(),
+  channel: z.enum(visitChannels).optional(),
   rebookedFromId: id.optional(),
   /** V1.5: the waitlist request this booking fills. */
   waitlistId: id.optional(),
@@ -172,7 +220,19 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('message-queue'), messageId: id }),
   // V4: the AI receptionist on the booking page.
   z.object({ type: z.literal('receptionist'), settings: receptionistSettingsSchema }),
+  z.object({ type: z.literal('ai-voice'), settings: aiVoiceSchema }),
+  /**
+   * NEXT-16: a person's own voice for talking to Ask SALEANE, or null for the studio's. The server
+   * sets whose it is from the sign-in; a person never chooses for anyone else.
+   */
+  z.object({
+    type: z.literal('own-voice'),
+    voice: z.string().trim().min(1).max(40).nullable(),
+    personId: z.string().min(1).max(100).optional(),
+  }),
   z.object({ type: z.literal('google-booking'), settings: googleBookingSchema }),
+  // Stage 5: booking through ChatGPT or Claude.
+  z.object({ type: z.literal('ai-booking'), settings: aiBookingSchema }),
   // PILOT-01: the studio's confirmation and reminder settings.
   z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
   // PILOT-01: a client's own wish about appointment emails and texts.
@@ -181,6 +241,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     clientId: id,
     email: z.boolean(),
     sms: z.boolean(),
+    /** Stage 1: the team confirms a client who replied STOP asked for texts again. */
+    askedAfterStop: z.literal(true).optional(),
   }),
   z.object({
     type: z.literal('refund'),
@@ -259,6 +321,12 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reference: z.string().trim().max(150).optional(),
   }),
   z.object({ type: z.literal('cancel-time-off'), timeOffId: id }),
+  // Stage 4: new days for time off already recorded; the earlier record is kept, cancelled.
+  z.object({
+    type: z.literal('time-off-change'),
+    timeOffId: id,
+    input: timeOffChangeInputSchema,
+  }),
   z.object({
     type: z.literal('leave-allowance'),
     staffId: id,
@@ -311,7 +379,13 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('client-edit'),
     clientId: id,
-    contact: contactSchema,
+    /** An email or phone may stay empty only when it was already empty (a client moved in). */
+    contact: movingContactBase.pick({
+      name: true,
+      email: true,
+      phone: true,
+      marketingConsent: true,
+    }),
     preferences: z.string().trim().max(1000),
   }),
   // PILOT-03: moving from another system. Each import is reviewed row by row before it is sent.
@@ -378,6 +452,62 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
       .max(500),
     reviewed: z.literal(true),
   }),
+  // Moving in, stage 3: gift cards and packages the old system sold, with what is left on each.
+  z.object({
+    type: z.literal('import-gift-cards'),
+    source: importSource,
+    cards: z
+      .array(
+        z.object({
+          /** The code printed on the card; without one, the card is given a new SALEANE code. */
+          code: z.string().trim().max(40).optional(),
+          /**
+           * What the old system showed of a code SALEANE cannot keep, such as "ending 4821" when
+           * Square shares only the last four digits, so the desk can tell the guest's card apart.
+           */
+          codeBefore: z.string().trim().min(1).max(40).optional(),
+          /** What is left to spend: the card's value from now on. */
+          balanceMinor: money.refine((n) => n > 0),
+          /** What it was bought for in the old system, when the file says. */
+          valueBeforeMinor: money.optional(),
+          /** The client who bought it, when they are a client here. */
+          clientId: id.optional(),
+          purchaserName: z.string().trim().max(100),
+          recipientName: z.string().trim().max(100),
+          issuedOn: z.iso.date().optional(),
+          /** The last day it can be spent; none means the old system gave it no last day. */
+          expiresOn: z.iso.date().optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+    reviewed: z.literal(true),
+  }),
+  z.object({
+    type: z.literal('import-packages'),
+    source: importSource,
+    packages: z
+      .array(
+        z.object({
+          clientId: id,
+          /** The package's name in the old system. */
+          name: z.string().trim().min(2).max(100),
+          /** The treatments each visit covers. */
+          serviceIds: z.array(id).min(1).max(100),
+          visitsLeft: z.number().int().min(1).max(100),
+          /** All the visits it was bought with, when the file says. */
+          visitsBefore: z.number().int().min(1).max(100).optional(),
+          /** What the visits left are worth: paid to the old system and held for the client. */
+          valueMinor: money,
+          startedOn: z.iso.date().optional(),
+          /** The last day it can be used; none means the old system gave it no last day. */
+          endsOn: z.iso.date().optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+    reviewed: z.literal(true),
+  }),
   z.object({
     type: z.literal('balance-settle'),
     balanceId: id,
@@ -386,7 +516,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('import-clients'),
     source: z.string().trim().min(2).max(100).optional(),
-    contacts: z.array(contactSchema).min(1).max(500),
+    contacts: z.array(movingContactSchema).min(1).max(500),
     reviewed: z.literal(true),
   }),
 ])
@@ -497,6 +627,18 @@ export const commandSchema = z.discriminatedUnion('type', [
     giftCardMinor: money.optional(),
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
+  /**
+   * NEXT-16: what a professional saves after a visit, written up from a voice note or typed: a note
+   * for the studio, and their own aftercare for the guest (null takes it away).
+   */
+  z.object({
+    type: z.literal('visit-write-up'),
+    appointmentId: id,
+    note: z.string().trim().min(2).max(1000).optional(),
+    aftercare: z.string().trim().min(2).max(VISIT_AFTERCARE_LIMIT).nullable().optional(),
+    /** Set by the server to the professional writing up their own visit; the desk signs nothing. */
+    signedBy: id.optional(),
+  }),
   // V2: products sold to someone without a visit.
   z.object({
     type: z.literal('counter-sale'),
@@ -607,6 +749,18 @@ export const commandSchema = z.discriminatedUnion('type', [
     source: z.enum(missedCallSources).optional(),
   }),
   z.object({ type: z.literal('missed-call-done'), callId: id }),
+  // NEXT-17: a call the AI receptionist answered, written down by the phone line as it ends; and
+  // the desk saying it followed the call up.
+  z.object({
+    type: z.literal('call-answered'),
+    number: answeredCallSchema.shape.number,
+    startedAt: z.iso.datetime(),
+    seconds: answeredCallSchema.shape.seconds,
+    turns: answeredCallSchema.shape.turns,
+    texted: answeredCallSchema.shape.texted,
+    message: answeredCallSchema.shape.message,
+  }),
+  z.object({ type: z.literal('answered-call-done'), callId: id }),
   z.object({ type: z.literal('offer'), id: id.optional(), input: offerInputSchema }),
   z.object({
     type: z.literal('plan-sell'),
@@ -622,6 +776,9 @@ export const commandSchema = z.discriminatedUnion('type', [
     holdingId: id,
     method,
     reference: z.string().trim().max(150).optional(),
+    processor,
+    /** Stage 1: the month a card payment was taken for; only with the card, from the server. */
+    periodStart: z.iso.date().optional(),
   }),
   z.object({
     type: z.literal('plan-cancel'),
@@ -630,6 +787,32 @@ export const commandSchema = z.discriminatedUnion('type', [
     refundMinor: money.optional(),
     method: method.optional(),
     reference: z.string().trim().max(150).optional(),
+    processor,
+  }),
+  // Stage 1: a membership paid each month from a saved card, set up (with the card) or turned
+  // off. Only the server sends it, with a card it checked; a page's own command is refused.
+  z.object({
+    type: z.literal('plan-card'),
+    holdingId: id,
+    card: z
+      .object({ id, brand: z.string().trim().min(1).max(40), last4: z.string().regex(/^\d{4}$/) })
+      .strict()
+      .optional(),
+    wording: z.string().trim().min(20).max(1000).optional(),
+    /** Why card payments stopped, when they do. */
+    reason: z.enum(['turned_off', 'card_removed']).optional(),
+  }),
+  // Stage 1: the server tried a membership's saved card and it was declined; for the timeline.
+  z.object({
+    type: z.literal('plan-card-try'),
+    holdingId: id,
+    periodStart: z.iso.date(),
+    amountMinor: money.refine((n) => n > 0),
+    try: z.number().int().min(1).max(4),
+    /** The next try's day, or none once SALEANE stops trying for the month. */
+    nextTryOn: z.iso.date().optional(),
+    /** The card was not tried, because no reminder went out three days before. */
+    missedReminder: z.literal(true).optional(),
   }),
   // Ask Saleane: several desk changes approved together, applied together or not at all. Only
   // moving, cancelling, closing time and unsent drafts, so no money moves in a batch.
@@ -737,8 +920,27 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...approvalCommandSchemas,
   // V5: the studio's look and the house rules every location follows.
   ...brandCommandSchemas,
+  // Stage 2: how receipts print and whether the cash drawer opens by itself.
+  ...tillCommandSchemas,
   // NEXT-07: hours worked, for payroll.
   ...hoursCommandSchemas,
+  // Stage 3: one day on the rota changed or added, and a week's changes copied or cleared.
+  ...rotaCommandSchemas,
+  // Stage 3: rates for a treatment or product, steps by takings and monthly targets.
+  ...commissionCommandSchemas,
+  // Stage 4: a gift card or a team member moving to another location.
+  giftCardMoveCommandSchema,
+  ...staffMoveCommandSchemas,
+  // Stage 4: one message from the studio to its clients, drafted, approved, stopped.
+  ...newsCommandSchemas,
+  // Stage 5: a sale or refund from a chain's own till, sent in through an access key.
+  ...otherTillCommandSchemas,
+  // Stage 5: a lower price for quiet times, and an invitation to one of Today's open times with it.
+  ...quietOfferCommandSchemas,
+  // Stage 6: approving deletion, or keeping longer, records at the end of their keeping period.
+  ...retentionCommandSchemas,
+  // Stage 6: the owner asks everyone to use two-step sign-in.
+  ...twoStepRuleCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

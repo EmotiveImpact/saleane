@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { KeyRound } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import { regions } from '../domain/group'
 import { areaPlaces } from '../domain/area'
 import { hasLocations, places } from '../domain/locations'
-import { TwoStepSettings } from './TwoStepSettings'
+import { TwoStepForEveryone } from './TwoStepForEveryone'
 import './accessPanel.css'
 
 type Team = {
@@ -20,6 +20,8 @@ type Team = {
     locationId?: string | null
     /** NEXT-04: whether this person has two-step sign-in on. */
     twoStep?: boolean
+    /** NEXT-15: whether this person signs in with Face ID or a fingerprint on any device. */
+    passkey?: boolean
   }[]
   invitations: {
     email: string
@@ -43,9 +45,6 @@ export function AccessPanel() {
     [inviteBranch, setInviteBranch] = useState(''),
     [link, setLink] = useState(''),
     [copied, setCopied] = useState(false)
-  const [password, setPassword] = useState(''),
-    [nextPassword, setNextPassword] = useState(''),
-    [changed, setChanged] = useState(false)
   useEffect(() => {
     if (mode !== 'server' || role !== 'owner') return
     let active = true
@@ -135,7 +134,10 @@ export function AccessPanel() {
                   <strong>{m.name}</strong>
                   <small>
                     {m.email}
+                    {/* Stage 6: who has it on and who has not yet, never their key or codes. */}
+                    {m.twoStep ? ' · Two-step sign-in on' : ' · No two-step sign-in yet'}
                     {m.twoStep ? ' · Two-step sign-in on' : ''}
+                    {m.passkey ? ' · Face ID on' : ''}
                   </small>
                 </span>
                 {m.role === 'owner' ? (
@@ -144,7 +146,7 @@ export function AccessPanel() {
                   <>
                     <label>
                       <span className="sr-only">Role for {m.name}</span>
-                      <select
+                      <Select
                         disabled={pending}
                         value={
                           m.role === 'practitioner'
@@ -190,7 +192,7 @@ export function AccessPanel() {
                             General manager · {p.name}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                     <Button
                       variant="quiet"
@@ -249,18 +251,18 @@ export function AccessPanel() {
               </label>
               <label>
                 Access
-                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+                <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
                   <option value="reception">Reception</option>
                   <option value="manager">Manager</option>
                   <option value="practitioner">Practitioner</option>
                   {branches.length > 0 && <option value="general">General manager</option>}
                   {areas.length > 0 && <option value="regional">Regional manager</option>}
-                </select>
+                </Select>
               </label>
               {inviteRole === 'general' && (
                 <label>
                   Runs
-                  <select
+                  <Select
                     required
                     value={inviteBranch}
                     onChange={(e) => setInviteBranch(e.target.value)}
@@ -271,13 +273,13 @@ export function AccessPanel() {
                         {p.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               {inviteRole === 'regional' && (
                 <label>
                   Looks after
-                  <select
+                  <Select
                     required
                     value={inviteArea}
                     onChange={(e) => setInviteArea(e.target.value)}
@@ -288,13 +290,13 @@ export function AccessPanel() {
                         {r.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               {inviteRole === 'practitioner' && (
                 <label>
                   Works as
-                  <select
+                  <Select
                     required
                     value={inviteStaff}
                     onChange={(e) => setInviteStaff(e.target.value)}
@@ -305,7 +307,7 @@ export function AccessPanel() {
                         {person.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
             </div>
@@ -315,7 +317,7 @@ export function AccessPanel() {
               name, preferences and notes, and can welcome their client and add notes. They see no
               contact details, prices, payments or other diaries.
               {branches.length > 0 &&
-                ' A general manager runs one location as a manager would: its diary, takings, stock and orders, branch visits and requests. They change nothing at other locations or for the whole business, such as treatments, prices, the team, hours or settings, and do not see pay rates.'}
+                ' A general manager runs one location as a manager would: its diary, takings, stock and orders, its team’s rota and time off, its rooms, messages to its clients for the owner to approve, branch visits and requests. They change nothing at other locations or for the whole business, such as treatments, prices, who works where, usual hours or settings, and do not see pay rates.'}
               {areas.length > 0 &&
                 ' A regional manager sees only their region’s locations: how each is doing, what is booked today, their branch visits, which they can record, and requests for a sign-off, which they can raise and approve up to the owner’s limit. They see no clients, diaries, prices or settings.'}
             </p>
@@ -363,77 +365,7 @@ export function AccessPanel() {
       ) : (
         <p className="ops-help">Only the owner can invite people or change who can sign in.</p>
       )}
-      <details className="access-password">
-        <summary>Change your password</summary>
-        <form
-          aria-label="Change your password"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            setPending(true)
-            setError('')
-            setChanged(false)
-            try {
-              await api('/api/auth/password', {
-                method: 'POST',
-                body: { current: password, password: nextPassword },
-              })
-              setChanged(true)
-              setPassword('')
-              setNextPassword('')
-            } catch (e) {
-              setError(e instanceof Error ? e.message : 'Password could not be changed.')
-            } finally {
-              setPending(false)
-            }
-          }}
-        >
-          <div className="ops-fields">
-            <div className="ops-field">
-              <label htmlFor="access-current-password">Current password</label>
-              <input
-                id="access-current-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div className="ops-field">
-              <label htmlFor="access-new-password">New password</label>
-              <input
-                id="access-new-password"
-                type="password"
-                autoComplete="new-password"
-                aria-describedby="access-new-password-help"
-                required
-                minLength={12}
-                maxLength={128}
-                value={nextPassword}
-                onChange={(e) => setNextPassword(e.target.value)}
-              />
-              <small id="access-new-password-help">At least 12 characters.</small>
-            </div>
-          </div>
-          <p className="ops-save-note" role="status">
-            {changed ? 'Your password is updated.' : ''}
-          </p>
-          <div className="ops-actions">
-            <Button type="submit" disabled={pending}>
-              Update password
-            </Button>
-          </div>
-        </form>
-      </details>
-      <TwoStepSettings
-        onChange={() => {
-          // The owner's own row says whether two-step sign-in is on.
-          if (role === 'owner')
-            api<Team>(`${base}/team`)
-              .then(setTeam)
-              .catch(() => {})
-        }}
-      />
+      {role === 'owner' && <TwoStepForEveryone members={team?.members} />}
       <ErrorMessage error={error} />
     </section>
   )
