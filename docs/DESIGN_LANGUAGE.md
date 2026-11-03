@@ -38,6 +38,7 @@ Edem asked on 11 October 2026 for the whole library to run on Radix and Motion. 
 16. **The booking page's footer says "Connected by SALEANE"** and nothing more. See [Voice](#voice).
 17. **Where things live.** Money and Team have their own places in the sidebar, Business keeps how the studio is doing, Settings is four groups with Find a setting, and what is yours alone (your preferences, password, two-step sign-in and Face ID) is on You, from your name (Edem, "Build all", 11 October). The six moves from the finishing check came with it. See [The frame](#the-frame).
 18. **Today on a phone is three tabs, each with its count.** The day, Needs you and Team; a computer keeps the columns side by side and gives each heading the same count (Edem, 13 October). See [Patterns](#patterns).
+19. **Clean white is a background a studio can choose,** beside warm ivory, which stays the default. It is crisper and cooler, like a native app; the studio's own colours still lead (Edem, 3 November). See [Studio look](#colour).
 
 ## Tokens
 
@@ -63,7 +64,9 @@ Components use semantic tokens. The raw `--palette-*` values exist so the semant
 | `--action` / `--action-hover`  | brand 88% / 76% mixed with ink      | Primary buttons, deepened so white text passes AA    |
 | `--danger` / `--danger-soft`   | `#8c2e24` / `#fcf1ef`               | Errors and destructive confirmation                  |
 
-**Studio colours.** Each studio picks a first and second colour in workspace settings. First: Sage, Heather, Slate, Teal, Clay or Rosewood. Second: Soft rose, Apricot, Lavender, Sky or Olive. Every preset was checked: white on `--action` and `--rose-ink` on white stay at 4.79:1 or above. The choice is saved in this browser only for now, so guests on another device see the house colours until studio settings are stored on the server.
+**Studio look.** Each studio picks a background and a first and second colour in Settings, under Booking page & colours, and in the setup wizard. Background: Warm ivory (SALEANE's original and the default) or Clean white. First: Sage, Heather, Slate, Teal, Clay, Rosewood or Deep green. Second: Soft rose, Apricot, Lavender, Sky or Olive. Every preset was checked on both backgrounds: white on `--action` and `--rose-ink` on white stay at 4.8:1 or above. The look is kept with the studio (`operations.look`), so every location, every device, the booking page and the studio's emails show the same.
+
+**Clean white.** `data-base="white"` on `<html>` swaps only the neutrals, in `tokens.css`: page and panels `#ffffff`, sidebar `#f6f7f7`, quiet fills `#f3f4f4`, lines `#ebecec` / `#dcdedd`, ink `#141716`, muted `#676c6a` (4.9:1 on the sidebar, 5.3:1 on white), and `--story-fade` (what photographs fade into) white. The studio's two colours, the treatment tones and every component stay as they are. Warm ivory has no mark. Use `--glass` for a see-through header and `--story-fade` for a photograph's fade, never a literal ivory, so both backgrounds follow.
 
 Staff tones pair a background with the ink that reads on it: `--tone-sage-bg/ink`, `--tone-blue-bg/ink`, `--tone-sand-bg/ink`. All checked pairings are listed with live ratios on the library page.
 

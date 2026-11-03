@@ -5,12 +5,12 @@ import { ArrowLeft, ArrowRight, Check, Copy, FlaskConical, Plus } from 'lucide-r
 import { useStore } from '../state/context'
 import type { BusinessState, Service } from '../domain/model'
 import type { StudioLook } from '../domain/brandRulesSchema'
-import { firstColours, secondColours } from '../domain/brandRulesSchema'
+import { bases, firstColours, secondColours } from '../domain/brandRulesSchema'
 import { operations } from '../domain/operations'
 import { money } from '../domain/format'
 import { parseMinor } from '../domain/money'
 import { bookable } from '../domain/readiness'
-import { coloursFor } from '../state/studioColours'
+import { applyColours, coloursFor } from '../state/studioColours'
 import { SETUP_STEPS } from '../domain/setupSchema'
 import type { SetupPlace, SetupStep } from '../domain/setupSchema'
 import { STARTER_TREATMENTS, resumeStep, setupPassed } from '../domain/setup'
@@ -142,14 +142,8 @@ export function StudioSetup() {
   // The colours being chosen show across the whole page; leaving puts the saved ones back.
   useEffect(() => {
     if (!preview) return
-    const root = document.documentElement.style
-    root.setProperty('--brand', preview.first)
-    root.setProperty('--rose', preview.second)
-    return () => {
-      const back = coloursFor(studio, savedLook)
-      root.setProperty('--brand', back.first)
-      root.setProperty('--rose', back.second)
-    }
+    applyColours(preview)
+    return () => applyColours(coloursFor(studio, savedLook))
   }, [preview, savedLook, studio])
 
   // Only the owner of a studio of their own sets it up; everyone else carries on as before.
@@ -781,11 +775,18 @@ function LookScreen({
   return (
     <>
       <Intro>
-        Choose two colours. The first leads buttons and choices, and the second picks out small
-        details. This page shows them as you choose.
+        Choose what your pages sit on, then two colours. The first leads buttons and choices, and
+        the second picks out small details. This page shows them as you choose.
       </Intro>
       <div className="setup-look">
         <div>
+          <Swatches
+            legend="Background"
+            name="setup-base"
+            options={bases}
+            value={value.base ?? 'warm'}
+            onChange={(base) => onChange({ ...value, base: base as StudioLook['base'] })}
+          />
           <Swatches
             legend="First colour"
             name="setup-first"
@@ -839,7 +840,7 @@ function Swatches({
 }: {
   legend: string
   name: string
-  options: readonly { name: string; value: string }[]
+  options: readonly { name: string; value: string; swatch?: string }[]
   value: string
   onChange: (value: string) => void
 }) {
@@ -856,7 +857,7 @@ function Swatches({
               checked={value === option.value}
               onChange={() => onChange(option.value)}
             />
-            <span style={{ background: option.value }} aria-hidden="true" />
+            <span style={{ background: option.swatch ?? option.value }} aria-hidden="true" />
             {option.name}
           </label>
         ))}

@@ -113,6 +113,11 @@ describe('set up your studio, screen by screen', () => {
     expect(look.changes).toEqual([{ type: 'studio-look', look: lookDraft(s) }])
     s = save(s, 'deposits', look.changes)
     expect(lookScreen(s, lookDraft(s)).changes).toEqual([])
+    // Choosing clean white is a change; a look saved without a background is warm ivory.
+    expect(lookScreen(s, { ...lookDraft(s), base: 'warm' }).changes).toEqual([])
+    expect(lookScreen(s, { ...lookDraft(s), base: 'white' }).changes).toEqual([
+      { type: 'studio-look', look: { ...lookDraft(s), base: 'white' } },
+    ])
 
     // Deposits, fees and tax: VAT is never assumed.
     const money = moneyDraft(s)

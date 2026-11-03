@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { Block, Inline } from './blocks'
-import { INK, LINE, MUTED, PAGE, PAPER } from './colours'
+import { INK, LINE, MUTED, PAPER } from './colours'
 import type { EmailPalette } from './colours'
 
 /**
@@ -206,7 +206,7 @@ export function EmailDocument({ subject, preheader, blocks, brand, lang }: Email
         <title>{subject}</title>
         <style dangerouslySetInnerHTML={{ __html: CSS }} />
       </head>
-      <body style={{ margin: 0, padding: 0, background: PAGE }}>
+      <body style={{ margin: 0, padding: 0, background: palette.page }}>
         {/* What the inbox shows beside the subject; never seen in the email itself. */}
         <div
           style={{
@@ -217,12 +217,12 @@ export function EmailDocument({ subject, preheader, blocks, brand, lang }: Email
             opacity: 0,
             fontSize: 1,
             lineHeight: '1px',
-            color: PAGE,
+            color: palette.page,
           }}
         >
           {preheader}
         </div>
-        <Table style={{ background: PAGE }}>
+        <Table style={{ background: palette.page }}>
           <tr>
             <td className="page" align="center" style={{ padding: '32px 16px' }}>
               <Table style={{ maxWidth: 560, margin: '0 auto' }}>

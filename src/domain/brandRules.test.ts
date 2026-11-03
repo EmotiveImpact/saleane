@@ -7,6 +7,7 @@ import { seed } from './seed'
 import { houseRuleNote, priceRange, ruleBreaches, serviceRuleRefusal } from './brandRules'
 import { branchRefusal } from './branch'
 import { commandSchema } from './commandSchema'
+import { lookSchema } from './brandRulesSchema'
 
 // V5: the studio's colours and the house rules every location follows.
 const now = '2026-10-06T15:00:00.000Z'
@@ -165,5 +166,13 @@ describe('studio colours', () => {
   it('keeps the chosen pair with the studio', () => {
     const look = { first: '#a35f4b', second: '#8c9a5b' } as const
     expect(apply(seed('UK'), { type: 'studio-look', look }).operations!.look).toEqual(look)
+  })
+
+  it('keeps a clean white background with the colours, and only the listed backgrounds', () => {
+    const look = { first: '#2f6b4f', second: '#c27286', base: 'white' } as const
+    expect(apply(seed('UK'), { type: 'studio-look', look }).operations!.look).toEqual(look)
+    // A look saved before there was a choice of background is still a look (warm ivory).
+    expect(lookSchema.safeParse({ first: '#5f8471', second: '#c27286' }).success).toBe(true)
+    expect(lookSchema.safeParse({ ...look, base: 'black' }).success).toBe(false)
   })
 })
