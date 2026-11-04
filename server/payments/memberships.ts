@@ -600,8 +600,12 @@ export function createMembershipCharges(
   }
 
   /** Starts a refund to the card that the route prepared, and records it once confirmed. */
-  const refund = async (row: ChargeRow) =>
-    settle(
+  const refund = async (row: ChargeRow) => {
+    // Hosted: the started refund is kept before the provider is asked, so a lost save can never
+    // lead to a second refund (a started refund blocks another, see UNDER_WAY, and the row's id
+    // is the provider's idempotency key).
+    if (provider.name !== 'test') await ctx.beforeOutside()
+    return settle(
       row.id,
       await provider.refund({
         attemptId: row.id,
@@ -609,6 +613,7 @@ export function createMembershipCharges(
         amountMinor: row.amount_minor,
       }),
     )
+  }
 
   /** One pass: tidy rows cut short, queue reminders, take what is due, try declined cards again. */
   const pass = async () => {

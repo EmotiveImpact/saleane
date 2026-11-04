@@ -988,6 +988,11 @@ export const migrations: Migration[] = [
           PRIMARY KEY(line_hash, customer_hash)
         ) STRICT;
         CREATE INDEX gateway_bindings_studio ON gateway_bindings(organisation_id);
+        CREATE TABLE gateway_provisions (
+          line_hash TEXT PRIMARY KEY,
+          organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          created_at INTEGER NOT NULL
+        ) STRICT;
       `),
   },
 ]

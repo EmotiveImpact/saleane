@@ -151,10 +151,7 @@ export function createHostedApp(options: HostedOptions) {
         database,
         now,
         // Keep-then-call: the mark made before an outside call is kept before the call is made.
-        durable: async () => {
-          outside += 1
-          return changes() === kept || (await keep())
-        },
+        durable,
       })
     } catch (error) {
       database.close()
@@ -162,20 +159,44 @@ export function createHostedApp(options: HostedOptions) {
     }
   }
 
-  const keep = async () => {
+  /**
+   * Saves are one at a time, and each counts as kept only what was in the copy it sent: the
+   * change count is read in the same synchronous step as the bytes, so a change a timed job makes
+   * while a save is on its way stays unkept until a later save carries it. A save that finishes
+   * after the generation moved on (another save, or a re-read) never counts.
+   */
+  let saving: Promise<unknown> = Promise.resolve()
+  const serial = <T>(work: () => Promise<T>): Promise<T> => {
+    const run = saving.then(work, work)
+    saving = run.catch(() => {})
+    return run
+  }
+  const keepNow = async () => {
+    if (generation === -1) return false
+    const at = changes()
     api!.database.connection.exec('PRAGMA wal_checkpoint(TRUNCATE)')
     const data = gzipSync(readFileSync(file))
+    const from = generation
     let stored = false
     try {
-      stored = await options.store.write(generation, data)
+      stored = await options.store.write(from, data)
     } catch (error) {
       console.error('[SALEANE] The database copy could not be kept.', error)
     }
-    if (stored) {
-      generation += 1
-      kept = changes()
+    if (stored && generation === from) {
+      generation = from + 1
+      kept = at
     } else generation = -1
-    return stored
+    return stored && generation !== -1
+  }
+  /** Keeps the working database now, whatever has changed. */
+  const keep = () => serial(keepNow)
+  /** Keeps whatever changed since the last kept copy; true when everything up to now is kept. */
+  const keepChanges = () => serial(async () => (changes() === kept ? generation !== -1 : keepNow()))
+  /** Keep-then-call: the mark made before an outside call is kept before the call is made. */
+  const durable = async () => {
+    outside += 1
+    return keepChanges()
   }
 
   /** Brings the working database up to the kept copy, starting one when there is none. */
@@ -235,7 +256,7 @@ export function createHostedApp(options: HostedOptions) {
         await due()
         // Timed work that ran outside and then lost its copy: start this request from the kept one.
         if (generation === -1 || changes() !== kept) {
-          if (changes() !== kept && !(await keep())) generation = -1
+          if (changes() !== kept && !(await keepChanges())) generation = -1
           if (generation === -1) {
             try {
               await sync()
@@ -251,7 +272,7 @@ export function createHostedApp(options: HostedOptions) {
         // A mark before an outside call that was not kept: nothing was sent, and nothing else
         // of this request counts either.
         if (generation === -1) return json(503, { error: BUSY })
-        if (changes() === kept || (await keep())) return answer
+        if (await keepChanges()) return answer
         // Not kept: the working database is read again before anything else runs. A request
         // that already reached an outside service is never run again; its own key answers a retry.
         if (outside > 0 || attempt >= retries) return json(503, { error: BUSY })
@@ -267,6 +288,8 @@ export function createHostedApp(options: HostedOptions) {
     get api() {
       return api
     },
+    /** For checks: what an outside call waits on before it may be made. */
+    beforeOutside: () => durable(),
     close: async () => {
       await queue
       api?.close()

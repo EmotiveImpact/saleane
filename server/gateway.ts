@@ -56,6 +56,8 @@ export function gatewayFromEnv(env: Record<string, string | undefined>): Gateway
 }
 
 export const GATEWAY_PATH = '/api/gateway/mcp'
+/** Where the carrier, with the gateway key, sets up a line it gave one studio for its own. */
+export const PROVISION_PATH = '/api/gateway/lines'
 /** A guest's choice of studio on a shared line lasts this long after their last message. */
 const BINDING_MS = 30 * 24 * 60 * 60000
 
@@ -231,14 +233,26 @@ export function gateway(options: GatewayOptions) {
   function runFor(
     ctx: Context,
     request: IncomingMessage,
-    place: { organisation_id: string; location_id: string | null },
+    settled: { organisation_id: string; location_id: string | null },
     name: ToolName,
     args: Record<string, unknown>,
     who: { assistant: AssistantChannel; customer: string; customerHash: string; lineHash: string },
   ) {
+    let place = settled
     const org = openStudio(ctx, place.organisation_id)
     let input = args
-    if ((name === 'find_free_times' || name === 'book_time') && place.location_id) {
+    const located = name === 'find_free_times' || name === 'book_time'
+    // A studio with several locations needs the guest's own choice of one first; a location the
+    // AI names in the request never stands in for it.
+    if (located && !place.location_id) {
+      const places = locationIds(ctx, org)
+      if (places.length !== 1)
+        return toolRefusal(
+          'This studio has several locations and the guest has not chosen one. Ask the guest which location, then call choose_studio with its location_id from studio_details.',
+        )
+      place = { ...place, location_id: places[0] }
+    }
+    if (located && place.location_id) {
       if (input.location_id && input.location_id !== place.location_id)
         return toolRefusal(
           'This conversation is for another location of the studio. Use choose_studio to change it.',
@@ -262,6 +276,98 @@ export function gateway(options: GatewayOptions) {
     })
   }
 
+  /** Checks a server-to-server request carries the gateway key. */
+  function carrier(ctx: Context, request: IncomingMessage) {
+    if (options.mode === 'off') fail(404, 'This endpoint was not found.')
+    const from = header(request, 'origin')
+    if (from && from !== ctx.allowedOrigin)
+      fail(403, 'This connection does not take requests from web pages.')
+    const bearer = /^Bearer\s+(\S+)$/i.exec(header(request, 'authorization') ?? '')?.[1] ?? ''
+    if (!bearer || !sameSecret(bearer, options.key)) {
+      ctx.rateLimit(request, 'gateway-refused', 20, 10 * 60000)
+      fail(401, 'This connection needs the gateway key.')
+    }
+  }
+
+  /**
+   * The carrier sets up a line it gave one studio (a number bought for it), by booking page name.
+   * Only then may that studio's owner claim it. A line that already belongs to, or was set up for,
+   * another studio is refused, and nothing changes.
+   */
+  async function provision(
+    ctx: Context,
+    request: IncomingMessage,
+    response: ServerResponse,
+    method: string,
+  ) {
+    const send = (status: number, body: unknown) => {
+      response.statusCode = status
+      response.setHeader('Cache-Control', 'no-store')
+      response.setHeader('Content-Type', 'application/json; charset=utf-8')
+      response.end(JSON.stringify(body))
+    }
+    try {
+      carrier(ctx, request)
+      if (method !== 'POST') {
+        response.setHeader('Allow', 'POST')
+        fail(405, 'Send requests with POST.')
+      }
+      if (!/^application\/json(?:\s*;|$)/i.test(header(request, 'content-type') ?? ''))
+        fail(415, 'Send JSON.')
+      let raw: unknown
+      try {
+        raw = JSON.parse((await readBody(request, true)) as string)
+      } catch (error) {
+        if (error instanceof HttpError) throw error
+        fail(400, 'Send JSON.')
+      }
+      const input = z
+        .object({ line: lineHeader, bookingPage: z.string().trim().min(1).max(300) })
+        .strict()
+        .safeParse(raw)
+      if (!input.success) fail(400, 'Give the line and the studio’s booking page name.')
+      const slug = slugFrom(input.data!.bookingPage)
+      const row = slug
+        ? ctx.db.get<{ id: string }>('SELECT id FROM organisations WHERE slug=?', slug)
+        : undefined
+      if (!row) fail(404, 'No studio on SALEANE has that booking page name.')
+      const hash = lineKey(input.data!.line)
+      const held = [
+        ctx.db.get<{ organisation_id: string }>(
+          'SELECT organisation_id FROM gateway_provisions WHERE line_hash=?',
+          hash,
+        ),
+        ctx.db.get<{ organisation_id: string }>(
+          'SELECT organisation_id FROM gateway_lines WHERE line_hash=?',
+          hash,
+        ),
+      ].find((r) => r && r.organisation_id !== row!.id)
+      if (held) fail(409, 'This line is already set up for another studio.')
+      if (
+        ctx.db.get(
+          'SELECT 1 FROM gateway_bindings WHERE line_hash=? AND organisation_id<>?',
+          hash,
+          row!.id,
+        )
+      )
+        fail(409, 'Guests of other studios use this line, so it cannot become one studio’s own.')
+      ctx.db.run(
+        'INSERT INTO gateway_provisions(line_hash,organisation_id,created_at) VALUES(?,?,?) ON CONFLICT(line_hash) DO NOTHING',
+        hash,
+        row!.id,
+        ctx.now(),
+      )
+      send(201, { line: hash, bookingPage: slug })
+    } catch (error) {
+      if (error instanceof HttpError) send(error.statusCode, { error: error.message })
+      else {
+        console.error('[SALEANE] The messaging gateway could not set up a line.', error)
+        send(500, { error: 'SALEANE could not complete this request.' })
+      }
+    }
+    return true
+  }
+
   async function endpoint(
     ctx: Context,
     request: IncomingMessage,
@@ -269,6 +375,7 @@ export function gateway(options: GatewayOptions) {
     method: string,
     pathname: string,
   ): Promise<boolean> {
+    if (pathname === PROVISION_PATH) return provision(ctx, request, response, method)
     if (pathname !== GATEWAY_PATH) return false
     let rpcId: string | number | null = null
     const send = (status: number, body?: unknown) => {
@@ -284,16 +391,8 @@ export function gateway(options: GatewayOptions) {
     const rpcError = (status: number, code: number, words: string) =>
       send(status, { jsonrpc: '2.0', id: rpcId, error: { code, message: words } })
     try {
-      if (options.mode === 'off') fail(404, 'This endpoint was not found.')
       // Server to server only: a web page never reaches it through someone's browser.
-      const from = header(request, 'origin')
-      if (from && from !== ctx.allowedOrigin)
-        fail(403, 'This connection does not take requests from web pages.')
-      const bearer = /^Bearer\s+(\S+)$/i.exec(header(request, 'authorization') ?? '')?.[1] ?? ''
-      if (!bearer || !sameSecret(bearer, options.key)) {
-        ctx.rateLimit(request, 'gateway-refused', 20, 10 * 60000)
-        fail(401, 'This connection needs the gateway key.')
-      }
+      carrier(ctx, request)
       if (method !== 'POST') {
         response.setHeader('Allow', 'POST')
         fail(405, 'Send requests with POST.')
@@ -490,6 +589,25 @@ export function gateway(options: GatewayOptions) {
       )
       if (taken && taken.organisation_id !== org.id)
         fail(409, 'This line is already in use. If it is yours, contact SALEANE support.')
+      // Being an owner is not proof of a line: the carrier, holding the gateway key, must have
+      // set it up for this studio. A shared line is never set up for one studio.
+      const provided = ctx.db.get<{ organisation_id: string }>(
+        'SELECT organisation_id FROM gateway_provisions WHERE line_hash=?',
+        hash,
+      )
+      if (provided?.organisation_id !== org.id)
+        fail(
+          409,
+          'This line has not been set up for your studio by the messaging provider. Ask them to set it up first.',
+        )
+      // Guests who chose a studio on it while it was shared stay with their choice.
+      const others = ctx.db.get(
+        'SELECT 1 FROM gateway_bindings WHERE line_hash=? AND organisation_id<>?',
+        hash,
+        org.id,
+      )
+      if (others)
+        fail(409, 'Guests of other studios use this line, so it cannot become one studio’s own.')
       ctx.db.transaction(() => {
         ctx.db.run(
           `INSERT INTO gateway_lines(line_hash,label,organisation_id,location_id,created_by,created_at) VALUES(?,?,?,?,?,?)
@@ -501,8 +619,6 @@ export function gateway(options: GatewayOptions) {
           actor.id,
           ctx.now(),
         )
-        // Guests who chose a studio on this line before it became one studio's own start afresh.
-        ctx.db.run('DELETE FROM gateway_bindings WHERE line_hash=?', hash)
         ctx.audit(org, actor.id, 'gateway.line', hash)
       })
       reply(201, {

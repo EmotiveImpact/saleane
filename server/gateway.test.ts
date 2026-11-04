@@ -146,6 +146,21 @@ async function firstFree(treatment: string, who: { line?: string; customer?: str
 }
 const guest = { guest_name: 'Rosa Field', guest_email: 'rosa@example.invalid' }
 const visitsIn = async (login: Login) => (await workspace(login)).state.appointments
+/** The carrier, holding the gateway key, sets up a line it gave one studio. */
+const provision = (line: string, bookingPage: string, key = KEY) =>
+  api.inject({
+    method: 'POST',
+    url: '/api/gateway/lines',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    payload: { line, bookingPage },
+  })
+const claim = (login: Login, line: string, locationId?: string) =>
+  api.inject({
+    method: 'POST',
+    url: `/api/workspaces/${login.orgId}/gateway/lines`,
+    headers: headers(login),
+    payload: { line, ...(locationId ? { locationId } : {}) },
+  })
 
 describe('the messaging gateway', () => {
   it('is off unless turned on with a long key, and answers only the carrier', async () => {
@@ -203,8 +218,15 @@ describe('the messaging gateway', () => {
     // The message was retried: the same visit, not a second one.
     const again = await tool('book_time', { ...asked, guest_confirmed: true })
     expect(again.isError, words(again)).toBeFalsy()
+    const reference = (r: typeof booked) =>
+      (r.structuredContent as { visit?: { reference?: string } } | undefined)?.visit?.reference
+    expect(reference(booked)).toBeTruthy()
+    expect(reference(again)).toBe(reference(booked))
+    // A fresh read of the saved diary holds exactly that one visit, at the studio's location.
     const visits = await visitsIn(linden.login)
     expect(visits).toHaveLength(1)
+    expect(visits[0].id).toBe(reference(booked))
+    expect(visits[0].locationId).toBe((await workspace(linden.login)).state.organisation.locationId)
     expect(visits[0].channel).toBe('imessage')
     // The phone the guest wrote from is used when the AI gave none.
     const client = (await workspace(linden.login)).state.clients.find(
@@ -253,6 +275,7 @@ describe('the messaging gateway', () => {
     const linden = await studio('Linden Studio', 'linden@example.invalid')
     const harbour = await studio('Harbour Spa', 'harbour@example.invalid')
     const own = 'keiki:whatsapp:+447700900999'
+    expect((await provision(own, linden.slug)).statusCode).toBe(201)
     const added = await api.inject({
       method: 'POST',
       url: `/api/workspaces/${linden.login.orgId}/gateway/lines`,
@@ -287,6 +310,98 @@ describe('the messaging gateway', () => {
       headers: headers(linden.login),
     })
     expect(view.json<{ lines: { label: string }[] }>().lines.map((l) => l.label)).toEqual([own])
+  })
+
+  it("never lets an owner take a shared line or another studio's guests", async () => {
+    const linden = await studio('Linden Studio', 'linden@example.invalid')
+    const harbour = await studio('Harbour Spa', 'harbour@example.invalid')
+    const rosa = { customer: '+44 7700 900111' }
+    await tool('choose_studio', { booking_page: harbour.slug }, rosa)
+    const before = words(await tool('list_treatments', {}, rosa))
+    expect(before).toContain('Harbour Spa facial')
+    // Being an owner is not proof of a line: the shared line was never set up for Linden.
+    const grab = await claim(linden.login, SHARED)
+    expect(grab.statusCode).toBe(409)
+    // Nor can the carrier set the shared line up for one studio while others' guests use it.
+    expect((await provision(SHARED, linden.slug)).statusCode).toBe(409)
+    // Setting up needs the gateway key.
+    expect(
+      (await provision('keiki:imessage:+447700900888', linden.slug, 'x'.repeat(40))).statusCode,
+    ).toBe(401)
+    // Rosa's choice and routing are untouched.
+    expect(words(await tool('list_treatments', {}, rosa))).toBe(before)
+    // A line set up for Linden cannot be claimed by Harbour, or set up again for Harbour.
+    const dedicated = 'keiki:imessage:+447700900888'
+    expect((await provision(dedicated, linden.slug)).statusCode).toBe(201)
+    expect((await claim(harbour.login, dedicated)).statusCode).toBe(409)
+    expect((await provision(dedicated, harbour.slug)).statusCode).toBe(409)
+    const view = await api.inject({
+      url: `/api/workspaces/${harbour.login.orgId}/gateway`,
+      headers: headers(harbour.login),
+    })
+    expect(view.json<{ lines: unknown[] }>().lines).toEqual([])
+    expect((await claim(linden.login, dedicated)).statusCode).toBe(201)
+    // Still nothing changed for Rosa on the shared line.
+    expect(words(await tool('list_treatments', {}, rosa))).toBe(before)
+  })
+
+  it('needs the guest to choose a location at a studio with several, and keeps it fixed', async () => {
+    const linden = await studio('Linden Studio', 'linden@example.invalid')
+    const harbour = await studio('Harbour Spa', 'harbour@example.invalid')
+    const { state } = await workspace(linden.login)
+    const london = state.organisation.locationId
+    const islington = await ok(linden.login, {
+      type: 'location-open',
+      location: { name: 'Islington', address: '1 Upper Street, London' },
+      rooms: [{ name: 'Islington room 1', type: 'treatment' }],
+      team: [{ staffId: state.staff[0].id, days: [1, 2, 3, 4, 5, 6] }],
+      newTeam: [],
+      notOffered: [],
+      prices: [],
+    } as Command)
+    const rosa = { customer: '+44 7700 900111' }
+    const chosen = await tool('choose_studio', { booking_page: linden.slug }, rosa)
+    expect(words(chosen)).toMatch(/several locations/)
+    // No location chosen: availability and booking ask for one, even when the AI names one.
+    const unplaced = await tool('find_free_times', { treatment_id: linden.facial }, rosa)
+    expect(unplaced.isError).toBe(true)
+    expect(words(unplaced)).toMatch(/has not chosen one/)
+    const named = await tool(
+      'find_free_times',
+      { treatment_id: linden.facial, location_id: islington },
+      rosa,
+    )
+    expect(named.isError).toBe(true)
+    // Another studio's location, or a made-up one, is refused as a choice.
+    const harbourPlace = (await workspace(harbour.login)).state.organisation.locationId
+    for (const location_id of [harbourPlace, 'loc-made-up'])
+      expect(
+        (await tool('choose_studio', { booking_page: linden.slug, location_id }, rosa)).isError,
+      ).toBe(true)
+    // Bound to London, the AI cannot move the guest to Islington by naming it.
+    await tool('choose_studio', { booking_page: linden.slug, location_id: london }, rosa)
+    const moved = await tool(
+      'find_free_times',
+      { treatment_id: linden.facial, location_id: islington },
+      rosa,
+    )
+    expect(moved.isError).toBe(true)
+    expect(words(moved)).toMatch(/another location/)
+    // The guest chooses Islington: the visit and the saved diary are there.
+    await tool('choose_studio', { booking_page: linden.slug, location_id: islington }, rosa)
+    const time = await firstFree(linden.facial, rosa)
+    const booked = await tool(
+      'book_time',
+      { treatment_id: linden.facial, ...time, ...guest, guest_confirmed: true },
+      rosa,
+    )
+    expect(booked.isError, words(booked)).toBeFalsy()
+    const visits = await visitsIn(linden.login)
+    expect(visits).toHaveLength(1)
+    expect(visits[0].locationId).toBe(islington)
+    expect(visits[0].id).toBe(
+      (booked.structuredContent as { visit: { reference: string } }).visit.reference,
+    )
   })
 
   it('answers nothing for a studio that has not turned it on, or a sample studio', async () => {
