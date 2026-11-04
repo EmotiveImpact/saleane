@@ -1805,6 +1805,159 @@
       animation: none;
     }
   }
+
+  /* green section cards: five-shot reel */
+  #made .cards {
+    gap: 18px;
+    max-width: 1160px;
+    align-items: start;
+  }
+  #made .card.reel {
+    margin: 0;
+    height: 560px;
+    border-radius: 22px;
+    background: #0f201b;
+    isolation: isolate;
+    cursor: pointer;
+    box-shadow: 0 40px 70px -40px rgba(0, 0, 0, 0.65);
+    outline: none;
+  }
+  #made .card.reel:focus-visible {
+    box-shadow:
+      0 0 0 2px #16302a,
+      0 0 0 4px #cfe3d8;
+  }
+  #made .card.reel:nth-child(2) {
+    margin-top: 56px;
+  }
+  #made .card.reel .frames {
+    position: absolute;
+    inset: 0;
+    transition: transform 6s cubic-bezier(0.2, 0.6, 0.2, 1);
+  }
+  #made .card.reel.play .frames {
+    transform: scale(1.07);
+  }
+  #made .card.reel .frames img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transform: none !important;
+    transition: opacity 0.16s ease;
+  }
+  #made .card.reel .frames img.on {
+    opacity: 1;
+  }
+  #made .card.reel .flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+  #made .card.reel .flash.go {
+    animation: shutter 0.26s ease-out;
+  }
+  @keyframes shutter {
+    0% {
+      opacity: 0.28;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  #made .card.reel .ticks {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    right: 18px;
+    display: flex;
+    gap: 5px;
+    z-index: 3;
+    opacity: 0.55;
+    transition: opacity 0.3s;
+  }
+  #made .card.reel.play .ticks,
+  #made .card.reel:hover .ticks {
+    opacity: 1;
+  }
+  #made .card.reel .ticks i {
+    flex: 1;
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.32);
+    position: relative;
+    overflow: hidden;
+  }
+  #made .card.reel .ticks i::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  #made .card.reel .ticks i.done::after {
+    transform: scaleX(1);
+  }
+  #made .card.reel .ticks i.run::after {
+    transform: scaleX(1);
+    transition: transform 1s linear;
+  }
+  #made .card.reel .cap {
+    z-index: 3;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 120px 26px 26px;
+    background: linear-gradient(
+      to top,
+      rgba(9, 20, 16, 0.78),
+      rgba(9, 20, 16, 0.32) 55%,
+      transparent
+    );
+  }
+  #made .card.reel .cap .n {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: #cfe3d8;
+  }
+  #made .card.reel .cap b {
+    font:
+      200 2.5rem/1 'Inter Tight',
+      sans-serif;
+    letter-spacing: -0.025em;
+  }
+  #made .card.reel .cap small {
+    max-width: none;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.86);
+  }
+  @media (max-width: 860px) {
+    #made .card.reel {
+      height: 460px;
+    }
+    #made .card.reel:nth-child(2) {
+      margin-top: 0;
+    }
+    #made .cards {
+      gap: 14px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #made .card.reel .frames {
+      transition: none;
+    }
+    #made .card.reel.play .frames {
+      transform: none;
+    }
+  }
 </style>
 
 <nav id="nav">
@@ -2055,18 +2208,57 @@
     one place.
   </h2>
   <div class="cards rv">
-    <div class="card">
-      <img src="images/p-913c5bef58.webp" alt="" />
-      <div class="cap"><b>Welcome</b><small>Every guest known before they arrive</small></div>
-    </div>
-    <div class="card">
-      <img src="images/p-55069b1b6a.webp" alt="" />
-      <div class="cap"><b>Treat</b><small>Notes, consent and history at hand</small></div>
-    </div>
-    <div class="card">
-      <img src="images/p-bb8d0eb7f0.webp" alt="" />
-      <div class="cap"><b>Return</b><small>Gentle reminders that bring them back</small></div>
-    </div>
+    <figure class="card reel" tabindex="0" aria-label="Welcome. Hover or tap to play five shots.">
+      <div class="frames">
+        <img
+          class="on"
+          src="images/p-4b273e5a6d.webp"
+          alt="A woman laughing in the salon chair while her stylist braids her hair"
+        /><img src="images/p-2712e02f2f.webp" alt="" /><img
+          src="images/p-828461ebf5.webp"
+          alt=""
+        /><img src="images/p-884eb53148.webp" alt="" /><img src="images/p-49fd585e44.webp" alt="" />
+      </div>
+      <div class="flash"></div>
+      <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <figcaption class="cap">
+        <span class="n">01</span><b>Welcome</b><small>Every guest known before they arrive</small>
+      </figcaption>
+    </figure>
+    <figure class="card reel" tabindex="0" aria-label="Treat. Hover or tap to play five shots.">
+      <div class="frames">
+        <img
+          class="on"
+          src="images/p-4f840b35c1.webp"
+          alt="A brow artist shaping a client's brow in window light"
+        /><img src="images/p-596928a569.webp" alt="" /><img
+          src="images/p-1c96e24f2d.webp"
+          alt=""
+        /><img src="images/p-824d6fc735.webp" alt="" /><img src="images/p-f304415d5f.webp" alt="" />
+      </div>
+      <div class="flash"></div>
+      <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <figcaption class="cap">
+        <span class="n">02</span><b>Treat</b><small>Notes, consent and history at hand</small>
+      </figcaption>
+    </figure>
+    <figure class="card reel" tabindex="0" aria-label="Return. Hover or tap to play five shots.">
+      <div class="frames">
+        <img
+          class="on"
+          src="images/p-31713bc12f.webp"
+          alt="A woman with fresh curls laughing as she leaves the studio"
+        /><img src="images/p-c0e43a73af.webp" alt="" /><img
+          src="images/p-ffabbdc68b.webp"
+          alt=""
+        /><img src="images/p-54a287a56f.webp" alt="" /><img src="images/p-0d2cabdf03.webp" alt="" />
+      </div>
+      <div class="flash"></div>
+      <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <figcaption class="cap">
+        <span class="n">03</span><b>Return</b><small>Gentle reminders that bring them back</small>
+      </figcaption>
+    </figure>
   </div>
 </section>
 
@@ -2315,4 +2507,60 @@
     for (const x of e.currentTarget.children) x.setAttribute('aria-pressed', x === b)
     document.getElementById('heroimg').src = HU[b.dataset.i]
   }
+</script>
+<script>
+  ;(() => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches,
+      touch = matchMedia('(hover: none)').matches
+    document.querySelectorAll('#made .card.reel').forEach((c) => {
+      const im = [...c.querySelectorAll('.frames img')],
+        tk = [...c.querySelectorAll('.ticks i')],
+        fl = c.querySelector('.flash')
+      let i = 0,
+        t = null
+      const show = (n) => {
+        im[i].classList.remove('on')
+        i = n
+        im[i].classList.add('on')
+        tk.forEach((k, j) => {
+          k.classList.toggle('done', j < i)
+          k.classList.remove('run')
+        })
+        void tk[i].offsetWidth
+        tk[i].classList.add('run')
+        if (!reduce) {
+          fl.classList.remove('go')
+          void fl.offsetWidth
+          fl.classList.add('go')
+        }
+      }
+      const play = () => {
+        if (t) return
+        c.classList.add('play')
+        show(0)
+        t = setInterval(() => show((i + 1) % im.length), 1000)
+      }
+      const stop = () => {
+        if (!t) return
+        clearInterval(t)
+        t = null
+        c.classList.remove('play')
+        im[i].classList.remove('on')
+        i = 0
+        im[0].classList.add('on')
+        tk.forEach((k) => k.classList.remove('done', 'run'))
+      }
+      if (touch) {
+        new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? play() : stop())), {
+          threshold: 0.6,
+        }).observe(c)
+        c.addEventListener('click', () => (t ? stop() : play()))
+      } else {
+        c.addEventListener('mouseenter', play)
+        c.addEventListener('mouseleave', stop)
+        c.addEventListener('focus', play)
+        c.addEventListener('blur', stop)
+      }
+    })
+  })()
 </script>
