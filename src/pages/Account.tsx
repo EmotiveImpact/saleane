@@ -6,6 +6,7 @@ import { useStore } from '../state/context'
 import { api } from '../state/api'
 import type { Session } from '../state/api'
 import { rememberStudio } from '../state/lastStudio'
+import { useRunsOnline } from '../state/online'
 import { passkeyProblem, passkeySignIn, passkeysInBrowser } from '../state/passkeys'
 import { roleNames } from '../domain/operations'
 import { Button, ErrorMessage, Select, Checkbox, photos } from '../design'
@@ -25,6 +26,7 @@ type LinkAnswer = { emailConnected: boolean; linkInLog: boolean }
 export function Account() {
   const store = useStore(),
     navigate = useNavigate()
+  const online = useRunsOnline()
   const [params] = useSearchParams()
   const invitation = params.get('invitation') ?? ''
   const [view, setView] = useState<'signin' | 'create' | 'workspace' | 'forgot'>(
@@ -295,49 +297,51 @@ export function Account() {
             <p className="date-caption">Welcome, {store.session.user.name}</p>
             <h1>Your studios</h1>
             <p className="subtle">Choose where to work today.</p>
-            {store.session.user.emailConfirmed === false && (
-              <div className="account-confirm" role="status">
-                <p>
-                  Please confirm your email, {store.session.user.email}, with the link we send to
-                  it. Everything works in the meantime.
-                </p>
-                {confirmSent ? (
-                  <p className="subtle">
-                    {confirmSent.emailConnected
-                      ? 'A link is on its way. If nothing arrives in a few minutes, look in your spam folder.'
-                      : confirmSent.linkInLog
-                        ? 'Email is not connected on this computer, so nothing was sent. The new link is written in the server log for whoever runs SALEANE here.'
-                        : 'Email is not connected yet, so nothing was sent.'}
+            {store.session.user.emailConfirmed === false &&
+              // Online with email not connected, a link could not reach anyone, so it is not asked for.
+              (store.session.services.email || !online) && (
+                <div className="account-confirm" role="status">
+                  <p>
+                    Please confirm your email, {store.session.user.email}, with the link we send to
+                    it. Everything works in the meantime.
                   </p>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    disabled={pending}
-                    onClick={async () => {
-                      setPending(true)
-                      setConfirmProblem('')
-                      try {
-                        const sent = await api<LinkAnswer & { confirmed: boolean }>(
-                          '/api/auth/confirm/resend',
-                          { method: 'POST', body: {} },
-                        )
-                        if (sent.confirmed) await store.refreshSession()
-                        else setConfirmSent(sent)
-                      } catch (e) {
-                        setConfirmProblem(
-                          e instanceof Error ? e.message : 'A link could not be made.',
-                        )
-                      } finally {
-                        setPending(false)
-                      }
-                    }}
-                  >
-                    Send a confirmation link
-                  </Button>
-                )}
-                <ErrorMessage error={confirmProblem} />
-              </div>
-            )}
+                  {confirmSent ? (
+                    <p className="subtle">
+                      {confirmSent.emailConnected
+                        ? 'A link is on its way. If nothing arrives in a few minutes, look in your spam folder.'
+                        : confirmSent.linkInLog
+                          ? 'Email is not connected on this computer, so nothing was sent. The new link is written in the server log for whoever runs SALEANE here.'
+                          : 'Email is not connected yet, so nothing was sent.'}
+                    </p>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      disabled={pending}
+                      onClick={async () => {
+                        setPending(true)
+                        setConfirmProblem('')
+                        try {
+                          const sent = await api<LinkAnswer & { confirmed: boolean }>(
+                            '/api/auth/confirm/resend',
+                            { method: 'POST', body: {} },
+                          )
+                          if (sent.confirmed) await store.refreshSession()
+                          else setConfirmSent(sent)
+                        } catch (e) {
+                          setConfirmProblem(
+                            e instanceof Error ? e.message : 'A link could not be made.',
+                          )
+                        } finally {
+                          setPending(false)
+                        }
+                      }}
+                    >
+                      Send a confirmation link
+                    </Button>
+                  )}
+                  <ErrorMessage error={confirmProblem} />
+                </div>
+              )}
             <div className="account-workspaces">
               {store.session.workspaces.map((w) => (
                 <button disabled={pending} onClick={() => void enter(w.id)} key={w.id}>
@@ -452,10 +456,16 @@ export function Account() {
                   : view === 'signin'
                     ? invited
                       ? `Sign in with ${invited.email} to join ${invited.studio}.`
-                      : 'Sign in to continue with the records saved on this computer.'
+                      : online
+                        ? 'Sign in to your studio.'
+                        : 'Sign in to continue with the records saved on this computer.'
                     : invited && view === 'create'
-                      ? 'Create your account with the email your invitation was sent to. Accounts and studio records are kept on this computer for now.'
-                      : 'Accounts and studio records are kept on this computer for now. Card payments and emails are not connected yet.'}
+                      ? online
+                        ? 'Create your account with the email your invitation was sent to.'
+                        : 'Create your account with the email your invitation was sent to. Accounts and studio records are kept on this computer for now.'
+                      : online
+                        ? 'Set up your studio in a few minutes. SALEANE is in test mode for now, so card payments, texts and emails are not switched on yet.'
+                        : 'Accounts and studio records are kept on this computer for now. Card payments and emails are not connected yet.'}
             </p>
             {challenge ? (
               <TwoStepCode
@@ -673,12 +683,18 @@ export function Account() {
                 Explore the fictional demo
               </Button>
             </div>
+            {online && (
+              <p className="account-demo-note">
+                The demo is a made-up studio with fictional clients. Trying it creates no account
+                and no business.
+              </p>
+            )}
             <div className="account-footnote">
               <ShieldCheck size={19} />
               <span>
-                This preview runs on this computer only, so use made-up client details while you try
-                it. Email is not connected yet, so password and confirmation links are written in
-                the server log rather than sent.
+                {online
+                  ? 'SALEANE is in test mode while it opens, so please use made-up client details for now. Email is not connected yet, so a forgotten password cannot be reset by email.'
+                  : 'This preview runs on this computer only, so use made-up client details while you try it. Email is not connected yet, so password and confirmation links are written in the server log rather than sent.'}
               </span>
             </div>
           </>
@@ -690,6 +706,7 @@ export function Account() {
 
 /** The photograph and words beside every account page. */
 export function AccountStory() {
+  const online = useRunsOnline()
   return (
     <aside className="account-story">
       <Link className="wordmark" to="/today">
@@ -706,8 +723,8 @@ export function AccountStory() {
       </div>
       <img src={photos.signIn} alt="A calm fictional studio in morning light" />
       <small>
-        A preview on this computer · card payments and email not connected yet ·{' '}
-        <Link to="/pricing">Pricing</Link>
+        {online ? 'Test mode' : 'A preview on this computer'} · card payments and email not
+        connected yet · <Link to="/pricing">Pricing</Link>
       </small>
     </aside>
   )

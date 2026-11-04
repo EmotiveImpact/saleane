@@ -66,6 +66,8 @@ describe('hosting without a lasting disk', () => {
     const app = instance(store)
     const health = await app.handle(request('GET', '/api/health'))
     expect(health.statusCode).toBe(200)
+    // At a public address the app says so, and the sign-in page words follow.
+    expect(JSON.parse(health.body.toString()).localOnly).toBe(false)
     // The new database, with every schema step, is the first copy.
     expect(store.writes).toBe(1)
     await app.handle(request('GET', '/api/health'))

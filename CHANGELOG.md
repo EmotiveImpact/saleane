@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-11-04 · SALEANE online, in test mode
+
+**Status: in progress on 4 November 2026. Deployed on the owner's "get the app working online now" to https://saleane-app.vercel.app (Vercel project `saleane-app`, London), with its data in Neon (project `saleane-app`, London). Every provider stays in test mode: no card payments, texts or emails go out, and Ask SALEANE uses its test answers until a Claude key is added.** The live journey check is recorded below once the database link is made.
+
+- The app runs on Vercel: the pages as plain files, and one function answering every `/api` path with the same server and the same rules as on a computer. Its single database is kept as a whole compressed copy in Neon, and an answer that changed something is only sent once that copy is kept, so nothing a person was told was saved can be lost between visits. See [Hosting on Vercel with Neon](server/README.md#hosting-on-vercel-with-neon-4-november-2026) for how, and for its limits.
+- Run online, the sign-in page, About this version and Who can sign in no longer say records are saved "on this computer": they say SALEANE is online in test mode, ask for made-up client details for now, and explain that invitation and password emails are not sent yet. On a computer the words are unchanged. `/api/health` and `/api/session` now report `localOnly: false` at a public address.
+- Deploys are chosen, never automatic: `vercel.json` turns off deploys on every push, and `npm run build:vercel` builds what Vercel serves.
+
 ## 2026-10-13 · Today on a phone, in three tabs with counts
 
 **Status: built locally on 13 October 2026 and checked in Chromium at 1440, 1024, 768, 390 and 320 px, not yet in Safari or Firefox. The owner said yes on 13 October 2026 and it was merged to main the same day on the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/TODAY-TABS.md).
