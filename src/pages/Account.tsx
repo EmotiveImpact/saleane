@@ -29,8 +29,9 @@ export function Account() {
   const online = useRunsOnline()
   const [params] = useSearchParams()
   const invitation = params.get('invitation') ?? ''
+  // `/account?create` (the website's "Start free") opens straight on making a studio.
   const [view, setView] = useState<'signin' | 'create' | 'workspace' | 'forgot'>(
-    invitation ? 'create' : 'signin',
+    invitation || params.has('create') ? 'create' : 'signin',
   )
   const [name, setName] = useState(''),
     [email, setEmail] = useState(''),

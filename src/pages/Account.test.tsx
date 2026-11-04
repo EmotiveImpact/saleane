@@ -239,3 +239,26 @@ test('the list of studios has Help, with the guides for everyone and no way into
     ),
   ).toBeInTheDocument()
 })
+
+test('/account?create opens on making a studio, and plain /account on signing in', async () => {
+  vi.mocked(api).mockRejectedValue(new ApiError('Sign in to continue.', 401))
+  const { unmount } = render(
+    <MemoryRouter initialEntries={['/account?create']}>
+      <Routes>
+        <Route path="/account" element={<Account />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  expect(await screen.findByRole('button', { name: /Create your studio/ })).toBeInTheDocument()
+  expect(screen.getByLabelText('Business name')).toBeInTheDocument()
+  unmount()
+  render(
+    <MemoryRouter initialEntries={['/account']}>
+      <Routes>
+        <Route path="/account" element={<Account />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  expect(await screen.findByRole('button', { name: /Sign in/ })).toBeInTheDocument()
+  expect(screen.queryByLabelText('Business name')).not.toBeInTheDocument()
+})
