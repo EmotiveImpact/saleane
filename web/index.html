@@ -2209,15 +2209,15 @@
         #made .cards {
           display: block !important;
           overflow: visible !important;
-          padding: 0 16px !important;
-          height: 230svh;
+          padding: 0 12px !important;
+          height: calc(100svh + 140svh);
           position: relative;
         }
         #made .stage {
           display: block;
           position: sticky;
-          top: max(84px, calc(50svh - 250px));
-          height: min(500px, 64svh);
+          top: 76px;
+          height: calc(100svh - 88px);
         }
         #made .card.reel {
           position: absolute !important;
@@ -2232,6 +2232,12 @@
         #made .card.reel.front {
           opacity: 1;
           pointer-events: auto;
+        }
+        #made.olive {
+          padding-bottom: 12px;
+        }
+        #made h2 {
+          margin-bottom: 28px;
         }
       }
       /* tablets (Edem 08:10 4 Nov: "tablet sizing is off") */
@@ -2968,10 +2974,7 @@
               const r = box.getBoundingClientRect(),
                 st = box.querySelector('.stage').offsetHeight,
                 run = Math.max(1, r.height - st),
-                pr = Math.min(
-                  0.999,
-                  Math.max(0, (Math.max(84, innerHeight / 2 - 250) - r.top) / run),
-                ),
+                pr = Math.min(0.999, Math.max(0, (76 - r.top) / run)),
                 a = Math.floor(pr * cs.length)
               cs.forEach((c, i) => c.classList.toggle('front', i === a))
               if (a !== cur || !vis) {
