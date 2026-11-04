@@ -1417,6 +1417,47 @@
       padding-left: 14px !important;
     }
   }
+
+  /* Edem 07:19: keep hero words off her face; all copy in one left column */
+  .hero .copy {
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 22px;
+    max-width: 760px !important;
+    padding: 0 40px 64px 40px !important;
+  }
+  .hero .copy h1 {
+    margin: 0;
+  }
+  .hero .side {
+    max-width: 440px;
+  }
+  .hero .side p {
+    margin: 0 0 24px;
+  }
+  .hero > img.bg {
+    object-position: 72% 40%;
+  }
+  .hero .veil {
+    background:
+      linear-gradient(
+        90deg,
+        rgba(14, 20, 17, 0.55) 0%,
+        rgba(14, 20, 17, 0.25) 45%,
+        rgba(14, 20, 17, 0) 70%
+      ),
+      linear-gradient(0deg, rgba(14, 20, 17, 0.35), rgba(14, 20, 17, 0) 45%) !important;
+  }
+  @media (max-width: 860px) {
+    .hero .copy {
+      padding: 0 16px 40px !important;
+      gap: 16px;
+    }
+    .hero > img.bg {
+      object-position: 68% 30%;
+    }
+  }
 </style>
 <style>
   .ip-wrap,
