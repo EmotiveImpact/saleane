@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Start free · SALEANE</title>
+    <title>Hear from us · SALEANE</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;400;500&display=swap"
@@ -105,8 +105,11 @@
   <body>
     <main>
       <a class="brand" href="/">SALEANE</a>
-      <h1>Start your free 14 days</h1>
-      <p>Add your details and step straight into SALEANE.</p>
+      <h1>Hear when SALEANE is ready for you</h1>
+      <p>
+        Leave your details and we'll be in touch. To start using SALEANE now,
+        <a href="https://saleane-app.vercel.app/account?create">create your studio</a>.
+      </p>
       <form id="f">
         <label for="name">Your name</label>
         <input id="name" name="name" autocomplete="name" required />
@@ -114,7 +117,7 @@
         <input id="studio" name="studio" autocomplete="organization" />
         <label for="email">Email</label>
         <input id="email" name="email" type="email" autocomplete="email" required />
-        <button type="submit">Start free</button>
+        <button type="submit">Keep me posted</button>
         <p id="msg" role="status"></p>
       </form>
       <a class="demo" href="/demo">Try the demo</a>
@@ -139,8 +142,7 @@
           const d = await r.json().catch(() => ({}))
           if (r.ok) {
             f.reset()
-            msg.textContent = 'Welcome to SALEANE. Opening your studio…'
-            setTimeout(() => (location.href = '/app/'), 900)
+            msg.textContent = "Thank you. We'll be in touch soon."
           } else msg.textContent = d.error || 'Something went wrong, please try again.'
         } catch {
           msg.textContent = 'Something went wrong, please try again.'
