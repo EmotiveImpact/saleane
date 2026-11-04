@@ -2015,6 +2015,42 @@
     white-space: nowrap;
     text-align: center;
   }
+
+  /* hero calmer (Edem 07:37 4 Nov): headline bottom left, short line and Try bottom right */
+  @media (min-width: 861px) {
+    .hero .copy {
+      flex-direction: row !important;
+      justify-content: space-between;
+      align-items: flex-end !important;
+      max-width: none !important;
+      width: 100%;
+      padding: 0 48px 56px !important;
+      gap: 40px;
+    }
+    .hero .side {
+      max-width: 260px;
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .hero .side p {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin: 0 0 16px !important;
+      opacity: 0.88;
+    }
+    .hero .veil {
+      background:
+        linear-gradient(
+          90deg,
+          rgba(14, 20, 17, 0.5) 0%,
+          rgba(14, 20, 17, 0.15) 40%,
+          rgba(14, 20, 17, 0) 60%
+        ),
+        linear-gradient(0deg, rgba(14, 20, 17, 0.45), rgba(14, 20, 17, 0) 38%) !important;
+    }
+  }
 </style>
 
 <nav id="nav">
@@ -2040,10 +2076,7 @@
       <h1 class="serif">Every visit,<br /><em>beautifully</em> looked after.</h1>
     </div>
     <div class="side">
-      <p>
-        The calm way to run a studio. Bookings, diary, payments and a booking assistant that never
-        sleeps.
-      </p>
+      <p>Bookings, payments and an assistant that never sleeps.</p>
       <a class="btn" href="#night">Try the booking assistant</a>
     </div>
   </div>
