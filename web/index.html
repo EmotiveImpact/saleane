@@ -2328,6 +2328,19 @@
           padding: 90px 24px !important;
         }
       }
+
+      /* phones: all text left aligned (proposal 4 Nov 09:05) */
+      @media (max-width: 640px) {
+        .day h2,
+        .day .lede {
+          text-align: left;
+          margin-left: 0;
+        }
+        .close .copy,
+        .close h2 {
+          text-align: left;
+        }
+      }
     </style>
 
     <nav id="nav">
@@ -2382,7 +2395,7 @@
       <div><b>Free move-in</b><span>from your old system</span></div>
     </div>
     <section class="about">
-      <div class="label"><span>● About SALEANE</span><span>[01]</span></div>
+      <div class="label"><span>● About SALEANE</span></div>
       <div class="agrid">
         <div class="acard rv">
           <img src="images/p-700f94aaaa.webp" alt="" />
@@ -2491,7 +2504,7 @@
     </section>
 
     <section class="day" id="day">
-      <div class="label"><span>● Inside SALEANE</span><span>[02]</span></div>
+      <div class="label"><span>● Inside SALEANE</span></div>
       <h2 class="serif rv">Then morning comes,<br />and it is <em>already in the diary.</em></h2>
       <p class="lede rv">One calm place for the whole day. Tap through it.</p>
       <div class="tabs" id="tabs">
@@ -2528,7 +2541,7 @@
       </div>
     </section>
     <section class="feat">
-      <div class="label"><span>● Everything included</span><span>[02.1]</span></div>
+      <div class="label"><span>● Everything included</span></div>
       <div class="fhead">
         <h2 class="serif rv">Every tool a studio needs, built as one.</h2>
         <p class="lede rv" style="margin: 0">
@@ -2593,7 +2606,7 @@
       <p class="swipe-hint" style="color: var(--muted)">Swipe for more</p>
     </section>
     <section class="olive" id="made">
-      <div class="label"><span>● Made for every kind of care</span><span>[03]</span></div>
+      <div class="label"><span>● Made for every kind of care</span></div>
       <h2 class="serif rv">
         A studio is more than a diary. Bring the welcome, the treatment and the return visit
         together in one place.
@@ -2620,8 +2633,7 @@
             </div>
             <div class="flash"></div>
             <figcaption class="cap">
-              <span class="n">01</span><b>Welcome</b
-              ><small>Every guest known before they arrive</small>
+              <b>Welcome</b><small>Every guest known before they arrive</small>
             </figcaption>
           </figure>
           <figure
@@ -2644,7 +2656,7 @@
             </div>
             <div class="flash"></div>
             <figcaption class="cap">
-              <span class="n">02</span><b>Treat</b><small>Notes, consent and history at hand</small>
+              <b>Treat</b><small>Notes, consent and history at hand</small>
             </figcaption>
           </figure>
           <figure
@@ -2667,8 +2679,7 @@
             </div>
             <div class="flash"></div>
             <figcaption class="cap">
-              <span class="n">03</span><b>Return</b
-              ><small>Gentle reminders that bring them back</small>
+              <b>Return</b><small>Gentle reminders that bring them back</small>
             </figcaption>
           </figure>
         </div>
@@ -2707,7 +2718,7 @@
     </section>
 
     <section class="pricebox" id="price">
-      <div class="label"><span>● Pricing</span><span>[04]</span></div>
+      <div class="label"><span>● Pricing</span></div>
       <div class="pgrid">
         <div class="rv">
           <div class="n">£59</div>
@@ -2790,9 +2801,7 @@
           >
             Begin your calmer studio today.
           </p>
-          <a class="btn" href="/signup.html" style="display: inline-block; color: #18201c"
-            >Start free</a
-          >
+          <a class="btn" href="#price" style="display: inline-block; color: #18201c">Start free</a>
         </div>
         <div>
           <h4>Product</h4>
