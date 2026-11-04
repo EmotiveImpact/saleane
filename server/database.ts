@@ -967,6 +967,29 @@ export const migrations: Migration[] = [
         CREATE INDEX assistant_turns_age ON assistant_turns(at);
       `),
   },
+  {
+    version: 39,
+    // The messaging gateway (server/gateway.ts). A line the studio owns outright (its own iMessage
+    // or WhatsApp number on Keiki) belongs to one location; a line shared by many studios is
+    // matched to a studio by the guest choosing it, and that choice is kept for each guest on
+    // that line. Both are keyed by digests, never the guest's number itself.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE gateway_lines (
+          line_hash TEXT PRIMARY KEY, label TEXT NOT NULL,
+          organisation_id TEXT NOT NULL REFERENCES organisations(id), location_id TEXT,
+          created_by TEXT REFERENCES accounts(id), created_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX gateway_lines_studio ON gateway_lines(organisation_id);
+        CREATE TABLE gateway_bindings (
+          line_hash TEXT NOT NULL, customer_hash TEXT NOT NULL,
+          organisation_id TEXT NOT NULL REFERENCES organisations(id), location_id TEXT,
+          bound_at INTEGER NOT NULL, used_at INTEGER NOT NULL,
+          PRIMARY KEY(line_hash, customer_hash)
+        ) STRICT;
+        CREATE INDEX gateway_bindings_studio ON gateway_bindings(organisation_id);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

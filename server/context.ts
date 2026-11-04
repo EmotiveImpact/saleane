@@ -195,6 +195,8 @@ export type ApiOptions = {
    * first: then nothing may be sent or charged, as the mark saying so was not kept.
    */
   durable?: () => Promise<boolean>
+  /** Bookings by message through the gateway; read from SALEANE_GATEWAY when left out. */
+  gateway?: import('./gateway').GatewayOptions
 }
 
 /** Thrown when the mark made before an outside call could not be kept; nothing was sent. */

@@ -20,6 +20,8 @@ const labels: Record<VisitChannel, string> = {
   chatgpt: 'ChatGPT',
   claude: 'Claude',
   assistant: 'an AI assistant',
+  imessage: 'iMessage',
+  whatsapp: 'WhatsApp',
 }
 
 export function channelLabel(channel: VisitChannel) {
