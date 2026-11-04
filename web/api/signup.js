@@ -1,3 +1,4 @@
+/* global process, URL, fetch */
 // Saves a website sign-up to the Neon database (DATABASE_URL set in Vercel, never in the repo).
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' })
