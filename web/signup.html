@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Start free · SALEANE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #0f2a1f;
+        --mist: #f2f4f3;
+        --green: #1f4d3a;
+        --line: #d9dfdc;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--mist);
+        color: var(--ink);
+        font-family: 'Inter Tight', system-ui, sans-serif;
+        padding: 24px 16px;
+      }
+      main {
+        width: 100%;
+        max-width: 440px;
+        background: #fff;
+        border-radius: 24px;
+        padding: 40px 32px;
+      }
+      .brand {
+        font-weight: 500;
+        letter-spacing: 0.24em;
+        text-decoration: none;
+        color: var(--ink);
+        font-size: 14px;
+      }
+      h1 {
+        font-weight: 200;
+        font-size: 40px;
+        line-height: 1.1;
+        margin: 28px 0 8px;
+      }
+      p {
+        margin: 0 0 28px;
+        color: #4a5c54;
+      }
+      label {
+        display: block;
+        font-size: 14px;
+        margin: 0 0 6px;
+      }
+      input {
+        width: 100%;
+        font: inherit;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        margin-bottom: 18px;
+      }
+      button {
+        width: 100%;
+        font: inherit;
+        font-weight: 500;
+        padding: 15px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--green);
+        color: #fff;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+      }
+      #msg {
+        margin: 16px 0 0;
+        min-height: 1.4em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">SALEANE</a>
+      <h1>Start your free 14 days</h1>
+      <p>Leave your details and we will set up your studio with you.</p>
+      <form id="f">
+        <label for="name">Your name</label>
+        <input id="name" name="name" autocomplete="name" required />
+        <label for="studio">Studio name</label>
+        <input id="studio" name="studio" autocomplete="organization" />
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required />
+        <button type="submit">Start free</button>
+        <p id="msg" role="status"></p>
+      </form>
+    </main>
+    <script>
+      const f = document.getElementById('f')
+      const msg = document.getElementById('msg')
+      f.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const b = f.querySelector('button')
+        b.disabled = true
+        msg.textContent = 'Saving…'
+        try {
+          const r = await fetch('/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Object.fromEntries(new FormData(f))),
+          })
+          const d = await r.json().catch(() => ({}))
+          if (r.ok) {
+            f.reset()
+            msg.textContent = 'Thank you, you are on the list. We will be in touch shortly.'
+          } else msg.textContent = d.error || 'Something went wrong, please try again.'
+        } catch {
+          msg.textContent = 'Something went wrong, please try again.'
+        }
+        b.disabled = false
+      })
+    </script>
+  </body>
+</html>

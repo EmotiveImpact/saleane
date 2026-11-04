@@ -1,0 +1,3 @@
+#!/bin/sh
+# Points the homepage's sign-up buttons at /signup.html (run after regenerating web/index.html).
+sed -i 's|<a href="#" class="signin">|<a href="/signup.html" class="signin">|; s|class="pill" href="#price"|class="pill" href="/signup.html"|; s|<a class="btn dark" href="#">Start your free 14 days|<a class="btn dark" href="/signup.html">Start your free 14 days|; s|<a class="btn" href="#price">Start free|<a class="btn" href="/signup.html">Start free|; s|<a class="btn" href="#price" style="display: inline-block; color: #18201c">Start free|<a class="btn" href="/signup.html" style="display: inline-block; color: #18201c">Start free|' "$1"
