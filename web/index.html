@@ -2200,6 +2200,128 @@
           margin: 0 auto;
         }
       }
+
+      /* green cards: one frame on phones, fading Welcome to Treat to Return as you scroll (Edem 08:10 4 Nov) */
+      #made .stage {
+        display: contents;
+      }
+      @media (max-width: 640px) {
+        #made .cards {
+          display: block !important;
+          overflow: visible !important;
+          padding: 0 16px !important;
+          height: 230svh;
+          position: relative;
+        }
+        #made .stage {
+          display: block;
+          position: sticky;
+          top: max(84px, calc(50svh - 250px));
+          height: min(500px, 64svh);
+        }
+        #made .card.reel {
+          position: absolute !important;
+          inset: 0;
+          width: auto;
+          height: auto !important;
+          margin: 0 !important;
+          opacity: 0;
+          transition: opacity 0.7s ease;
+          pointer-events: none;
+        }
+        #made .card.reel.front {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      }
+      /* tablets (Edem 08:10 4 Nov: "tablet sizing is off") */
+      @media (min-width: 641px) and (max-width: 1024px) {
+        .proof {
+          grid-template-columns: repeat(4, 1fr) !important;
+        }
+        .proof div {
+          border-bottom: 0 !important;
+        }
+        .agrid {
+          grid-template-columns: 240px 1fr !important;
+          gap: 28px !important;
+        }
+        .arow {
+          grid-template-columns: 1fr 1fr !important;
+        }
+        .acard {
+          height: 340px;
+        }
+        .arow .acard {
+          height: 220px;
+        }
+        .night .grid {
+          grid-template-columns: minmax(0, 1fr) 260px !important;
+          gap: 40px !important;
+          padding: 110px 40px 80px !important;
+        }
+        .night .ip-wrap {
+          width: 260px !important;
+        }
+        .fgrid {
+          grid-template-columns: repeat(2, 1fr) !important;
+        }
+        #made .cards {
+          grid-template-columns: repeat(3, 1fr) !important;
+          gap: 12px !important;
+          padding: 0 24px;
+        }
+        #made .card.reel {
+          height: 380px !important;
+        }
+        #made .card.reel:nth-child(2) {
+          margin-top: 32px;
+        }
+        #made .card.reel .cap {
+          padding: 80px 16px 18px;
+        }
+        #made .card.reel .cap b {
+          font-size: 1.7rem;
+        }
+        #made .card.reel .cap small {
+          display: none;
+        }
+        .amini .btn {
+          white-space: nowrap;
+          flex: none;
+        }
+        .guests {
+          grid-template-columns: 1fr 1fr !important;
+          min-height: 0;
+        }
+        .guests img {
+          height: 100% !important;
+          min-height: 520px;
+        }
+        .guests .side {
+          padding: 48px 32px !important;
+        }
+        .pgrid {
+          grid-template-columns: 1fr 1fr !important;
+          gap: 36px !important;
+        }
+        .pcard {
+          height: 460px;
+        }
+        .faq {
+          grid-template-columns: 1fr 1.4fr !important;
+          padding: 90px 32px !important;
+        }
+        .day,
+        .feat,
+        .pricebox {
+          padding-left: 32px !important;
+          padding-right: 32px !important;
+        }
+        .olive {
+          padding: 90px 24px !important;
+        }
+      }
     </style>
 
     <nav id="nav">
@@ -2454,75 +2576,80 @@
         together in one place.
       </h2>
       <div class="cards rv">
-        <figure
-          class="card reel"
-          tabindex="0"
-          aria-label="Welcome. Hover or tap to play five shots."
-        >
-          <div class="frames">
-            <img
-              class="on"
-              src="images/p-4b273e5a6d.webp"
-              alt="A woman laughing in the salon chair while her stylist braids her hair"
-            /><img src="images/p-2712e02f2f.webp" alt="" /><img
-              src="images/p-828461ebf5.webp"
-              alt=""
-            /><img src="images/p-884eb53148.webp" alt="" /><img
-              src="images/p-49fd585e44.webp"
-              alt=""
-            />
-          </div>
-          <div class="flash"></div>
-          <figcaption class="cap">
-            <span class="n">01</span><b>Welcome</b
-            ><small>Every guest known before they arrive</small>
-          </figcaption>
-        </figure>
-        <figure class="card reel" tabindex="0" aria-label="Treat. Hover or tap to play five shots.">
-          <div class="frames">
-            <img
-              class="on"
-              src="images/p-4f840b35c1.webp"
-              alt="A brow artist shaping a client's brow in window light"
-            /><img src="images/p-596928a569.webp" alt="" /><img
-              src="images/p-1c96e24f2d.webp"
-              alt=""
-            /><img src="images/p-824d6fc735.webp" alt="" /><img
-              src="images/p-f304415d5f.webp"
-              alt=""
-            />
-          </div>
-          <div class="flash"></div>
-          <figcaption class="cap">
-            <span class="n">02</span><b>Treat</b><small>Notes, consent and history at hand</small>
-          </figcaption>
-        </figure>
-        <figure
-          class="card reel"
-          tabindex="0"
-          aria-label="Return. Hover or tap to play five shots."
-        >
-          <div class="frames">
-            <img
-              class="on"
-              src="images/p-31713bc12f.webp"
-              alt="A woman with fresh curls laughing as she leaves the studio"
-            /><img src="images/p-c0e43a73af.webp" alt="" /><img
-              src="images/p-ffabbdc68b.webp"
-              alt=""
-            /><img src="images/p-54a287a56f.webp" alt="" /><img
-              src="images/p-0d2cabdf03.webp"
-              alt=""
-            />
-          </div>
-          <div class="flash"></div>
-          <figcaption class="cap">
-            <span class="n">03</span><b>Return</b
-            ><small>Gentle reminders that bring them back</small>
-          </figcaption>
-        </figure>
+        <div class="stage">
+          <figure
+            class="card reel"
+            tabindex="0"
+            aria-label="Welcome. Hover or tap to play five shots."
+          >
+            <div class="frames">
+              <img
+                class="on"
+                src="images/p-4b273e5a6d.webp"
+                alt="A woman laughing in the salon chair while her stylist braids her hair"
+              /><img src="images/p-2712e02f2f.webp" alt="" /><img
+                src="images/p-828461ebf5.webp"
+                alt=""
+              /><img src="images/p-884eb53148.webp" alt="" /><img
+                src="images/p-49fd585e44.webp"
+                alt=""
+              />
+            </div>
+            <div class="flash"></div>
+            <figcaption class="cap">
+              <span class="n">01</span><b>Welcome</b
+              ><small>Every guest known before they arrive</small>
+            </figcaption>
+          </figure>
+          <figure
+            class="card reel"
+            tabindex="0"
+            aria-label="Treat. Hover or tap to play five shots."
+          >
+            <div class="frames">
+              <img
+                class="on"
+                src="images/p-4f840b35c1.webp"
+                alt="A brow artist shaping a client's brow in window light"
+              /><img src="images/p-596928a569.webp" alt="" /><img
+                src="images/p-1c96e24f2d.webp"
+                alt=""
+              /><img src="images/p-824d6fc735.webp" alt="" /><img
+                src="images/p-f304415d5f.webp"
+                alt=""
+              />
+            </div>
+            <div class="flash"></div>
+            <figcaption class="cap">
+              <span class="n">02</span><b>Treat</b><small>Notes, consent and history at hand</small>
+            </figcaption>
+          </figure>
+          <figure
+            class="card reel"
+            tabindex="0"
+            aria-label="Return. Hover or tap to play five shots."
+          >
+            <div class="frames">
+              <img
+                class="on"
+                src="images/p-31713bc12f.webp"
+                alt="A woman with fresh curls laughing as she leaves the studio"
+              /><img src="images/p-c0e43a73af.webp" alt="" /><img
+                src="images/p-ffabbdc68b.webp"
+                alt=""
+              /><img src="images/p-54a287a56f.webp" alt="" /><img
+                src="images/p-0d2cabdf03.webp"
+                alt=""
+              />
+            </div>
+            <div class="flash"></div>
+            <figcaption class="cap">
+              <span class="n">03</span><b>Return</b
+              ><small>Gentle reminders that bring them back</small>
+            </figcaption>
+          </figure>
+        </div>
       </div>
-      <p class="swipe-hint" style="color: #cfe3d8">Swipe for more</p>
     </section>
 
     <section class="guests">
@@ -2815,11 +2942,9 @@
             i = 0
             im[0].classList.add('on')
           }
+          c._play = play
+          c._stop = stop
           if (touch) {
-            new IntersectionObserver(
-              (es) => es.forEach((e) => (e.isIntersecting ? play() : stop())),
-              { threshold: 0.6 },
-            ).observe(c)
             c.addEventListener('click', () => (t ? stop() : play()))
           } else {
             c.addEventListener('mouseenter', play)
@@ -2828,6 +2953,53 @@
             c.addEventListener('blur', stop)
           }
         })
+        {
+          const cs = [...document.querySelectorAll('#made .card.reel')],
+            box = document.querySelector('#made .cards'),
+            sec = document.getElementById('made')
+          let raf = 0,
+            cur = -1
+          const tick = () => {
+            raf = 0
+            const fade = matchMedia('(max-width:640px)').matches,
+              sr = sec.getBoundingClientRect(),
+              vis = sr.bottom > 0 && sr.top < innerHeight
+            if (fade) {
+              const r = box.getBoundingClientRect(),
+                st = box.querySelector('.stage').offsetHeight,
+                run = Math.max(1, r.height - st),
+                pr = Math.min(
+                  0.999,
+                  Math.max(0, (Math.max(84, innerHeight / 2 - 250) - r.top) / run),
+                ),
+                a = Math.floor(pr * cs.length)
+              cs.forEach((c, i) => c.classList.toggle('front', i === a))
+              if (a !== cur || !vis) {
+                cs.forEach((c, i) => (i === a && vis ? c._play() : c._stop()))
+                cur = vis ? a : -1
+              }
+            } else {
+              cs.forEach((c) => c.classList.remove('front'))
+              if (touch) {
+                const R = cs.map((c) => c.getBoundingClientRect())
+                let a = -1
+                cs.forEach((c, i) => {
+                  if (R[i].top < innerHeight * 0.6 && R[i].bottom > innerHeight * 0.2) a = i
+                })
+                cs.forEach((c, i) => (i === a ? c._play() : c._stop()))
+              }
+            }
+          }
+          addEventListener(
+            'scroll',
+            () => {
+              if (!raf) raf = requestAnimationFrame(tick)
+            },
+            { passive: true },
+          )
+          addEventListener('resize', tick)
+          tick()
+        }
       })()
     </script>
   </head>
