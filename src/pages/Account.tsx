@@ -3,7 +3,7 @@ import { WebAuthnAbortService } from '@simplewebauthn/browser'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, ArrowLeft, ScanFace, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
-import { api } from '../state/api'
+import { api, ApiError } from '../state/api'
 import type { Session } from '../state/api'
 import { rememberStudio } from '../state/lastStudio'
 import { useRunsOnline } from '../state/online'
@@ -130,7 +130,9 @@ export function Account() {
         }
       })
       .catch((e) => {
-        if (!active) return
+        // Nobody asked for this offer, so only SALEANE's own answer is worth showing: a
+        // browser that refuses it quietly (some say they can, then cannot) is not an error.
+        if (!active || !(e instanceof ApiError)) return
         const problem = passkeyProblem(
           e,
           'Face ID sign-in did not work. Use your password instead.',
