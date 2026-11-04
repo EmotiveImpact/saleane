@@ -2,6 +2,10 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-11-04 · New website homepage
+
+- `web/index.html` is now the photo-led homepage: people having treatments, the booking chat inside an iPhone, and the app shown on a laptop. It has lighter headings, no arrows on buttons and the logo lined up. The earlier page moved to `web/classic/`. Nothing is deployed.
+
 ## 2026-11-03 · SALEANE website homepage
 
 **Status: built locally on 10 October and updated 3 November 2026; a demo page, not deployed.**

@@ -6,3 +6,7 @@ The public homepage a salon or studio owner lands on. It is plain HTML and CSS w
 - Fonts load from Google Fonts: Newsreader for headings, standing in for Financier Display Light, and Figtree for text.
 - Open `index.html` in a browser to see it. Nothing here is deployed; hosting is parked.
 - Prices and the 14-day trial match `src/domain/pricing.ts`: £59 a month per location covering five people who take bookings, then £9 each; Plus £39; phone receptionist £79. The US Plus ($49) and phone ($99) prices are placeholders until they are set in `pricing.ts`.
+
+## 4 November 2026
+
+`index.html` is the new homepage (treatment photos, the booking chat inside an iPhone, the app on a laptop). Its photos sit in `images/p-*.webp`. The earlier homepage is kept at `classic/` for comparison.
