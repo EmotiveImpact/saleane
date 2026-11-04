@@ -20,6 +20,9 @@ import { TeamWelcome } from './TeamWelcome'
 import '../account.css'
 import '../components/accessPanel.css'
 
+/** Online, the made-up studio is its own Vercel site, so trying it never touches real accounts. */
+const ONLINE_DEMO = 'https://saleane-try-demo.vercel.app'
+
 /** What the server says after it is asked for a password or confirmation link. */
 type LinkAnswer = { emailConnected: boolean; linkInLog: boolean }
 
@@ -674,15 +677,27 @@ export function Account() {
                         : 'Already have an account? Sign in'}
                 </Button>
               )}
-              <Button
-                variant="quiet"
-                onClick={() => {
-                  store.enterDemo()
-                  navigate('/today')
-                }}
-              >
-                Explore the fictional demo
-              </Button>
+              {online ? (
+                <a
+                  className="button button-quiet"
+                  href={ONLINE_DEMO}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Explore the fictional demo
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              ) : (
+                <Button
+                  variant="quiet"
+                  onClick={() => {
+                    store.enterDemo()
+                    navigate('/today')
+                  }}
+                >
+                  Explore the fictional demo
+                </Button>
+              )}
             </div>
             {online && (
               <p className="account-demo-note">
