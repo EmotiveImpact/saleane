@@ -1846,7 +1846,7 @@
     object-fit: cover;
     opacity: 0;
     transform: none !important;
-    transition: opacity 0.16s ease;
+    transition: opacity 0.08s ease;
   }
   #made .card.reel .frames img.on {
     opacity: 1;
@@ -1860,7 +1860,7 @@
     z-index: 2;
   }
   #made .card.reel .flash.go {
-    animation: shutter 0.26s ease-out;
+    animation: shutter 0.18s ease-out;
   }
   @keyframes shutter {
     0% {
@@ -2310,7 +2310,6 @@
         /><img src="images/p-884eb53148.webp" alt="" /><img src="images/p-49fd585e44.webp" alt="" />
       </div>
       <div class="flash"></div>
-      <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       <figcaption class="cap">
         <span class="n">01</span><b>Welcome</b><small>Every guest known before they arrive</small>
       </figcaption>
@@ -2327,7 +2326,6 @@
         /><img src="images/p-824d6fc735.webp" alt="" /><img src="images/p-f304415d5f.webp" alt="" />
       </div>
       <div class="flash"></div>
-      <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       <figcaption class="cap">
         <span class="n">02</span><b>Treat</b><small>Notes, consent and history at hand</small>
       </figcaption>
@@ -2344,7 +2342,6 @@
         /><img src="images/p-54a287a56f.webp" alt="" /><img src="images/p-0d2cabdf03.webp" alt="" />
       </div>
       <div class="flash"></div>
-      <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       <figcaption class="cap">
         <span class="n">03</span><b>Return</b><small>Gentle reminders that bring them back</small>
       </figcaption>
@@ -2612,12 +2609,6 @@
         im[i].classList.remove('on')
         i = n
         im[i].classList.add('on')
-        tk.forEach((k, j) => {
-          k.classList.toggle('done', j < i)
-          k.classList.remove('run')
-        })
-        void tk[i].offsetWidth
-        tk[i].classList.add('run')
         if (!reduce) {
           fl.classList.remove('go')
           void fl.offsetWidth
@@ -2628,7 +2619,7 @@
         if (t) return
         c.classList.add('play')
         show(0)
-        t = setInterval(() => show((i + 1) % im.length), 1000)
+        t = setInterval(() => show((i + 1) % im.length), 500)
       }
       const stop = () => {
         if (!t) return
@@ -2638,7 +2629,6 @@
         im[i].classList.remove('on')
         i = 0
         im[0].classList.add('on')
-        tk.forEach((k) => k.classList.remove('done', 'run'))
       }
       if (touch) {
         new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? play() : stop())), {
