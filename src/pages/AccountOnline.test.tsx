@@ -56,3 +56,22 @@ test('on a computer, the demo stays inside this SALEANE', async () => {
   demo.click()
   expect(enterDemo).toHaveBeenCalledOnce()
 })
+
+test('online, a signed-out visitor goes back to the website, not the in-browser preview', async () => {
+  where.online = true
+  signIn()
+  const back = await screen.findByRole('link', { name: /Back to the SALEANE website/ })
+  expect(back).toHaveAttribute('href', 'https://saleane.vercel.app/')
+  expect(screen.getByRole('link', { name: 'SALEANE' })).toHaveAttribute(
+    'href',
+    'https://saleane.vercel.app/',
+  )
+  expect(screen.queryByRole('link', { name: /Back to your studio/ })).toBeNull()
+})
+
+test('on a computer, the brand still opens the studio', async () => {
+  signIn()
+  await screen.findByRole('button', { name: 'Explore the fictional demo' })
+  expect(screen.getByRole('link', { name: 'SALEANE' })).toHaveAttribute('href', '/today')
+  expect(screen.queryByRole('link', { name: /Back to the SALEANE website/ })).toBeNull()
+})

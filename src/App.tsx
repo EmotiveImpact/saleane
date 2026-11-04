@@ -697,9 +697,11 @@ function WorkspaceApp() {
               ? 'Fictional demo. Records are saved in this browser.'
               : state.operations?.mode === 'sandbox'
                 ? 'Sample studio. Its clients, visits and payments are made up.'
-                : session?.services.payments || session?.services.email
-                  ? 'Local studio. Connected services are named in Settings.'
-                  : 'Local studio. Messages and card payments run in test mode: nothing is sent or charged.'}
+                : `${session?.localOnly === false ? 'Your studio' : 'Local studio'}. ${
+                    session?.services.payments || session?.services.email
+                      ? 'Connected services are named in Settings.'
+                      : 'Messages and card payments run in test mode: nothing is sent or charged.'
+                  }`}
           </span>
           <button onClick={() => openSettings('workspace')}>About this version</button>
         </section>

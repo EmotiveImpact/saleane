@@ -22,6 +22,8 @@ import '../components/accessPanel.css'
 
 /** Online, the made-up studio is its own Vercel site, so trying it never touches real accounts. */
 const ONLINE_DEMO = 'https://saleane-try-demo.vercel.app'
+/** Online, someone who is not signed in came from the website, so that is where "back" goes. */
+const WEBSITE = 'https://saleane.vercel.app/'
 
 /** What the server says after it is asked for a password or confirmation link. */
 type LinkAnswer = { emailConnected: boolean; linkInLog: boolean }
@@ -287,14 +289,21 @@ export function Account() {
   }
   return (
     <div className="account-layout">
-      <AccountStory />
+      <AccountStory signedIn={!!store.session} />
       <main className="account-main">
         {/* Signed in with no studio open, the workspace would only bring them back here. */}
-        {store.landing !== '/account' && (
-          <Link className="back-link" to="/today">
+        {online && !store.session ? (
+          <a className="back-link" href={WEBSITE}>
             <ArrowLeft size={16} />
-            Back to your studio
-          </Link>
+            Back to the SALEANE website
+          </a>
+        ) : (
+          store.landing !== '/account' && (
+            <Link className="back-link" to="/today">
+              <ArrowLeft size={16} />
+              Back to your studio
+            </Link>
+          )
         )}
         {ready && store.session && view !== 'workspace' ? (
           <>
@@ -721,13 +730,19 @@ export function Account() {
 }
 
 /** The photograph and words beside every account page. */
-export function AccountStory() {
+export function AccountStory({ signedIn = false }: { signedIn?: boolean }) {
   const online = useRunsOnline()
   return (
     <aside className="account-story">
-      <Link className="wordmark" to="/today">
-        SALEANE
-      </Link>
+      {online && !signedIn ? (
+        <a className="wordmark" href={WEBSITE}>
+          SALEANE
+        </a>
+      ) : (
+        <Link className="wordmark" to="/today">
+          SALEANE
+        </Link>
+      )}
       <div>
         <span className="eyebrow">A considered way to run your business</span>
         <p className="account-story-title">
