@@ -6,3 +6,5 @@ output
 docs/archive
 package-lock.json
 *.tsbuildinfo
+web/app/
+web/demo/

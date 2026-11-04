@@ -2,6 +2,19 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-11-04 · New website homepage
+
+- `web/index.html` is now the photo-led homepage: people having treatments, the booking chat inside an iPhone, and the app shown on a laptop. It has lighter headings, no arrows on buttons and the logo lined up. The earlier page moved to `web/classic/`. Nothing is deployed.
+
+## 2026-11-03 · SALEANE website homepage
+
+**Status: built locally on 10 October and updated 3 November 2026; a demo page, not deployed.**
+
+- A new `web/` folder holds SALEANE's own public homepage, the page a salon or studio owner lands on: plain HTML and CSS with no build step, separate from the app. It uses the house photographs, Newsreader headings and Figtree text, and the warm ivory, sage and soft rose colours.
+- It shows the booking page, a day on the Today screen, Ask Saleane and the prices from `src/domain/pricing.ts` (£59 a month per location for five people who take bookings, then £9 each; Plus £39; phone receptionist £79; 14 days free; plus VAT). People and visits on it are made up.
+- Also brings in the best of the earlier website draft: three promises, "For every kind of care" with six crafts, a switch between the studio's Today screen and the guest booking screen, client and money panels, a UK or US price switch and six common questions. Its "every feature included, however many people" line was left out because it contradicts the £9 per extra person.
+- Checked in a browser at 1440px and 390px with no sideways scrolling. A preview is at https://claude.ai/artifact/PwAP5qTojHNnBaRdACLZ4C.
+
 ## 2026-10-13 · Today on a phone, in three tabs with counts
 
 **Status: built locally on 13 October 2026 and checked in Chromium at 1440, 1024, 768, 390 and 320 px, not yet in Safari or Firefox. The owner said yes on 13 October 2026 and it was merged to main the same day on the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/TODAY-TABS.md).
