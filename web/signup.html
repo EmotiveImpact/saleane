@@ -80,6 +80,22 @@
       button:disabled {
         opacity: 0.6;
       }
+      .demo {
+        display: block;
+        text-align: center;
+        margin-top: 8px;
+        padding: 14px;
+        border: 1px solid var(--green);
+        border-radius: 999px;
+        color: var(--green);
+        font-weight: 500;
+        text-decoration: none;
+      }
+      .demo-note {
+        text-align: center;
+        font-size: 13px;
+        margin: 10px 0 0;
+      }
       #msg {
         margin: 16px 0 0;
         min-height: 1.4em;
@@ -101,6 +117,16 @@
         <button type="submit">Start free</button>
         <p id="msg" role="status"></p>
       </form>
+      <a
+        class="demo"
+        href="https://saleane-try-demo.emotive.chatgpt.site"
+        target="_blank"
+        rel="noopener"
+        >Try the demo</a
+      >
+      <p class="demo-note">
+        A fictional studio to click around. Nothing you do there creates an account.
+      </p>
     </main>
     <script>
       const f = document.getElementById('f')
