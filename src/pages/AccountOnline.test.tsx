@@ -41,7 +41,7 @@ test('online, the fictional demo opens its own Vercel site in a new tab', async 
   where.online = true
   signIn()
   const demo = await screen.findByRole('link', { name: /Explore the fictional demo/ })
-  expect(demo).toHaveAttribute('href', 'https://saleane-try-demo.vercel.app')
+  expect(demo).toHaveAttribute('href', 'https://saleane.vercel.app/demo')
   expect(demo).toHaveAttribute('target', '_blank')
   expect(demo).toHaveAttribute('rel', 'noopener noreferrer')
   expect(demo).toHaveAccessibleName(/opens in a new tab/)

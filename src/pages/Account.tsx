@@ -20,8 +20,8 @@ import { TeamWelcome } from './TeamWelcome'
 import '../account.css'
 import '../components/accessPanel.css'
 
-/** Online, the made-up studio is its own Vercel site, so trying it never touches real accounts. */
-const ONLINE_DEMO = 'https://saleane-try-demo.vercel.app'
+/** Online, the made-up studio lives on the website at /demo, so trying it never touches real accounts. */
+const ONLINE_DEMO = 'https://saleane.vercel.app/demo'
 /** Online, someone who is not signed in came from the website, so that is where "back" goes. */
 const WEBSITE = 'https://saleane.vercel.app/'
 
