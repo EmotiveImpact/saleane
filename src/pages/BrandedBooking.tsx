@@ -246,7 +246,7 @@ export function BrandedBooking() {
           <p className="subtle">
             No money was taken and no email was sent. This made-up booking is saved in this browser.
           </p>
-          <Link className="button button-primary" to="/calendar">
+          <Link className="button button-primary" to={`/calendar?date=${date}`}>
             View in the workspace <ArrowRight size={17} />
           </Link>
           <button

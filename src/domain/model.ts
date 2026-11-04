@@ -53,7 +53,14 @@ const scoped = { id, organisationId: id }
 export const bookingChannels = ['google', 'instagram'] as const
 export type BookingChannel = (typeof bookingChannels)[number]
 /** Stage 5: the AI assistants a guest can book through; `assistant` when it did not say which. */
-export const assistantChannels = ['chatgpt', 'claude', 'assistant'] as const
+export const assistantChannels = [
+  'chatgpt',
+  'claude',
+  'assistant',
+  // A guest booking by message, through SALEANE's messaging gateway (Keiki on iMessage or WhatsApp).
+  'imessage',
+  'whatsapp',
+] as const
 export type AssistantChannel = (typeof assistantChannels)[number]
 /** Where an online guest came from: a shared booking link, or an AI assistant (Stage 5). */
 export const visitChannels = [...bookingChannels, ...assistantChannels] as const

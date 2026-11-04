@@ -154,3 +154,26 @@ test('is not offered where the address or the browser cannot use it', async () =
   expect(paths).not.toContain('/api/health')
   expect(screen.queryByRole('button', { name: /Face ID/ })).toBeNull()
 })
+
+test('a browser that cannot offer saved passkeys after all shows no error on the sign-in page', async () => {
+  vi.mocked(browserSupportsWebAuthnAutofill).mockResolvedValue(true)
+  // Some browsers say they can, then refuse the quiet offer before anyone has picked anything.
+  vi.mocked(startAuthentication).mockRejectedValueOnce(
+    new DOMException('Resident credentials are not supported', 'NotSupportedError'),
+  )
+  routes(async () => ({ csrf: 'new-csrf' }))
+  signInPage()
+  await screen.findByRole('button', { name: 'Sign in with Face ID or fingerprint' })
+  await vi.waitFor(() => expect(startAuthentication).toHaveBeenCalled())
+  await new Promise((done) => setTimeout(done, 0))
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('a saved passkey picked from under the email field still says when SALEANE refuses it', async () => {
+  vi.mocked(browserSupportsWebAuthnAutofill).mockResolvedValue(true)
+  routes(async () => {
+    throw new ApiError(PASSKEY_GONE, 401)
+  })
+  signInPage()
+  expect(await screen.findByRole('alert')).toHaveTextContent(PASSKEY_GONE)
+})

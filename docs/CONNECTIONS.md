@@ -321,3 +321,29 @@ A change a key makes is a normal saved change, so connected software is still to
 - Everything here runs on this computer. No card payment, message or other outside service is involved in a write; the guests' messages it leads to go through the studio's outbox as usual, in test mode until a provider is connected.
 - Sales from other tills are kept inside the studio record, up to 100,000 a studio. A chain sending many thousands a day would want them in a table of their own first.
 - The answers kept for idempotency are kept for 30 days.
+
+# Bookings by message: the messaging gateway
+
+One connection for software that carries guests' messages to SALEANE, such as Keiki on iMessage and WhatsApp run through SALEANE's private server. It serves every studio, so the carrier needs one key, not one per studio. Code: `server/gateway.ts`; tests: `server/gateway.test.ts`.
+
+## Turning it on
+
+Set `SALEANE_GATEWAY=on` and `SALEANE_GATEWAY_KEY` (32 or more random characters) on the server. The key lives only on the carrier's server and SALEANE's; never in a browser, a chat or this repository. Each studio still decides for itself: the owner turns on booking through assistants, and online booking must be open. Sample studios never take bookings this way.
+
+## Which studio and location
+
+The AI never chooses the studio by itself. Every request is a JSON-RPC 2.0 message (MCP tools) posted to `POST /api/gateway/mcp` with:
+
+| Header                       | Set by                               | Meaning                                                       |
+| ---------------------------- | ------------------------------------ | ------------------------------------------------------------- |
+| `Authorization: Bearer …`    | the carrier's server                 | the gateway key                                               |
+| `Saleane-Line`               | the carrier's code, from the message | the line the guest wrote to, such as `keiki:imessage:<route>` |
+| `Saleane-Customer`           | the carrier's code, from the message | the guest's handle on that line, such as their number         |
+| `Saleane-Channel` (optional) | the carrier                          | `imessage` or `whatsapp`, shown on the visit's history        |
+
+- **A studio's own line.** The owner adds it in `POST /api/workspaces/{id}/gateway/lines` with `{line, locationId}`. That line then belongs to that location only, and a line can belong to one studio only.
+- **A shared line.** The guest names the studio (its booking page name or address); the AI passes that to `choose_studio`, and the choice is kept for that guest on that line for 30 days after their last message. Until then every other tool answers "ask which studio".
+
+## The tools
+
+`choose_studio`, then the same four tools as the per-studio connection: `studio_details`, `list_treatments`, `find_free_times` and `book_time`. They run for the chosen studio and location only, through the booking page's own holds and checks (hours, who does the treatment, rooms, patch tests, deposits stay on the booking page). `book_time` books only with `guest_confirmed: true` after the guest's yes, uses the number the guest wrote from when no phone is given, never signs anyone up for news, and the same booking asked again (a retried message) returns the same visit. Limits count per guest, not per carrier.

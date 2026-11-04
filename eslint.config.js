@@ -5,7 +5,15 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'server-dist', '.saleane-data', 'node_modules', 'output', '.playwright-cli'],
+    ignores: [
+      'dist',
+      'server-dist',
+      '.saleane-data',
+      'node_modules',
+      'output',
+      '.playwright-cli',
+      '.vercel',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

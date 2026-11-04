@@ -163,7 +163,8 @@ const roleName: Record<string, string> = {
 }
 
 export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
-  const { state, reset, region, changeRegion, mode, role, reload, enterDemo } = useStore()
+  const { state, reset, region, changeRegion, mode, role, reload, enterDemo, session } = useStore()
+  const online = mode !== 'demo' && session?.localOnly === false
   const [confirmReset, setConfirmReset] = useState(false),
     [pending, setPending] = useState(false),
     [error, setError] = useState('')
@@ -188,7 +189,13 @@ export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
         <div>
           <h2>About this version</h2>
           <p>
-            SALEANE 1.0 preview, running {mode === 'demo' ? 'in this browser' : 'on this computer'}.
+            SALEANE 1.0 preview, running{' '}
+            {mode === 'demo'
+              ? 'in this browser'
+              : online
+                ? 'online in test mode'
+                : 'on this computer'}
+            .
           </p>
         </div>
         <Store size={21} />
@@ -216,8 +223,8 @@ export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
           </>
         ) : (
           <p>
-            Accounts and studio records are saved on this computer. Your access:{' '}
-            {roleName[role] ?? role}. Card payments and email sending are not connected yet.
+            Accounts and studio records are saved {online ? 'online' : 'on this computer'}. Your
+            access: {roleName[role] ?? role}. Card payments and email sending are not connected yet.
           </p>
         )}
         <p>

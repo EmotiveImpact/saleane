@@ -161,6 +161,19 @@ When the studio's Twilio number reports that nobody at the desk answered (`POST 
 
 Phone calls need `SALEANE_VOICE_PROVIDER=openai` (and so Claude) and Twilio as the text provider, whose number forwards to SALEANE; the server stops if either of the two settings above is set without talking switched on.
 
+### Hosting on Vercel with Neon (4 November 2026)
+
+`npm run build:vercel` makes Vercel's Build Output API folder, `.vercel/output`: the pages from `dist/` as plain files with the standalone host's page headers, and one Node 22 function (`server/vercel.ts`, bundled with every package by `server/vercel.config.ts`) answering every `/api` path in London (`lhr1`). Vercel project `saleane-app` builds it; `vercel.json` turns off deploys on every push, so a deploy is always chosen.
+
+| Variable       | Meaning                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `APP_ORIGIN`   | The exact public address, `https://saleane-app.vercel.app`. Other addresses are refused, as on a computer.   |
+| `DATABASE_URL` | Neon's pooled connection, set by Neon's Vercel integration (Neon project `saleane-app`, database `saleane`). |
+
+A function has no lasting disk, so `server/hosted.ts` keeps SQLite, and every tested rule, in the function's temporary folder, and keeps a gzip copy of the whole database in one Neon row (`saleane_snapshot`, with a generation number). Each request runs alone in its instance: the instance first reads the newest copy if another instance kept one, runs due work (the outbox, connected software, plan billing, membership charges and price sign-offs, at most every 30 seconds while requests arrive, since there are no timers), answers, and if anything changed keeps a new copy only if the generation is still the one it read. An answer that changed something is sent only once its copy is kept; otherwise the change is dropped with the working database and the visitor gets 503 "this one was not saved". While every provider is in test mode the request instead runs again on the newer copy, up to twice. An hourly copy is kept for two days in `saleane_snapshot_history`, on top of Neon's own six hours of history. A copy made by a newer SALEANE is refused, not changed. The visitor's address for rate limits and holds comes from Vercel's `x-real-ip`.
+
+Limits, honestly: every change uploads the whole compressed database (about 90 KB for a new sample studio), so this suits a trial with tens of studios, not thousands. Two busy instances at once refuse each other's saves more often. A request that reached a live provider (a card charge, a sent email) before its copy failed would lose SALEANE's record of it, so live providers wait until the data moves into Postgres tables or onto a host with a lasting disk. Process memory (rate limits, the visitor salt) is per instance.
+
 ## Authority and request contract
 
 Passwords use salted scrypt; session cookies carry random tokens whose hashes are stored in SQLite. Cookies are HttpOnly, SameSite Strict and expire after 12 hours; HTTPS uses Secure. A password change revokes all previous sessions. Authenticated writes require `X-CSRF-Token` from registration, login or `GET /api/session`. All writes require the exact Origin and JSON. Host validation, cross-site rejection, request limits, bounded JSON bodies and generic server errors apply. No authentication secret appears in workspace or audit responses.

@@ -1,0 +1,17 @@
+# Online, SALEANE's timed work (reminders, the outbox, expired holds, webhooks) runs when a request
+# arrives. A quiet night has no requests, so this asks the hosted app's health check every ten
+# minutes; that request runs the due work under the one-owner lease. It carries no secret and
+# changes nothing itself. Scheduled runs only start from the default branch.
+name: Timed work
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+permissions: {}
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ask the hosted app to run its due work
+        run: curl --silent --show-error --max-time 60 --retry 2 --retry-delay 5 https://saleane-app.vercel.app/api/health

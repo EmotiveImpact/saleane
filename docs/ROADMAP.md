@@ -61,7 +61,7 @@ Still waiting:
 
 **Still to build** (see the ordered build queue below, NEXT-01 to NEXT-20)
 
-**Steps to release 1.0** (from [V1_READINESS](V1_READINESS.md); most need hosting, which the owner has parked and which stays undecided)
+**Steps to release 1.0** (from [V1_READINESS](V1_READINESS.md). Since 4 November 2026 the app runs online in test mode on Vercel with Neon, for trying it; a production database and the steps below are still to do)
 
 1. Hosting, the production database and hosted sign-in.
 2. Each provider's test environment end to end, then live payments, refunds and daily reconciliation.
@@ -146,7 +146,7 @@ Each increment updates PRD status, changelog and evidence, runs lint/tests/build
 ## Deferred decisions required for a live pilot
 
 1. Select the first non-clinical pilot business and map its actual hours, resources and booking policy.
-2. Choose authentication, hosting, database and payment providers using UK/US residency, availability and cost evidence. No vendor is deployed or approved by this foundation. Hosting is parked by the owner (7 October 2026) and undecided.
+2. Choose authentication, hosting, database and payment providers using UK/US residency, availability and cost evidence. No vendor is deployed or approved by this foundation. Hosting was parked by the owner on 7 October 2026; on 4 November 2026 the owner asked for the app online, and it runs in test mode on Vercel with Neon (one database copy per change, see the server README), which suits a trial, not 1.0.
 3. Decide client identity/verification and reviewed duplicate-resolution policy. Never auto-merge on email.
 4. Decide VAT/sales-tax classifications, gratuity allocation, cancellation/refund treatment and receipts with qualified advisers.
 5. Validate the wordmark and naming with target users; complete trademark/domain clearance separately.

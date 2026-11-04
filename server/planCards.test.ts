@@ -54,14 +54,18 @@ function provider(): PaymentProvider {
     },
   }
 }
-function start(databasePath = ':memory:') {
+function start(
+  databasePath = ':memory:',
+  hosted?: { name: 'stripe'; durable: () => Promise<boolean> },
+) {
   api = createApiHandler({
     origin,
     databasePath,
     now: () => clock,
     turnstile: null,
     providers: { email: testProvider('email'), sms: testProvider('sms'), receipt: () => null },
-    paymentProvider: provider(),
+    paymentProvider: hosted ? { ...provider(), name: hosted.name } : provider(),
+    ...(hosted ? { durable: hosted.durable } : {}),
   })
 }
 beforeEach(() => {
@@ -666,6 +670,44 @@ describe('memberships paid from a saved card (Stage 1)', () => {
       reference: 'CASH-2',
     })
     expect(plain.statusCode, plain.body).toBe(200)
+  })
+
+  it('never asks the provider for a refund until the started refund is kept, and only once', async () => {
+    // Hosted, with a provider other than the built-in test one: every outside call waits for the
+    // saved copy. Named as a live provider, but scripted here; no real service is reached.
+    let kept = true
+    api.close()
+    start(':memory:', { name: 'stripe', durable: async () => kept })
+    const { owner, holdingId, cardId } = await studioWithMember()
+    api.database.run("UPDATE saved_cards SET provider='stripe' WHERE id=?", cardId)
+    const ready = await setUp(owner, holdingId, cardId)
+    expect(ready.statusCode, ready.body).toBe(200)
+    await due('2026-11')
+    expect(rows()[0].status).toBe('succeeded')
+    move('2026-11-10T10:00:00.000Z')
+    const key = crypto.randomUUID()
+    const end = (k = key) =>
+      post(
+        owner,
+        `/plan-cards/${holdingId}/end`,
+        { reason: 'Moving away', refundMinor: 5000 },
+        { 'idempotency-key': k },
+      )
+    // The save of the started refund fails: nothing is asked of the provider.
+    kept = false
+    const lost = await end()
+    expect(lost.statusCode).toBe(503)
+    expect(calls.filter((c) => c.kind === 'refund')).toHaveLength(0)
+    // The started refund blocks a fresh attempt under a new key, so nothing can double up.
+    kept = true
+    expect((await end(crypto.randomUUID())).statusCode).toBe(409)
+    expect(calls.filter((c) => c.kind === 'refund')).toHaveLength(0)
+    // The same request again returns that same refund, never a new attempt id.
+    const again = await end()
+    expect(again.statusCode, again.body).toBe(200)
+    const refundRows = rows().filter((r) => r.kind === 'refund')
+    expect(refundRows).toHaveLength(1)
+    expect(again.json<Charge>().id).toBe(refundRows[0].id)
   })
 
   it('lets only owners, managers and general managers at the selling location set it up', async () => {
