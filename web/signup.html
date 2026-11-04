@@ -90,7 +90,7 @@
     <main>
       <a class="brand" href="/">SALEANE</a>
       <h1>Start your free 14 days</h1>
-      <p>Leave your details and we will set up your studio with you.</p>
+      <p>Add your details and step straight into SALEANE.</p>
       <form id="f">
         <label for="name">Your name</label>
         <input id="name" name="name" autocomplete="name" required />
@@ -119,7 +119,8 @@
           const d = await r.json().catch(() => ({}))
           if (r.ok) {
             f.reset()
-            msg.textContent = 'Thank you, you are on the list. We will be in touch shortly.'
+            msg.textContent = 'Welcome to SALEANE. Opening your studio…'
+            setTimeout(() => (location.href = '/app/'), 900)
           } else msg.textContent = d.error || 'Something went wrong, please try again.'
         } catch {
           msg.textContent = 'Something went wrong, please try again.'
