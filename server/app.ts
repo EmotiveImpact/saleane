@@ -44,6 +44,7 @@ import type { Payments } from './payments/service'
 import { createMembershipCharges } from './payments/memberships'
 import type { MembershipCharges } from './payments/memberships'
 import { planCardRoutes } from './routes/planCards'
+import { gateway, gatewayFromEnv } from './gateway'
 import { connectionTransportFromEnv, createConnections } from './connections'
 import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
@@ -145,6 +146,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const assistants = aiBooking(options.aiBooking ?? aiBookingFromEnv(process.env))
+  const messages = gateway(options.gateway ?? gatewayFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
   const assistant = assistantRoutes()
   const phone = phoneCalls(ctx.phone, () => {
@@ -157,6 +159,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     diaries.manage,
     google.manage,
     assistants.manage,
+    messages.manage,
     socialRoutes(social),
     connections.routes,
     messagingRoutes(outbox),
@@ -440,6 +443,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       }
       // Stage 5: ChatGPT or Claude calls the studio's booking connection, not a SALEANE page.
       if (await assistants.endpoint(ctx, request, response, method, url.pathname)) return
+      // The messaging gateway: guests' messages on iMessage and WhatsApp, server to server.
+      if (await messages.endpoint(ctx, request, response, method, url.pathname)) return
       const path = url.pathname
         .split('/')
         .filter(Boolean)

@@ -50,7 +50,7 @@ export const mcpAddress = (origin: string, slug: string) => `${origin}/api/mcp/$
 /** Protocol versions this server speaks, newest first. */
 export const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'] as const
 /** The version of these tools, changed when what they take or give changes. */
-const TOOLS_VERSION = '2026-10-10'
+export const TOOLS_VERSION = '2026-10-10'
 /** A connection stays open this long after its last request; after that it connects again. */
 const SESSION_IDLE_MS = 12 * 60 * 60000
 const SESSION_LIMIT = 5000
@@ -62,17 +62,17 @@ const RETRY_MS = 15 * 60000
 const LOCAL = ['127.0.0.1', 'localhost', '[::1]']
 
 // JSON-RPC 2.0 error codes.
-const PARSE_ERROR = -32700
-const INVALID_REQUEST = -32600
-const METHOD_NOT_FOUND = -32601
-const INVALID_PARAMS = -32602
-const INTERNAL_ERROR = -32603
+export const PARSE_ERROR = -32700
+export const INVALID_REQUEST = -32600
+export const METHOD_NOT_FOUND = -32601
+export const INVALID_PARAMS = -32602
+export const INTERNAL_ERROR = -32603
 /** A refusal from SALEANE itself: not turned on, too many requests, a session that has ended. */
-const SERVER_ERROR = -32000
+export const SERVER_ERROR = -32000
 
 const id = z.string().trim().min(1).max(150)
 const civilDate = z.iso.date()
-const toolInputs = {
+export const toolInputs = {
   studio_details: z.object({}).strict(),
   list_treatments: z.object({}).strict(),
   find_free_times: z
@@ -98,11 +98,11 @@ const toolInputs = {
     })
     .strict(),
 }
-type ToolName = keyof typeof toolInputs
+export type ToolName = keyof typeof toolInputs
 
 const text = (description: string) => ({ type: 'string', description })
 /** The tools as tools/list describes them, with JSON Schema for what each takes. */
-const TOOLS = [
+export const TOOLS = [
   {
     name: 'studio_details',
     title: 'Studio details and opening hours',
@@ -195,7 +195,7 @@ const TOOLS = [
 
 type Session = { orgId: string; assistant: AssistantChannel; expires: number }
 type RpcId = string | number | null
-const message = z
+export const rpcMessage = z
   .object({
     jsonrpc: z.literal('2.0'),
     id: z.union([z.string().max(200), z.number()]).optional(),
@@ -204,154 +204,169 @@ const message = z
   })
   .passthrough()
 
-const answer = ({ text, data }: ToolAnswer) => ({
+export const toolAnswer = ({ text, data }: ToolAnswer) => ({
   content: [{ type: 'text', text }],
   structuredContent: data,
 })
-const refusal = (words: string) => ({ content: [{ type: 'text', text: words }], isError: true })
+export const toolRefusal = (words: string) => ({
+  content: [{ type: 'text', text: words }],
+  isError: true,
+})
+
+/**
+ * Who is booking: the assistant (for the visit's history), a key secret to that conversation, and
+ * a salt secret to the server, so a repeated booking finds the same hold without revealing what
+ * was asked. The salt must be the same on every instance for retries to land on one visit.
+ */
+export type BookingWho = { assistant: AssistantChannel; key: string; salt: string }
+
+/** The tool's answer, or a refusal the assistant reads and can put right. */
+export function runBookingTool(
+  ctx: Context,
+  request: IncomingMessage,
+  org: Org,
+  name: ToolName,
+  args: unknown,
+  who: BookingWho,
+) {
+  const bookingUrl = `${ctx.allowedOrigin}/book/${org.slug}`
+  const now = new Date(ctx.now()).toISOString()
+  if (name === 'studio_details') return toolAnswer(studioDetails(org.state, { bookingUrl, now }))
+  if (name === 'list_treatments') return toolAnswer(treatmentList(org.state, { bookingUrl }))
+  if (name === 'find_free_times') {
+    const found = freeTimes(ctx.withHolds(org), toolInputs.find_free_times.parse(args), {
+      bookingUrl,
+      now,
+    })
+    return 'refused' in found ? toolRefusal(found.refused) : toolAnswer(found)
+  }
+  const input = toolInputs.book_time.parse(args)
+  const booked = book(ctx, request, org, input, { ...who, bookingUrl })
+  return 'refused' in booked ? toolRefusal(booked.refused) : toolAnswer(booked)
+}
+
+/**
+ * Books a time for the guest through the booking page's own hold and book: price, deposit and
+ * tax checked again, the patch test rule and the online booking rules. Marketing consent is
+ * never assumed. The same request again soon after returns the same visit.
+ */
+function book(
+  ctx: Context,
+  request: IncomingMessage,
+  org: Org,
+  input: z.infer<(typeof toolInputs)['book_time']>,
+  who: BookingWho & { bookingUrl: string },
+): ToolAnswer | ToolRefusal {
+  ctx.rateLimit(request, 'public-write', 20, 5 * 60000)
+  if (!input.guest_confirmed)
+    return {
+      refused:
+        'Nothing was booked. Tell the guest the treatment, day, time, price and the cancelling terms, and book again with guest_confirmed set to true once they say yes.',
+    }
+  const state = org.state
+  const choice = bookingChoice(state, input, who.bookingUrl)
+  if ('refused' in choice) return choice
+  const startMinutes = clockMinutes(input.start)
+  if (startMinutes === null)
+    return { refused: 'Give the start as HH:MM on the studio’s clock, such as 09:30.' }
+  const today = businessDate(state, new Date(ctx.now()).toISOString())
+  if (input.date < today || input.date > addDays(today, BOOKING_DAYS - 1))
+    return { refused: 'Choose a day from today, within the year ahead.' }
+  const contact = guestContact.safeParse({
+    name: input.guest_name,
+    email: input.guest_email,
+    phone: input.guest_phone,
+    // Never assumed: the guest agrees to news and offers only on the booking page itself.
+    marketingConsent: false,
+  })
+  if (!contact.success)
+    return { refused: 'Give the guest’s full name and a working email address.' }
+  const region = state.organisation.region
+  const phone = guestPhone(region, contact.data.phone)
+  if (!phone) return { refused: phoneProblem(region) }
+  const asked = {
+    serviceId: choice.service.id,
+    staffId: choice.staffId,
+    date: input.date,
+    startMinutes,
+    ...(choice.locationId ? { locationId: choice.locationId } : {}),
+  }
+  // The hold's key comes from what was asked, on which connection, so the same request again
+  // finds the same hold. The connection's id is secret to the assistant, so nobody else who
+  // knows the guest's details can ask again for their private link.
+  const raw = `aib_${digest(`${who.salt}:${org.id}:${who.key}:${canonical({ ...asked, contact: contact.data })}`)}`
+  const hash = digest(raw)
+  const earlier = ctx.db.get<{ appointment_id: string | null; expires_at: number }>(
+    'SELECT appointment_id,expires_at FROM booking_holds WHERE token_hash=? AND organisation_id=?',
+    hash,
+    org.id,
+  )
+  const time = ctx.now()
+  if (earlier?.appointment_id) {
+    const visit = state.appointments.find((a) => a.id === earlier.appointment_id)
+    if (time > earlier.expires_at + RETRY_MS || visit?.status !== 'confirmed')
+      return { refused: 'That time is no longer free. Use find_free_times to choose another.' }
+  }
+  const run = () =>
+    bookHeld(ctx, org.slug, {
+      hold: raw,
+      contact: contact.data,
+      channel: who.assistant,
+      actor: aiBookingActor(who.assistant),
+      action: aiBookingAction(who.assistant),
+    })
+  let result: ReturnType<typeof bookHeld>
+  try {
+    if (!earlier?.appointment_id) {
+      if (earlier)
+        ctx.db.run('DELETE FROM booking_holds WHERE token_hash=? AND appointment_id IS NULL', hash)
+      // Only a time the booking page would offer.
+      const offered = slots(
+        ctx.withHolds(org),
+        asked.serviceId,
+        asked.staffId,
+        asked.date,
+        new Date(time).toISOString(),
+        asked.locationId,
+      )
+      if (!offered.includes(startMinutes))
+        return { refused: 'That time is not free. Use find_free_times to choose another.' }
+      ctx.rateLimit(request, 'public-hold-minute', HOLD_LIMITS.HOLDS_PER_MINUTE, 60000)
+      ctx.rateLimit(request, 'public-hold-hour', HOLD_LIMITS.HOLDS_PER_HOUR, 60 * 60000)
+      // Held for this connection, so guests behind the same address never replace its hold.
+      holdTime(ctx, org.slug, asked, { raw, visitor: digest(`ai-booking:${raw}`) })
+    }
+    try {
+      result = run()
+    } catch (error) {
+      // A time held but not booked goes back for other guests at once.
+      ctx.db.run('DELETE FROM booking_holds WHERE token_hash=? AND appointment_id IS NULL', hash)
+      throw error
+    }
+  } catch (error) {
+    if (error instanceof HttpError && error.statusCode !== 429) return { refused: error.message }
+    throw error
+  }
+  const fresh = ctx.systemOrg(org.id)!
+  return bookedAnswer(fresh.state, result.appointmentId, {
+    manageUrl: result.manage.url,
+    now: ctx.now(),
+    emailsLive: operations(fresh.state).mode !== 'sandbox' && ctx.messaging.email.live,
+  })
+}
 
 export function aiBooking(options: AiBookingOptions) {
   const sessions = new Map<string, Session>()
   // Keys for repeated bookings are kept per process, so they never reveal what was asked.
   const salt = token()
-
-  /** The tool's answer, or a refusal the assistant reads and can put right. */
-  function runTool(
+  const runTool = (
     ctx: Context,
     request: IncomingMessage,
     org: Org,
     name: ToolName,
     args: unknown,
     who: { assistant: AssistantChannel; key: string },
-  ) {
-    const bookingUrl = `${ctx.allowedOrigin}/book/${org.slug}`
-    const now = new Date(ctx.now()).toISOString()
-    if (name === 'studio_details') return answer(studioDetails(org.state, { bookingUrl, now }))
-    if (name === 'list_treatments') return answer(treatmentList(org.state, { bookingUrl }))
-    if (name === 'find_free_times') {
-      const found = freeTimes(ctx.withHolds(org), toolInputs.find_free_times.parse(args), {
-        bookingUrl,
-        now,
-      })
-      return 'refused' in found ? refusal(found.refused) : answer(found)
-    }
-    const input = toolInputs.book_time.parse(args)
-    const booked = book(ctx, request, org, input, { ...who, bookingUrl })
-    return 'refused' in booked ? refusal(booked.refused) : answer(booked)
-  }
-
-  /**
-   * Books a time for the guest through the booking page's own hold and book: price, deposit and
-   * tax checked again, the patch test rule and the online booking rules. Marketing consent is
-   * never assumed. The same request again soon after returns the same visit.
-   */
-  function book(
-    ctx: Context,
-    request: IncomingMessage,
-    org: Org,
-    input: z.infer<(typeof toolInputs)['book_time']>,
-    who: { assistant: AssistantChannel; key: string; bookingUrl: string },
-  ): ToolAnswer | ToolRefusal {
-    ctx.rateLimit(request, 'public-write', 20, 5 * 60000)
-    if (!input.guest_confirmed)
-      return {
-        refused:
-          'Nothing was booked. Tell the guest the treatment, day, time, price and the cancelling terms, and book again with guest_confirmed set to true once they say yes.',
-      }
-    const state = org.state
-    const choice = bookingChoice(state, input, who.bookingUrl)
-    if ('refused' in choice) return choice
-    const startMinutes = clockMinutes(input.start)
-    if (startMinutes === null)
-      return { refused: 'Give the start as HH:MM on the studio’s clock, such as 09:30.' }
-    const today = businessDate(state, new Date(ctx.now()).toISOString())
-    if (input.date < today || input.date > addDays(today, BOOKING_DAYS - 1))
-      return { refused: 'Choose a day from today, within the year ahead.' }
-    const contact = guestContact.safeParse({
-      name: input.guest_name,
-      email: input.guest_email,
-      phone: input.guest_phone,
-      // Never assumed: the guest agrees to news and offers only on the booking page itself.
-      marketingConsent: false,
-    })
-    if (!contact.success)
-      return { refused: 'Give the guest’s full name and a working email address.' }
-    const region = state.organisation.region
-    const phone = guestPhone(region, contact.data.phone)
-    if (!phone) return { refused: phoneProblem(region) }
-    const asked = {
-      serviceId: choice.service.id,
-      staffId: choice.staffId,
-      date: input.date,
-      startMinutes,
-      ...(choice.locationId ? { locationId: choice.locationId } : {}),
-    }
-    // The hold's key comes from what was asked, on which connection, so the same request again
-    // finds the same hold. The connection's id is secret to the assistant, so nobody else who
-    // knows the guest's details can ask again for their private link.
-    const raw = `aib_${digest(`${salt}:${org.id}:${who.key}:${canonical({ ...asked, contact: contact.data })}`)}`
-    const hash = digest(raw)
-    const earlier = ctx.db.get<{ appointment_id: string | null; expires_at: number }>(
-      'SELECT appointment_id,expires_at FROM booking_holds WHERE token_hash=? AND organisation_id=?',
-      hash,
-      org.id,
-    )
-    const time = ctx.now()
-    if (earlier?.appointment_id) {
-      const visit = state.appointments.find((a) => a.id === earlier.appointment_id)
-      if (time > earlier.expires_at + RETRY_MS || visit?.status !== 'confirmed')
-        return { refused: 'That time is no longer free. Use find_free_times to choose another.' }
-    }
-    const run = () =>
-      bookHeld(ctx, org.slug, {
-        hold: raw,
-        contact: contact.data,
-        channel: who.assistant,
-        actor: aiBookingActor(who.assistant),
-        action: aiBookingAction(who.assistant),
-      })
-    let result: ReturnType<typeof bookHeld>
-    try {
-      if (!earlier?.appointment_id) {
-        if (earlier)
-          ctx.db.run(
-            'DELETE FROM booking_holds WHERE token_hash=? AND appointment_id IS NULL',
-            hash,
-          )
-        // Only a time the booking page would offer.
-        const offered = slots(
-          ctx.withHolds(org),
-          asked.serviceId,
-          asked.staffId,
-          asked.date,
-          new Date(time).toISOString(),
-          asked.locationId,
-        )
-        if (!offered.includes(startMinutes))
-          return { refused: 'That time is not free. Use find_free_times to choose another.' }
-        ctx.rateLimit(request, 'public-hold-minute', HOLD_LIMITS.HOLDS_PER_MINUTE, 60000)
-        ctx.rateLimit(request, 'public-hold-hour', HOLD_LIMITS.HOLDS_PER_HOUR, 60 * 60000)
-        // Held for this connection, so guests behind the same address never replace its hold.
-        holdTime(ctx, org.slug, asked, { raw, visitor: digest(`ai-booking:${raw}`) })
-      }
-      try {
-        result = run()
-      } catch (error) {
-        // A time held but not booked goes back for other guests at once.
-        ctx.db.run('DELETE FROM booking_holds WHERE token_hash=? AND appointment_id IS NULL', hash)
-        throw error
-      }
-    } catch (error) {
-      if (error instanceof HttpError && error.statusCode !== 429) return { refused: error.message }
-      throw error
-    }
-    const fresh = ctx.systemOrg(org.id)!
-    return bookedAnswer(fresh.state, result.appointmentId, {
-      manageUrl: result.manage.url,
-      now: ctx.now(),
-      emailsLive: operations(fresh.state).mode !== 'sandbox' && ctx.messaging.email.live,
-    })
-  }
+  ) => runBookingTool(ctx, request, org, name, args, { ...who, salt })
 
   type Outcome = { result: unknown } | { code: number; words: string }
 
@@ -505,7 +520,7 @@ export function aiBooking(options: AiBookingOptions) {
         rpcError(400, INVALID_REQUEST, 'Send one JSON-RPC message at a time.')
         return true
       }
-      const parsed = message.safeParse(body)
+      const parsed = rpcMessage.safeParse(body)
       if (!parsed.success) {
         rpcError(400, INVALID_REQUEST, 'Invalid request: this is not a JSON-RPC 2.0 message.')
         return true

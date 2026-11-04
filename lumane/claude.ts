@@ -32,6 +32,11 @@ export type ClaudeOptions = {
   fetcher?: typeof fetch
   /** Waits before the one retry after Anthropic says it is busy. Replaced in tests. */
   wait?: (ms: number) => Promise<void>
+  /**
+   * Another service speaking the Messages API, such as Keiki's Anthropic-compatible gateway
+   * (https://onkeiki.com/api/anthropic/v1/messages). Left out, Anthropic itself.
+   */
+  compatible?: { endpoint: string; label: string }
 }
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
@@ -150,10 +155,11 @@ export function claudeBrain(options: ClaudeOptions): Brain {
   const maxTokens = options.maxTokens ?? 2048
   const timeoutMs = options.timeoutMs ?? 25_000
   const wait = options.wait ?? ((ms: number) => new Promise((done) => setTimeout(done, ms)))
+  const label = options.compatible?.label ?? 'Claude'
 
   async function call(body: string) {
     try {
-      return await fetcher(ENDPOINT, {
+      return await fetcher(options.compatible?.endpoint ?? ENDPOINT, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -168,7 +174,7 @@ export function claudeBrain(options: ClaudeOptions): Brain {
       // could have cost: every character a token, and the longest reply.
       throw new BrainError(
         'unreachable',
-        'Claude could not be reached.',
+        `${label} could not be reached.`,
         claudeCost({ input_tokens: body.length, output_tokens: maxTokens }, options.prices),
       )
     }
@@ -181,13 +187,24 @@ export function claudeBrain(options: ClaudeOptions): Brain {
       const body = JSON.stringify({
         model: options.model,
         max_tokens: maxTokens,
-        output_config: { effort: options.effort ?? 'low' },
+        // A compatible gateway chooses its own model and thinking, so this stays Anthropic's.
+        ...(options.compatible ? {} : { output_config: { effort: options.effort ?? 'low' } }),
         system: [
           { type: 'text', text: request.instructions, cache_control: { type: 'ephemeral' } },
           ...(request.context?.trim() ? [{ type: 'text', text: request.context.trim() }] : []),
         ],
         messages: claudeMessages(request.messages),
-        ...(request.tools.length ? { tools: claudeTools(request.tools) } : {}),
+        ...(request.tools.length
+          ? {
+              tools: options.compatible
+                ? claudeTools(request.tools).map(({ name, description, input_schema }) => ({
+                    name,
+                    description,
+                    input_schema,
+                  }))
+                : claudeTools(request.tools),
+            }
+          : {}),
       })
       let response = await call(body)
       if (BUSY.has(response.status)) {
@@ -213,10 +230,13 @@ export function claudeBrain(options: ClaudeOptions): Brain {
           .join(': ')
           .slice(0, 300)
         if (BUSY.has(response.status))
-          throw new BrainError('busy', `Claude is busy just now (${detail}).`)
+          throw new BrainError('busy', `${label} is busy just now (${detail}).`)
         if ([401, 402, 403].includes(response.status))
-          throw new BrainError('refused', `Anthropic refused the account (${detail}).`)
-        throw new BrainError('failed', `Claude could not answer (${detail}).`)
+          throw new BrainError(
+            'refused',
+            `${options.compatible ? label : 'Anthropic'} refused the account (${detail}).`,
+          )
+        throw new BrainError('failed', `${label} could not answer (${detail}).`)
       }
       const costMinor = claudeCost(json.usage, options.prices)
       if (json.stop_reason === 'refusal') return { text: DECLINED, calls: [], costMinor }
@@ -231,7 +251,7 @@ export function claudeBrain(options: ClaudeOptions): Brain {
       if (json.stop_reason === 'max_tokens' || json.stop_reason?.includes('exceeded'))
         throw new BrainError(
           'failed',
-          `Claude's reply was cut off by its length limit (${json.stop_reason}).`,
+          `${label}'s reply was cut off by its length limit (${json.stop_reason}).`,
           costMinor,
         )
       const calls = content

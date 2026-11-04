@@ -37,7 +37,7 @@ export const automaticWhen: Record<AutomaticKind, string> = {
   due_back:
     'When a guest is about due for their next visit, going by the treatment, and nothing is booked. Only guests who agreed to hear from you.',
   birthday:
-    'On a guest’s birthday, when they shared the day and month. Only guests who agreed to hear from you.',
+    'A week before a guest’s birthday, a draft waits in the Inbox for you to approve. Nothing goes by itself. Only guests who shared the day and month and agreed to hear from you.',
   miss_you:
     'Once, after a long gap without a visit and nothing booked. Only guests who agreed to hear from you.',
 }

@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-11-04 · Bookings by message, safer saves online, and follow-ups to approve
+
+**Status: in progress on 4 November 2026, on draft PR #129. Not merged and not deployed. Checked with automated tests and fictional data on a local server only; no Keiki, iMessage, WhatsApp or card service was called.**
+
+- Keep-then-call online: before any outside call (a message, a card charge or refund, the SALEANE bill, a connection), the record of it is kept in Neon first. If that save fails, nothing is sent or charged and the person is asked to try again. One instance at a time runs the timed work, by a lease in Neon. Saves now go one at a time, and a change made while a save is on its way stays unsaved until a later save carries it.
+- Ending a card-paid membership with a refund now keeps the started refund before the card service is asked, so a lost save can never lead to a second refund.
+- The messaging gateway (`/api/gateway/mcp`, off unless `SALEANE_GATEWAY=on` with a long key): one server-to-server connection for carriers such as Keiki, using SALEANE's own booking tools. The studio and location come from the line and the guest, never from the AI. A studio with several locations needs the guest's own choice first. A line becomes one studio's own only after the carrier sets it up for that studio, and no guest's choice on a shared line is ever removed. A booked visit carries its reference, and a retried message returns the same visit.
+- Keiki can be the AI supplier through its Anthropic-compatible gateway, with a price ceiling that must be set.
+- Birthday emails no longer send by themselves (owner decision, 4 November 2026). A week before a guest's birthday, and around dated life events a guest shared (a wedding, a new job), SALEANE can write a draft that waits in the Inbox for approval. Only the owner can add a gentle offer. Life events refuse health, medical and bereavement words, and follow-ups never read notes or consultations. The screens to record life events and list what is coming up are not built yet.
+
 ## 2026-11-04 · SALEANE online, in test mode
 
 **Status: in progress on 4 November 2026. Deployed on the owner's "get the app working online now" to https://saleane-app.vercel.app (Vercel project `saleane-app`, London), with its data in Neon (project `saleane-app`, London). Every provider stays in test mode: no card payments, texts or emails go out, and Ask SALEANE uses its test answers until a Claude key is added.**

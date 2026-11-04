@@ -117,6 +117,19 @@ export function paymentRoutes(payments: Payments) {
   const { provider } = payments
   return async (ctx: Context, route: Route): Promise<boolean> => {
     const { db, now, rateLimit, allowedOrigin } = ctx
+    /**
+     * Hosted: before a card or refund is asked for, the attempt is marked unclear and kept in Neon,
+     * so a save lost afterwards leaves "check before trying again" (asked again with the same
+     * attempt, which the card service treats as the same request) rather than a fresh charge.
+     */
+    const keepBefore = async (row: AttemptRow) => {
+      if (provider.name === 'test') return
+      payments.update(row.id, {
+        status: 'unknown',
+        detail: 'Interrupted before the card service answered. Check before trying again.',
+      })
+      await ctx.beforeOutside()
+    }
     const { request, method, path, url, body, reply } = route
 
     // The guest opens the provider's own page; the card number never reaches SALEANE.
@@ -464,6 +477,7 @@ export function paymentRoutes(payments: Payments) {
         return true
       }
       const { row, card, description } = prepared
+      await keepBefore(row)
       const outcome =
         data.route === 'saved_card'
           ? await provider.chargeSaved({
@@ -641,6 +655,7 @@ export function paymentRoutes(payments: Payments) {
         reply(200, attemptView(prepared.row, provider.live))
         return true
       }
+      await keepBefore(prepared.row)
       const outcome = await provider.refund({
         attemptId: prepared.row.id,
         paymentRef: prepared.paymentRef,

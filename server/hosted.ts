@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import { gunzipSync, gzipSync } from 'node:zlib'
+import { randomUUID } from 'node:crypto'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
 import type { ApiOptions } from './context'
@@ -24,6 +25,12 @@ export type SnapshotStore = {
   read(): Promise<{ generation: number; data: Buffer } | undefined>
   /** Keeps `data` as generation `previous + 1`, only when `previous` is still the latest. */
   write(previous: number, data: Buffer): Promise<boolean>
+  /**
+   * Takes or renews the right to run timed work (the outbox, webhooks, card charges, bills) for
+   * `ms`, for `holder` only. Left out, every instance may run it; the keep before each outside
+   * call still stops two from sending the same message, but one owner wastes far fewer saves.
+   */
+  lease?(holder: string, ms: number): Promise<boolean>
   close?(): Promise<void>
 }
 
@@ -114,6 +121,10 @@ export function createHostedApp(options: HostedOptions) {
   let kept = 0
   let lastDue = Number.NEGATIVE_INFINITY
   let queue: Promise<unknown> = Promise.resolve()
+  /** This instance's name when it asks to run the timed work. */
+  const holder = randomUUID()
+  /** Outside calls made in the request now running; such a request is never run again. */
+  let outside = 0
 
   // One request at a time: the database is synchronous, so this costs little and makes each
   // request's changes exactly the ones the next kept copy adds.
@@ -134,27 +145,58 @@ export function createHostedApp(options: HostedOptions) {
     // Opening applies any schema steps this version brings, as it does on a computer.
     const database = new LocalDatabase(file)
     try {
-      api = createApiHandler({ ...options.api, origin: options.origin, database, now })
+      api = createApiHandler({
+        ...options.api,
+        origin: options.origin,
+        database,
+        now,
+        // Keep-then-call: the mark made before an outside call is kept before the call is made.
+        durable,
+      })
     } catch (error) {
       database.close()
       throw error
     }
   }
 
-  const keep = async () => {
+  /**
+   * Saves are one at a time, and each counts as kept only what was in the copy it sent: the
+   * change count is read in the same synchronous step as the bytes, so a change a timed job makes
+   * while a save is on its way stays unkept until a later save carries it. A save that finishes
+   * after the generation moved on (another save, or a re-read) never counts.
+   */
+  let saving: Promise<unknown> = Promise.resolve()
+  const serial = <T>(work: () => Promise<T>): Promise<T> => {
+    const run = saving.then(work, work)
+    saving = run.catch(() => {})
+    return run
+  }
+  const keepNow = async () => {
+    if (generation === -1) return false
+    const at = changes()
     api!.database.connection.exec('PRAGMA wal_checkpoint(TRUNCATE)')
     const data = gzipSync(readFileSync(file))
+    const from = generation
     let stored = false
     try {
-      stored = await options.store.write(generation, data)
+      stored = await options.store.write(from, data)
     } catch (error) {
       console.error('[SALEANE] The database copy could not be kept.', error)
     }
-    if (stored) {
-      generation += 1
-      kept = changes()
+    if (stored && generation === from) {
+      generation = from + 1
+      kept = at
     } else generation = -1
-    return stored
+    return stored && generation !== -1
+  }
+  /** Keeps the working database now, whatever has changed. */
+  const keep = () => serial(keepNow)
+  /** Keeps whatever changed since the last kept copy; true when everything up to now is kept. */
+  const keepChanges = () => serial(async () => (changes() === kept ? generation !== -1 : keepNow()))
+  /** Keep-then-call: the mark made before an outside call is kept before the call is made. */
+  const durable = async () => {
+    outside += 1
+    return keepChanges()
   }
 
   /** Brings the working database up to the kept copy, starting one when there is none. */
@@ -175,6 +217,16 @@ export function createHostedApp(options: HostedOptions) {
     const time = now()
     if (time - lastDue < dueEveryMs) return
     lastDue = time
+    // One owner at a time for the timed work, renewed on each turn it runs.
+    if (options.store.lease) {
+      let owner = false
+      try {
+        owner = await options.store.lease(holder, Math.max(dueEveryMs * 2, 60000))
+      } catch (error) {
+        console.error('[SALEANE] Could not ask to run the timed work.', error)
+      }
+      if (!owner) return
+    }
     const work = api!
     // Each runs as it does on a timer on a computer; a failure waits for the next turn.
     await Promise.allSettled([
@@ -202,11 +254,28 @@ export function createHostedApp(options: HostedOptions) {
           return json(503, { error: 'SALEANE is starting up. Try again in a moment.' })
         }
         await due()
+        // Timed work that ran outside and then lost its copy: start this request from the kept one.
+        if (generation === -1 || changes() !== kept) {
+          if (changes() !== kept && !(await keepChanges())) generation = -1
+          if (generation === -1) {
+            try {
+              await sync()
+            } catch {
+              generation = -1
+              return json(503, { error: BUSY })
+            }
+          }
+        }
+        outside = 0
         const answer = await capture(api!, input)
         await settle()
-        if (changes() === kept || (await keep())) return answer
-        // Not kept: the working database is read again before anything else runs.
-        if (attempt >= retries) return json(503, { error: BUSY })
+        // A mark before an outside call that was not kept: nothing was sent, and nothing else
+        // of this request counts either.
+        if (generation === -1) return json(503, { error: BUSY })
+        if (await keepChanges()) return answer
+        // Not kept: the working database is read again before anything else runs. A request
+        // that already reached an outside service is never run again; its own key answers a retry.
+        if (outside > 0 || attempt >= retries) return json(503, { error: BUSY })
       }
     })
 
@@ -219,6 +288,8 @@ export function createHostedApp(options: HostedOptions) {
     get api() {
       return api
     },
+    /** For checks: what an outside call waits on before it may be made. */
+    beforeOutside: () => durable(),
     close: async () => {
       await queue
       api?.close()
@@ -253,6 +324,11 @@ export async function neonStore(connectionString: string): Promise<SnapshotStore
            generation bigint PRIMARY KEY,
            data bytea NOT NULL,
            saved_at timestamptz NOT NULL DEFAULT now()
+         );
+         CREATE TABLE IF NOT EXISTS saleane_lease (
+           id smallint PRIMARY KEY CHECK (id = 1),
+           holder text NOT NULL,
+           until timestamptz NOT NULL
          );`,
       )
       .then(
@@ -276,6 +352,16 @@ export async function neonStore(connectionString: string): Promise<SnapshotStore
         'SELECT generation, data FROM saleane_snapshot WHERE id = 1',
       )
       return rows[0] ? { generation: Number(rows[0].generation), data: rows[0].data } : undefined
+    },
+    async lease(name, ms) {
+      await prepare()
+      const { rowCount } = await pool.query(
+        `INSERT INTO saleane_lease (id, holder, until) VALUES (1, $1, now() + ($2 || ' milliseconds')::interval)
+         ON CONFLICT (id) DO UPDATE SET holder = EXCLUDED.holder, until = EXCLUDED.until
+         WHERE saleane_lease.until < now() OR saleane_lease.holder = EXCLUDED.holder`,
+        [name, String(Math.round(ms))],
+      )
+      return rowCount === 1
     },
     async write(previous, data) {
       await prepare()
@@ -311,10 +397,18 @@ export async function neonStore(connectionString: string): Promise<SnapshotStore
 }
 
 /** A store kept in memory, for checks and for trying hosting on one computer. */
-export function memoryStore(): SnapshotStore & { writes: number } {
+export function memoryStore(
+  clock: () => number = Date.now,
+): SnapshotStore & { writes: number; lease: NonNullable<SnapshotStore['lease']> } {
   let latest: { generation: number; data: Buffer } | undefined
+  let lease: { holder: string; until: number } | undefined
   const store = {
     writes: 0,
+    lease: async (holder: string, ms: number) => {
+      if (lease && lease.until >= clock() && lease.holder !== holder) return false
+      lease = { holder, until: clock() + ms }
+      return true
+    },
     generation: async () => latest?.generation ?? 0,
     read: async () => latest,
     write: async (previous: number, data: Buffer) => {

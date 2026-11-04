@@ -7,7 +7,7 @@ import { operations } from '../src/domain/operations'
 export type AiUse = 'ask' | 'reception'
 
 export type AiSupplier = {
-  name: 'test' | 'claude'
+  name: 'test' | 'claude' | 'keiki'
   /** True once a real supplier is connected, so answers cost money and requests leave SALEANE. */
   live: boolean
   model?: string
@@ -50,6 +50,7 @@ export function aiFromEnv(
 ): AiSupplier {
   const name = env.SALEANE_AI_PROVIDER?.trim() || 'test'
   if (name === 'test') return testAi
+  if (name === 'keiki') return keikiFromEnv(env, fetcher)
   if (name !== 'claude') throw new Error(`Unknown AI provider "${name}".`)
   const apiKey = env.ANTHROPIC_API_KEY?.trim()
   if (!apiKey) throw new Error('Set ANTHROPIC_API_KEY to use Claude.')
@@ -79,6 +80,49 @@ export function aiFromEnv(
   }
   return {
     name: 'claude',
+    live: true,
+    model,
+    brainFor: (state, use) => (operations(state).mode === 'sandbox' ? undefined : brains[use]),
+  }
+}
+
+/** Keiki's Anthropic-compatible gateway (https://onkeiki.com/openapi.json, read 4 November 2026). */
+export const KEIKI_ENDPOINT = 'https://onkeiki.com/api/anthropic/v1/messages'
+
+/**
+ * Keiki as the brain: its neutral agent gateway in passthrough, speaking the Messages API. SALEANE
+ * keeps its own instructions, skills and loop (LUMANE), and its own booking checks; Keiki picks the
+ * model behind the named agent. Keiki's price per token is not published for a passthrough agent,
+ * so SALEANE_AI_PRICES must be set: SALEANE never runs an AI whose cost it cannot count.
+ */
+function keikiFromEnv(env: Record<string, string | undefined>, fetcher?: typeof fetch): AiSupplier {
+  const apiKey = env.KEIKI_API_KEY?.trim()
+  if (!apiKey) throw new Error('Set KEIKI_API_KEY, kept on the server, to use Keiki.')
+  const model = env.KEIKI_AGENT?.trim()
+  if (!model) throw new Error('Set KEIKI_AGENT to the Keiki agent name or ID to use.')
+  const prices = pricesFrom(env.SALEANE_AI_PRICES)
+  if (!prices)
+    throw new Error(
+      'Set SALEANE_AI_PRICES to the most Keiki can charge per million input and output tokens in cents, such as 300,1500.',
+    )
+  const endpoint = env.KEIKI_ENDPOINT?.trim() || KEIKI_ENDPOINT
+  if (!endpoint.startsWith('https://')) throw new Error('KEIKI_ENDPOINT must be an https address.')
+  const brain = (use: AiUse, timeoutMs: number) =>
+    claudeBrain({
+      apiKey,
+      model,
+      prices,
+      maxTokens: MAX_TOKENS[use],
+      timeoutMs,
+      fetcher,
+      compatible: { endpoint, label: 'Keiki' },
+    })
+  const brains: Record<AiUse, Brain> = {
+    ask: brain('ask', 25_000),
+    reception: brain('reception', 20_000),
+  }
+  return {
+    name: 'keiki',
     live: true,
     model,
     brainFor: (state, use) => (operations(state).mode === 'sandbox' ? undefined : brains[use]),
