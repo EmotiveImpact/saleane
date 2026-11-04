@@ -1327,6 +1327,96 @@
     color: rgba(255, 255, 255, 0.85);
     margin: 0 0 18px;
   }
+
+  /* Edem 07:10: calm the night section */
+  .night {
+    min-height: auto !important;
+  }
+  .night .grid {
+    grid-template-columns: minmax(0, 1fr) 320px !important;
+    gap: 80px !important;
+    padding: 150px 80px 110px !important;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .night .ip-wrap {
+    width: 300px;
+  }
+  .night .bg {
+    filter: brightness(0.62) saturate(0.8) !important;
+  }
+  .night .veil {
+    background: linear-gradient(
+      90deg,
+      rgba(16, 22, 20, 0.6),
+      rgba(16, 22, 20, 0.35) 55%,
+      rgba(16, 22, 20, 0.5)
+    ) !important;
+  }
+  @media (max-width: 860px) {
+    .night .grid {
+      grid-template-columns: 1fr !important;
+      padding: 110px 16px 70px !important;
+      gap: 40px !important;
+    }
+    .night .ip-wrap {
+      width: 280px;
+    }
+  }
+
+  /* Edem 07:11: one steady bar. Same size and positions at rest and scrolled; only the background fades in */
+  nav,
+  nav.solid {
+    inset: 24px 34px auto !important;
+    padding: 10px 10px 10px 0 !important;
+    border-radius: 99px !important;
+    border: 1px solid transparent !important;
+    transition:
+      background 0.3s,
+      box-shadow 0.3s,
+      border-color 0.3s,
+      color 0.3s !important;
+  }
+  nav {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  nav.solid {
+    background: #fff !important;
+    border-color: #e9eeeb !important;
+    box-shadow: 0 8px 30px rgba(16, 22, 20, 0.08) !important;
+  }
+  nav .logo,
+  nav.solid .logo {
+    padding-left: 20px !important;
+  }
+  nav .links,
+  nav.solid .links {
+    background: none !important;
+    border: 0 !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+  }
+  nav .links a {
+    padding: 8px 14px !important;
+  }
+  nav .links a:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+  nav.solid .links a:hover {
+    background: #f1f4f2;
+  }
+  @media (max-width: 860px) {
+    nav,
+    nav.solid {
+      inset: 12px 12px auto !important;
+      padding: 6px 6px 6px 0 !important;
+    }
+    nav .logo,
+    nav.solid .logo {
+      padding-left: 14px !important;
+    }
+  }
 </style>
 <style>
   .ip-wrap,
