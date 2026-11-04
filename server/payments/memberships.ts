@@ -385,6 +385,9 @@ export function createMembershipCharges(
     const prepared = prepare(organisationId, holdingId, periodStart, tryNumber, previous)
     if (!prepared) return null
     const { row, card } = prepared
+    // Hosted: the started charge is kept before the card is tried, so a lost save can never lead
+    // to a second try for the same month (a started charge blocks another, see UNDER_WAY).
+    if (provider.name !== 'test') await ctx.beforeOutside()
     const outcome = await provider.chargeSaved({
       attemptId: row.id,
       amountMinor: row.amount_minor,
