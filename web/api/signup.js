@@ -18,6 +18,15 @@ export default async function handler(req, res) {
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return res.status(400).json({ error: 'Please add your name and a valid email' })
   const host = new URL(url).hostname
+  const sql = (query, params = []) =>
+    fetch(`https://${host}/sql`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Neon-Connection-String': url },
+      body: JSON.stringify({ query, params }),
+    })
+  await sql(
+    'CREATE TABLE IF NOT EXISTS signups (id bigserial PRIMARY KEY, name text NOT NULL, studio text, email text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())',
+  )
   const r = await fetch(`https://${host}/sql`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Neon-Connection-String': url },
