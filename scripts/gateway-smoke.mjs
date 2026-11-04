@@ -10,7 +10,9 @@
 //
 // To check the saved diary as well, which a full pass needs, also set SALEANE_ORG (the studio's
 // id) and SALEANE_OWNER_SESSION (an owner's session cookie value, kept out of logs), and
-// SALEANE_LOCATION when the visit belongs at a location other than the studio's main one.
+// SALEANE_LOCATION (a location id from studio_details) is required for a studio with several
+// locations: it is passed when choosing the studio, so the guest's choice is bound before any
+// free time is asked for, and the saved visit must be there.
 // Exit codes: 0 every check passed; 1 a check failed; 3 booked and retried correctly, but the
 // diary was not read, so the run is incomplete.
 //
@@ -60,7 +62,21 @@ const say = (step, result) =>
     `${result.isError ? 'REFUSED' : 'OK'} ${step}: ${result.content?.[0]?.text?.split('\n')[0] ?? ''}`,
   )
 
-say('choose the studio', await call('choose_studio', { booking_page: studio }))
+const location = process.env.SALEANE_LOCATION ?? ''
+const chosen = await call('choose_studio', {
+  booking_page: studio,
+  ...(location ? { location_id: location } : {}),
+})
+say('choose the studio', chosen)
+check(!chosen.isError, 'the studio was chosen')
+const bound = chosen.structuredContent?.locationId
+check(
+  !!bound && (!location || bound === location),
+  location
+    ? 'the chosen location was bound before asking for free times'
+    : 'the studio has one location, which was bound (set SALEANE_LOCATION for a studio with several)',
+)
+if (failures.length) process.exit(1)
 const treatments = await call('list_treatments', {})
 const treatment = treatments.structuredContent?.treatments?.[0]
 if (!treatment) throw new Error('The studio has no treatment that can be booked by message.')
@@ -101,7 +117,7 @@ if (org && session) {
       (a) => a.date === day.date && a.serviceId === treatment.id && a.channel !== undefined,
     )
     const found = state.appointments.filter((a) => a.id === reference)
-    const where = process.env.SALEANE_LOCATION || state.organisation.locationId
+    const where = bound
     check(found.length === 1, 'the saved diary holds the booked visit exactly once')
     check(
       matching.filter((a) => a.id !== reference && a.startMinutes === found[0]?.startMinutes)

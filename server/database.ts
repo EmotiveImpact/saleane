@@ -988,7 +988,15 @@ export const migrations: Migration[] = [
           PRIMARY KEY(line_hash, customer_hash)
         ) STRICT;
         CREATE INDEX gateway_bindings_studio ON gateway_bindings(organisation_id);
-        CREATE TABLE gateway_provisions (
+      `),
+  },
+  {
+    version: 40,
+    // A line the carrier set up for one studio (a number it bought for that studio), so the
+    // owner can then claim it. Being an owner alone never makes a line the studio's own.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE IF NOT EXISTS gateway_provisions (
           line_hash TEXT PRIMARY KEY,
           organisation_id TEXT NOT NULL REFERENCES organisations(id),
           created_at INTEGER NOT NULL

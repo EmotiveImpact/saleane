@@ -1,5 +1,9 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
 import { gateway, gatewayFromEnv } from './gateway'
@@ -22,11 +26,11 @@ type Day = { date: string; times: string[] }
 
 let api: ApiHandler
 let clock: number
-const make = (options: GatewayOptions = { mode: 'on', key: KEY }) => {
+const make = (options: GatewayOptions = { mode: 'on', key: KEY }, databasePath = ':memory:') => {
   clock = Date.parse('2026-10-06T07:00:00.000Z')
   api = createApiHandler({
     origin,
-    databasePath: ':memory:',
+    databasePath,
     now: () => clock,
     turnstile: null,
     gateway: options,
@@ -402,6 +406,46 @@ describe('the messaging gateway', () => {
     expect(visits[0].id).toBe(
       (booked.structuredContent as { visit: { reference: string } }).visit.reference,
     )
+  })
+
+  it('upgrades a database made by an earlier build of this gateway, keeping every choice', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'saleane-gateway-upgrade-'))
+    try {
+      const path = join(folder, 'saleane.sqlite')
+      api.close()
+      make(undefined, path)
+      const linden = await studio('Linden Studio', 'linden@example.invalid')
+      const rosa = { customer: '+44 7700 900111' }
+      await tool('choose_studio', { booking_page: linden.slug }, rosa)
+      const before = words(await tool('list_treatments', {}, rosa))
+      expect(before).toContain('Linden Studio facial')
+      api.close()
+      // The earlier build recorded step 39 with no gateway_provisions table and no step 40.
+      const raw = new DatabaseSync(path)
+      raw.exec('DROP TABLE gateway_provisions; DELETE FROM schema_migrations WHERE version >= 40;')
+      raw.close()
+      make(undefined, path)
+      const tables = api.database.all<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'gateway_%' ORDER BY name",
+      )
+      expect(tables.map((t) => t.name)).toEqual([
+        'gateway_bindings',
+        'gateway_lines',
+        'gateway_provisions',
+      ])
+      // Rosa's choice survived the upgrade, and lines can now be set up and claimed.
+      expect(words(await tool('list_treatments', {}, rosa))).toBe(before)
+      const own = 'keiki:imessage:+447700900444'
+      expect((await provision(own, linden.slug)).statusCode).toBe(201)
+      expect((await claim(linden.login, own)).statusCode).toBe(201)
+      expect(
+        words(await tool('list_treatments', {}, { line: own, customer: '+44 7700 900555' })),
+      ).toContain('Linden Studio facial')
+    } finally {
+      api.close()
+      rmSync(folder, { recursive: true, force: true })
+      make()
+    }
   })
 
   it('answers nothing for a studio that has not turned it on, or a sample studio', async () => {
