@@ -594,7 +594,9 @@ export function planMessages(
   for (const client of s.clients) {
     if (!channelsFor(s, client).includes('email') || !client.email) continue
     const due: Record<ClientKind, boolean> = {
-      birthday: birthdayDue(s, client, nowIso),
+      // Owner decision, 4 November 2026: birthday emails no longer go by themselves. They are
+      // suggested as drafts to approve in the Inbox, like life events (followUps.ts).
+      birthday: false,
       miss_you: missYouDue(s, client, nowIso),
     }
     const ids = sameGuest(s, client.id)

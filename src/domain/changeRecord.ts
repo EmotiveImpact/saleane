@@ -207,6 +207,10 @@ const commandWords: Record<Command['type'], Words> = {
   'retention-keep': ['clients', 'Kept records past the end of their keeping period'],
   // Stage 6: asking everyone in the studio to use two-step sign-in.
   'two-step-rule': ['access', 'Changed whether everyone must use two-step sign-in'],
+  // 4 November 2026: life events guests shared, and the follow-ups that mark them.
+  'life-event': ['clients', 'Recorded a client’s life event'],
+  'life-event-remove': ['clients', 'Removed a client’s life event'],
+  'follow-up-draft': ['messages', 'Wrote a birthday or life event follow-up'],
 }
 
 /** Changes the server makes or records itself. */

@@ -45,6 +45,10 @@ const CLIENT_COMMANDS = new Set([
   'task-done',
   'missed-call',
   'missed-call-done',
+  // 4 November 2026: a guest's life events and follow-ups are about the guest, not a location.
+  'life-event',
+  'life-event-remove',
+  'follow-up-draft',
 ])
 const VISIT_COMMANDS = new Set([
   'cancel',

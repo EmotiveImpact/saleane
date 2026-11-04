@@ -389,6 +389,10 @@ export function eraseClient(next: BusinessState, clientId: string, now: string) 
     ...(ops.missedCalls
       ? { missedCalls: ops.missedCalls.filter((c) => c.clientId !== clientId) }
       : {}),
+    // 4 November 2026: the life events they shared go with their details.
+    ...(ops.lifeEvents
+      ? { lifeEvents: ops.lifeEvents.filter((e) => e.clientId !== clientId) }
+      : {}),
   }
   if (next.replies) next.replies = next.replies.filter((r) => r.clientId !== clientId)
   if (next.socialAnswers)
