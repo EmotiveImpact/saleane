@@ -41,7 +41,8 @@ function local() {
   return { s: stranger.state, known: known.recordId!, stranger: stranger.recordId! }
 }
 function booking(s: BusinessState, extra: Record<string, unknown>): Command {
-  const startMinutes = slots(s, 'service-facial', 'staff-maya', DAY)[0]
+  // Free times as on the test's own day, so the fixed date never falls into the past.
+  const startMinutes = slots(s, 'service-facial', 'staff-maya', DAY, AT)[0]
   return {
     type: 'book',
     input: {

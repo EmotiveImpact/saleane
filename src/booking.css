@@ -113,9 +113,9 @@
   height: 24%;
   background: linear-gradient(
     180deg,
-    rgba(251, 249, 244, 0.88) 0%,
-    rgba(251, 249, 244, 0.6) 45%,
-    rgba(251, 249, 244, 0) 100%
+    color-mix(in srgb, var(--story-fade) 88%, transparent) 0%,
+    color-mix(in srgb, var(--story-fade) 60%, transparent) 45%,
+    color-mix(in srgb, var(--story-fade) 0%, transparent) 100%
   );
   -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
   mask-image: linear-gradient(180deg, #000 55%, transparent);
@@ -125,9 +125,9 @@
   height: 64%;
   background: linear-gradient(
     0deg,
-    rgba(251, 249, 244, 0.9) 0%,
-    rgba(251, 249, 244, 0.72) 40%,
-    rgba(251, 249, 244, 0) 100%
+    color-mix(in srgb, var(--story-fade) 90%, transparent) 0%,
+    color-mix(in srgb, var(--story-fade) 72%, transparent) 40%,
+    color-mix(in srgb, var(--story-fade) 0%, transparent) 100%
   );
   -webkit-mask-image: linear-gradient(0deg, #000 50%, transparent);
   mask-image: linear-gradient(0deg, #000 50%, transparent);
@@ -182,6 +182,10 @@
 }
 .booking-story-card h1 span {
   display: block;
+}
+/* On clean white the welcome is near-black, so the studio's photograph does the talking. */
+:root[data-base='white'] .booking-story-card h1 {
+  color: var(--ink);
 }
 .booking-story-card p {
   margin: 0;

@@ -643,7 +643,7 @@ fieldset {
   justify-content: space-between;
   gap: 24px;
   padding: 16px 36px;
-  background: rgba(250, 248, 245, 0.92);
+  background: var(--glass);
   backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
@@ -4620,6 +4620,8 @@ fieldset {
   width: 22px;
   height: 22px;
   border-radius: 50%;
+  /* A faint ring, so the clean white swatch shows on a white panel. */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 .colour-swatch:has(input:checked),
 .colour-swatch:has(.tick[data-state='checked']) {
@@ -4768,7 +4770,8 @@ fieldset {
   .areas-list > li button.areas-name,
   .back-link,
   .next-visit-panel .button,
-  .connection-row {
+  .connection-row,
+  .colour-swatch {
     min-height: var(--target);
   }
   .text-link {

@@ -96,6 +96,11 @@ describe('studio colours', () => {
       look: { first: '#000000', second: '#6f9cbc' },
     } as unknown as Command)
     expect(odd.statusCode).toBe(400)
+    // Clean white goes with the colours to the booking page.
+    state = await studio(owner)
+    const white = { ...look, base: 'white' as const }
+    await ok(owner, state.revision, { type: 'studio-look', look: white })
+    expect((await api.inject({ url: `/api/public/${slug}` })).json().look).toEqual(white)
   })
 
   it('may be changed by a manager but not by the desk', async () => {

@@ -5,7 +5,7 @@ const id = z.string().min(1).max(150)
 /**
  * V5: the studio's look, kept with the studio so every location, device and guest sees the same
  * colours. The first colour leads buttons and selections; the second marks the now line and
- * clients ready to return.
+ * clients ready to return. The base is what every page sits on.
  */
 export const firstColours = [
   { name: 'Sage', value: '#5f8471' },
@@ -14,6 +14,7 @@ export const firstColours = [
   { name: 'Teal', value: '#3f7f80' },
   { name: 'Clay', value: '#a35f4b' },
   { name: 'Rosewood', value: '#a5566d' },
+  { name: 'Deep green', value: '#2f6b4f' },
 ] as const
 
 export const secondColours = [
@@ -24,11 +25,26 @@ export const secondColours = [
   { name: 'Olive', value: '#8c9a5b' },
 ] as const
 
+/**
+ * What every page sits on. Warm ivory is SALEANE's original; clean white is crisper and cooler,
+ * like a native app. A look saved before there was a choice has no base and stays warm.
+ */
+export const bases = [
+  { name: 'Warm ivory', value: 'warm', swatch: '#faf8f5' },
+  { name: 'Clean white', value: 'white', swatch: '#ffffff' },
+] as const
+export type StudioBase = (typeof bases)[number]['value']
+
 const firstValues = firstColours.map((c) => c.value) as [string, ...string[]]
 const secondValues = secondColours.map((c) => c.value) as [string, ...string[]]
+const baseValues = bases.map((b) => b.value) as [StudioBase, ...StudioBase[]]
 
 export const lookSchema = z
-  .object({ first: z.enum(firstValues), second: z.enum(secondValues) })
+  .object({
+    first: z.enum(firstValues),
+    second: z.enum(secondValues),
+    base: z.enum(baseValues).optional(),
+  })
   .strict()
 export type StudioLook = z.infer<typeof lookSchema>
 

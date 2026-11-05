@@ -139,4 +139,35 @@
 
   /* Touch targets. */
   --target: 44px;
+
+  /* What photographs fade into where words sit on them, and the see-through header. */
+  --story-fade: #fbf9f4;
+  --glass: color-mix(in srgb, var(--bg) 92%, transparent);
+}
+
+/*
+ * Clean white: a studio can choose this base instead of warm ivory. Pages and panels are white,
+ * the sidebar and quiet fills a soft cool grey, lines cooler and words a crisper near-black. The
+ * studio's own two colours still lead; nothing else changes. Set on <html> as data-base="white".
+ */
+:root[data-base='white'] {
+  --palette-warm-bg: #ffffff;
+  --palette-warm-side: #f6f7f7;
+  --palette-warm-stone: #f3f4f4;
+  --palette-warm-hover: #fafafa;
+  --palette-warm-line: #ebecec;
+  --palette-warm-line2: #dcdedd;
+  --palette-ink: #141716;
+  --palette-muted: #676c6a;
+  --palette-faint: #9a9e9c;
+  --palette-sand-700: #5f5a52;
+  --brand-soft: color-mix(in srgb, var(--brand) 9%, #ffffff);
+  --brand-mid: color-mix(in srgb, var(--brand) 30%, #ffffff);
+  --sage-soft: color-mix(in srgb, var(--brand) 5%, #ffffff);
+  --blue: #f8eff2;
+  --tone-blue-bg: #f8eff2;
+  --brass: #a9adab;
+  --story-fade: #ffffff;
+  --shadow-float: 0 12px 36px #1417161a;
+  --shadow-dialog: 0 24px 70px #14171624;
 }

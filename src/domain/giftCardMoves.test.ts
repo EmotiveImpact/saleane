@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { dispatch, execute } from './commands'
 import type { Command } from './commands'
 import type { BusinessState } from './model'
@@ -20,6 +20,15 @@ import { otherReceipts } from './receipt'
 
 // Stage 4: moving a gift card to another location.
 const now = '2026-10-06T08:00:00.000Z'
+// The sales here sit on 6 October 2026, so the clock stays on that day: figures for "the last
+// 30 days" keep counting them whatever day the tests run.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(now))
+})
+afterEach(() => {
+  vi.useRealTimers()
+})
 const later = '2026-10-08T15:00:00.000Z'
 let sequence = 0
 /** A real studio with the sample team, a second location (Shoreditch) and a room there. */

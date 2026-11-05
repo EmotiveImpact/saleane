@@ -10,6 +10,8 @@ export const INK = '#2e2b33'
 export const MUTED = '#6b6670'
 export const PAPER = '#ffffff'
 export const PAGE = '#faf8f5'
+/** The page around the card for a studio that chose clean white. */
+export const PAGE_WHITE = '#f6f7f7'
 export const LINE = '#ebe5df'
 
 /** The house look: sage and soft rose. SALEANE's own emails always use it. */
@@ -63,10 +65,18 @@ export type EmailPalette = {
   soft: string
   /** The short line under the studio's name. */
   accent: string
+  /** Around the white card: warm ivory, or a soft cool grey when the studio chose clean white. */
+  page: string
 }
 
 /** A studio's email colours, from its saved look or the house look. */
 export function emailPalette(look: StudioLook = houseLook): EmailPalette {
   const action = deepen(look.first, PAPER)
-  return { action, soft: mix(look.first, 0.1, '#fdfcfa'), accent: look.second }
+  const white = look.base === 'white'
+  return {
+    action,
+    soft: mix(look.first, white ? 0.09 : 0.1, white ? PAPER : '#fdfcfa'),
+    accent: look.second,
+    page: white ? PAGE_WHITE : PAGE,
+  }
 }

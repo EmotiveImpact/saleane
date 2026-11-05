@@ -345,12 +345,18 @@ export function roomsScreen(s: BusinessState, d: RoomsDraft): Screen {
   return { problem, changes: problem ? [] : changes }
 }
 
-/** The studio's two colours. Saving records the choice even when the owner keeps the house ones. */
+/**
+ * The studio's background and two colours. Saving records the choice even when the owner keeps
+ * the house ones. A look saved without a background is warm ivory.
+ */
 export const lookDraft = (s: BusinessState): StudioLook =>
   operations(s).look ?? { first: firstColours[0].value, second: secondColours[0].value }
 export function lookScreen(s: BusinessState, look: StudioLook): Screen {
   const saved = operations(s).look
-  const same = saved?.first === look.first && saved?.second === look.second
+  const same =
+    saved?.first === look.first &&
+    saved?.second === look.second &&
+    (saved?.base ?? 'warm') === (look.base ?? 'warm')
   return { problem: null, changes: same ? [] : [{ type: 'studio-look', look }] }
 }
 

@@ -4,7 +4,7 @@ import { Download, Palette, RotateCcw, SlidersHorizontal, Store } from 'lucide-r
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
 import { Button, ErrorMessage, Select, photos } from '../design'
-import { coloursFor, firstColours, saveColours, secondColours } from '../state/studioColours'
+import { bases, coloursFor, firstColours, saveColours, secondColours } from '../state/studioColours'
 import type { StudioColours } from '../state/studioColours'
 import type { StudioLook } from '../domain/brandRulesSchema'
 import { can, operations } from '../domain/operations'
@@ -107,7 +107,7 @@ export function BrandSection() {
       }
     } catch {
       setColours(before)
-      setError('Could not save the colours. Try again.')
+      setError('Could not save the look. Try again.')
     } finally {
       setPending(false)
     }
@@ -116,15 +116,24 @@ export function BrandSection() {
     <section className="surface ops-panel settings-panel">
       <header>
         <div>
-          <h2>Studio colours</h2>
+          <h2>Studio look</h2>
           <p>
-            Your first colour leads buttons and selections. Your second marks the now line and
-            clients ready to return. They are kept with the studio, so every location, every device
-            and your booking page show the same colours.
+            Choose what every page sits on: warm ivory, SALEANE’s original, or clean white. Your
+            first colour leads buttons and selections. Your second marks the now line and clients
+            ready to return. The look is kept with the studio, so every location, every device and
+            your booking page show the same.
           </p>
         </div>
         <Palette size={21} />
       </header>
+      <Choice
+        legend="Background"
+        name="studio-base"
+        value={colours.base ?? 'warm'}
+        disabled={!canStyle || pending}
+        onChange={(base) => void choose({ ...colours, base })}
+        options={bases.map((b) => ({ value: b.value, label: b.name, swatch: b.swatch }))}
+      />
       <Choice
         legend="First colour"
         name="first-colour"
@@ -142,7 +151,7 @@ export function BrandSection() {
         options={secondColours.map((c) => ({ value: c.value, label: c.name, swatch: c.value }))}
       />
       <ErrorMessage error={error} />
-      {!canStyle && <p className="ops-help">Only owners and managers can change the colours.</p>}
+      {!canStyle && <p className="ops-help">Only owners and managers can change the look.</p>}
       <div className="settings-booking-link">
         <img src={photos.bookingPage} alt="" />
         <div>

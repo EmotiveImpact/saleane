@@ -25,6 +25,16 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The missed-call booking tests now hold the clock on 6 October 2026: their fixed dates had passed, so they failed on every branch since 13 October.
 - Checked live on 4 November 2026 (production 55d8b72, Neon linked, Chromium): a new studio with sample clients signed up in about 5.5 s; a desk booking two weeks out was kept, was still there after signing out and in again, and showed on that day's calendar; Today, Clients, Money and Settings opened at 1440 px and Today and Calendar at 390 px. A second, empty studio signed up in a separate browser saw only itself, and asking for or changing the first studio's records was refused with "That studio was not found" (404); the first studio's visit was unchanged.
 
+## 2026-11-03 · Clean white, a background a studio can choose
+
+**Status: built locally on 3 November 2026 and checked in Chromium at 1440 and 390 px, not yet in Safari or Firefox. Not merged; it waits for the owner's "merge". Nothing deployed.** [Evidence](docs/evidence/CLEAN-WHITE.md).
+
+- Studio look, in Settings under Booking page & colours and on the Look screen of Set up your studio, now starts with Background: Warm ivory, SALEANE's original and still the default, or Clean white. Clean white makes pages and panels white, the sidebar and quiet fills a soft cool grey, lines cooler and words a crisper near-black. The studio's two colours, the photographs and the serif headings stay as they are.
+- The choice is kept with the studio, so every location, device, the booking page, a guest's own visit page and the studio's visit emails show it. A look saved before this change reads as warm ivory.
+- Deep green (#2f6b4f), the green on the public homepage draft, joins the first colours. Every first colour keeps white words on its button at 4.8:1 or more on both backgrounds.
+- The see-through header and the booking page's photo fades now follow the background instead of always fading into ivory.
+- On phones and touch screens, the colour and background choices in Settings now reach 44px to tap; they were 36px.
+
 ## 2026-10-13 · Today on a phone, in three tabs with counts
 
 **Status: built locally on 13 October 2026 and checked in Chromium at 1440, 1024, 768, 390 and 320 px, not yet in Safari or Firefox. The owner said yes on 13 October 2026 and it was merged to main the same day on the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/TODAY-TABS.md).

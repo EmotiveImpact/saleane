@@ -6,7 +6,7 @@ import { MANAGE_LINK, STOP_LINE, composeClientMessage, composeMessage } from '..
 import type { VisitKind } from '../domain/reminders'
 import { BOOK_LINK } from '../domain/reminderSettings'
 import { emailBlocks } from './blocks'
-import { INK, MUTED, PAGE, PAPER, contrast, emailPalette } from './colours'
+import { INK, MUTED, PAGE, PAGE_WHITE, PAPER, contrast, emailPalette } from './colours'
 import { renderEmail, saleaneSender, studioSender } from './render'
 import { sampleKinds, sampleMessage } from './samples'
 
@@ -213,6 +213,20 @@ describe('designed emails', () => {
         expect(contrast(MUTED, palette.soft)).toBeGreaterThanOrEqual(4.5)
       }
     expect(contrast(MUTED, PAGE)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('sits on a soft cool grey for a studio that chose clean white', () => {
+    expect(emailPalette().page).toBe(PAGE)
+    const white = emailPalette({ first: '#2f6b4f', second: '#c27286', base: 'white' })
+    expect(white.page).toBe(PAGE_WHITE)
+    expect(contrast(MUTED, white.page)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(INK, white.soft)).toBeGreaterThanOrEqual(4.5)
+    const html = renderEmail({
+      subject: 'Choose a new SALEANE password',
+      text: 'Hello.',
+      from: { name: 'Atelier House', look: { first: '#2f6b4f', second: '#c27286', base: 'white' } },
+    })
+    expect(html).toContain(`background:${PAGE_WHITE}`)
   })
 
   it('writes each sample with the studio’s own treatment for a made-up guest tomorrow', () => {

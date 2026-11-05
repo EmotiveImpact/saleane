@@ -104,7 +104,7 @@ const groups = [
         label: 'Booking page & colours',
         icon: Palette,
         words:
-          'online booking link share google instagram facebook whatsapp chatgpt claude bot check logo',
+          'online booking link share google instagram facebook whatsapp chatgpt claude bot check logo look theme background white ivory',
       },
     ],
   },
