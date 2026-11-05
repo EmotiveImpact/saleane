@@ -152,7 +152,7 @@ function used(login: Login, talkSeconds: number) {
 const day = '2026-10-06'
 
 describe('who can talk', () => {
-  it('offers talking only with both OpenAI’s voice and Claude, and never in a sample studio', async () => {
+  it('offers talking only with both OpenAI’s voice and Claude, and never in a sample studio (where only typed questions use the AI)', async () => {
     const voice = fakeVoice()
     start(claude(anthropic([]).fetcher), voice.layer)
     const login = await register()
@@ -166,7 +166,7 @@ describe('who can talk', () => {
     const sample = await register(true, 'sample@example.invalid')
     expect(
       (await api.inject({ url: path(sample), headers: headers(sample) })).json(),
-    ).toMatchObject({ mode: 'test', talk: false })
+    ).toMatchObject({ mode: 'live', talk: false })
     expect((await talk(sample)).statusCode).toBe(409)
     expect(voice.starts).toHaveLength(0)
     api.close()

@@ -20,8 +20,6 @@ import { TeamWelcome } from './TeamWelcome'
 import '../account.css'
 import '../components/accessPanel.css'
 
-/** Online, the made-up studio lives on the website at /demo, so trying it never touches real accounts. */
-const ONLINE_DEMO = 'https://saleane.vercel.app/demo'
 /** Online, someone who is not signed in came from the website, so that is where "back" goes. */
 const WEBSITE = 'https://saleane.vercel.app/'
 
@@ -190,6 +188,37 @@ export function Account() {
       setPending(false)
     }
   }
+  /**
+   * The demo (5 November 2026): one press opens the visitor's own sample studio with the real AI.
+   * A visitor already holding a sample studio goes back to it instead of making another.
+   */
+  async function startDemo() {
+    setPending(true)
+    setError('')
+    try {
+      const held = store.session?.workspaces.find((w) => w.mode === 'sandbox')
+      if (held) {
+        await open(held.id, store.session)
+        return
+      }
+      const result = await api<{ orgId: string }>('/api/demo', { method: 'POST', body: {} })
+      const current = await store.refreshSession()
+      await open(result.orgId, current)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The demo could not be opened. Try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+  const demoAsked = useRef(false)
+  useEffect(() => {
+    // `/account?demo` (the website's "Try the demo") opens the demo straight away.
+    if (!online || !params.has('demo') || demoAsked.current) return
+    demoAsked.current = true
+    void startDemo()
+    // startDemo reads the latest store when it runs; it is asked once per visit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, params])
   /** After the password (and the code, with two-step sign-in on): join or open a studio. */
   async function finishSignIn() {
     // Signed in now, so the session (and its request token) comes first.
@@ -689,15 +718,9 @@ export function Account() {
                 </Button>
               )}
               {online ? (
-                <a
-                  className="button button-quiet"
-                  href={ONLINE_DEMO}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Explore the fictional demo
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>
+                <Button variant="quiet" disabled={pending} onClick={() => void startDemo()}>
+                  Try the demo, with the AI
+                </Button>
               ) : (
                 <Button
                   variant="quiet"
@@ -712,8 +735,9 @@ export function Account() {
             </div>
             {online && (
               <p className="account-demo-note">
-                The demo is a made-up studio with fictional clients. Trying it creates no account
-                and no business.
+                The demo is your own made-up studio with fictional clients, ready at once, and its
+                Ask SALEANE uses the real AI. Nobody else sees it, and no money or messages are
+                real.
               </p>
             )}
             <div className="account-footnote">

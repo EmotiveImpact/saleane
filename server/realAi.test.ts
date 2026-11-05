@@ -290,14 +290,18 @@ describe('Ask SALEANE with Claude', () => {
     })
   })
 
-  it('keeps a sample studio in test mode, so its fictional records never leave', async () => {
-    const { requests, fetcher } = anthropic([])
+  it('lets a sample studio (the demo) ask the real AI, with no talking', async () => {
+    const { requests, fetcher } = anthropic([words('Your 10 o’clock is a made-up client.')])
     start(claude(fetcher))
     const login = await register(true)
-    expect((await assistant(login)).json()).toMatchObject({ mode: 'test' })
+    expect((await assistant(login)).json()).toMatchObject({
+      mode: 'live',
+      supplier: 'claude',
+      talk: false,
+    })
     const answer = await ask(login, "Who's my 10 o'clock?")
     expect(answer.json()).toMatchObject({ status: 'answered' })
-    expect(requests).toEqual([])
+    expect(requests).toHaveLength(1)
   })
 })
 

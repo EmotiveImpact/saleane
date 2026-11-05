@@ -158,6 +158,38 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     reply(201, { orgId, csrf: signIn(response, accountId) })
     return true
   }
+  // The demo (5 November 2026): one press gives a visitor their own sample studio, signed in, with
+  // the real AI. Its records are made up, its money and messages are simulated, and nobody else
+  // sees it. The account has no address or password anyone knows, so it lasts as long as the visit.
+  if (method === 'POST' && url.pathname === '/api/demo') {
+    rateLimit(request, 'demo', 6, 10 * 60000)
+    if (options.allowRegistration === false) fail(403, 'New account registration is disabled.')
+    const accountId = randomUUID()
+    const hash = await passwordHash(`${randomUUID()}${randomUUID()}`)
+    const orgId = db.transaction(() => {
+      db.run(
+        'INSERT INTO accounts(id,email,name,password_hash,created_at) VALUES(?,?,?,?,?)',
+        accountId,
+        `demo-${accountId}@demo.saleane.invalid`,
+        'Demo visitor',
+        hash,
+        now(),
+      )
+      return insertWorkspace(
+        createWorkspace(
+          workspaceInput.parse({
+            name: 'Atelier House',
+            region: 'UK',
+            locationName: 'Marylebone',
+            sample: true,
+          }),
+        ),
+        accountId,
+      ).id
+    })
+    reply(201, { orgId, csrf: signIn(response, accountId) })
+    return true
+  }
   if (method === 'POST' && url.pathname === '/api/auth/forgot') {
     rateLimit(request, 'auth', 10, 5 * 60000)
     const data = z.object({ email: emailSchema }).strict().parse(body)

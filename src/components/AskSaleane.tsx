@@ -28,6 +28,8 @@ import { useStore } from '../state/context'
 import { Button, Modal, Select } from '../design'
 import './ask-saleane.css'
 import { ASK_NAME } from '../assistant/name'
+import { aiReader } from './useAiLive'
+import type { AiSupplierName } from './useAiLive'
 
 type Meter = { used: number; allowance: number; talk?: { used: number; allowance: number } }
 /** A change Ask prepared. Whether it waits, is saving or was decided is kept by its card. */
@@ -84,6 +86,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   )
   // Whether a real AI answers. Until the server says, the panel describes test mode.
   const [live, setLive] = useState(false)
+  const [supplier, setSupplier] = useState<AiSupplierName>()
   // NEXT-12 part 2: whether this studio can talk to Ask SALEANE, and the talk under way.
   const [canTalk, setCanTalk] = useState(false)
   const [talk, setTalk] = useState<Talking | null>(null)
@@ -118,10 +121,13 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (mode !== 'server' || !base) return
-    api<{ mode: 'live' | 'test'; talk?: boolean; usage: ServerUsage }>(base)
+    api<{ mode: 'live' | 'test'; supplier?: AiSupplierName; talk?: boolean; usage: ServerUsage }>(
+      base,
+    )
       .then((r) => {
         setMeter(meterFrom(r.usage))
         setLive(r.mode === 'live')
+        setSupplier(r.supplier)
         setCanTalk(!!r.talk)
       })
       .catch(() => {})
@@ -431,10 +437,10 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       <div className="ask-saleane">
         <p className="ask-mode">
           {live
-            ? 'Answers come from your studio records, read by Claude, an AI from Anthropic. Your question and the records needed to answer it are sent to Anthropic. Changes wait for your approval.'
+            ? `Answers come from your studio records, read by ${aiReader(supplier).who}. Your question and the records needed to answer it are sent to ${aiReader(supplier).where}. Changes wait for your approval.`
             : 'Test mode: answers come from your studio records. No AI service is connected, and nothing is sent.'}
           {canTalk &&
-            ' When you talk, your voice goes to OpenAI, which listens and speaks the answers Claude gives.'}
+            ' When you talk, your voice goes to OpenAI, which listens and speaks the answers the AI gives.'}
         </p>
         <Conversation className="ask-thread" follow={entries} endClassName="ask-end">
           {!entries.length && opening.length > 0 && (

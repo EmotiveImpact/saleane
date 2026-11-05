@@ -29,10 +29,12 @@ vi.mock('../state/context', () => ({
 const usage = { used: { typed: 3 }, allowance: { typed: 300 } }
 const mocked = vi.mocked(api)
 let mode: 'live' | 'test'
+let supplier: 'claude' | 'keiki' | undefined
 
 beforeEach(() => {
   mocked.mockReset()
   mode = 'live'
+  supplier = undefined
   mocked.mockImplementation(async (_path: string, options?: { method?: string }) =>
     options?.method === 'POST'
       ? {
@@ -41,7 +43,7 @@ beforeEach(() => {
           proposals: [],
           usage,
         }
-      : { mode, usage },
+      : { mode, supplier, usage },
   )
 })
 
@@ -71,6 +73,16 @@ describe('Ask SALEANE with a real AI', () => {
     })
   })
 
+  it('names Keiki when Keiki is the supplier, never Anthropic', async () => {
+    supplier = 'keiki'
+    render(<AskSaleane onClose={() => {}} />)
+    expect(
+      await screen.findByText(
+        'Answers come from your studio records, read by an AI model through Keiki, SALEANE’s AI supplier. Your question and the records needed to answer it are sent to Keiki. Changes wait for your approval.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('stays described as test mode until the server says otherwise', async () => {
     mode = 'test'
     render(<AskSaleane onClose={() => {}} />)
@@ -91,7 +103,7 @@ describe('the receptionist settings with a real AI', () => {
     )
     expect(
       await screen.findByText(
-        /It uses Claude, an AI from Anthropic: what guests write is sent there/,
+        /It uses Claude, an AI from Anthropic: what guests write is sent to Anthropic/,
       ),
     ).toBeInTheDocument()
   })

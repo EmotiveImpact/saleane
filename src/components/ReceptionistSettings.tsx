@@ -6,7 +6,7 @@ import { can, operations } from '../domain/operations'
 import { defaultReceptionist } from '../domain/receptionistSchema'
 import { Button, ErrorMessage, Checkbox } from '../design'
 import { useRun } from './usePayment'
-import { useAiLive } from './useAiLive'
+import { aiReader, useAiStatus } from './useAiLive'
 import { api } from '../state/api'
 
 /** NEXT-17: the phone line as the server sees it, for the studio's settings. */
@@ -64,7 +64,8 @@ export function ReceptionistSettings() {
   const [saved, setSaved] = useState(false)
   const { run, pending, error } = useRun()
   const allowed = !blocked && can(role, 'receptionist')
-  const live = useAiLive()
+  const { live, supplier } = useAiStatus()
+  const reader = aiReader(supplier)
   const phone = usePhoneStatus(saved)
   // Nothing can be turned on that cannot work yet; turning it off always can.
   const phoneReady = !!phone?.connected && (phone.included || phone.chosen)
@@ -85,7 +86,7 @@ export function ReceptionistSettings() {
             and free times. It always says it is an AI. It offers times for guests to book
             themselves and never books, cancels or takes a payment on its own.{' '}
             {live
-              ? 'It uses Claude, an AI from Anthropic: what guests write is sent there to be answered, and each chat counts towards your monthly guest chats.'
+              ? `It uses ${reader.who}: what guests write is sent to ${reader.where} to be answered, and each chat counts towards your monthly guest chats.`
               : 'It works in test mode: no AI supplier is used and it costs nothing.'}
           </p>
         </div>

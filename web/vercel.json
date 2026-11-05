@@ -1,8 +1,31 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "redirects": [
-    { "source": "/app", "destination": "/account", "permanent": false },
-    { "source": "/app/", "destination": "/account", "permanent": false }
+    {
+      "source": "/app",
+      "destination": "/account",
+      "permanent": false
+    },
+    {
+      "source": "/app/",
+      "destination": "/account",
+      "permanent": false
+    },
+    {
+      "source": "/demo",
+      "destination": "/account?demo",
+      "permanent": false
+    },
+    {
+      "source": "/demo/",
+      "destination": "/account?demo",
+      "permanent": false
+    }
   ],
-  "rewrites": [{ "source": "/:path*", "destination": "https://saleane-app.vercel.app/:path*" }]
+  "rewrites": [
+    {
+      "source": "/:path*",
+      "destination": "https://saleane-app.vercel.app/:path*"
+    }
+  ]
 }
