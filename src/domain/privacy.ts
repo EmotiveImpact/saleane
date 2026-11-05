@@ -1,3 +1,4 @@
+import { lifeEvents } from './followUps'
 import type { Appointment, BusinessState } from './model'
 import { operations } from './operations'
 import { isSocialChannel, socialLabel } from './inboxSchema'
@@ -108,6 +109,14 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       clientSince: client.createdAt,
       ...(client.birthday ? { birthday: client.birthday } : {}),
       ...(client.postcodeArea ? { postcodeArea: client.postcodeArea } : {}),
+      // 4 November 2026: dated life events they shared, for follow-ups.
+      ...(lifeEvents(state).some((e) => e.clientId === client.id)
+        ? {
+            lifeEvents: lifeEvents(state)
+              .filter((e) => e.clientId === client.id)
+              .map((e) => ({ label: e.label, date: e.date, recordedAt: e.addedAt })),
+          }
+        : {}),
     },
     consent: {
       emailMarketing: client.marketingConsent,

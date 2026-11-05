@@ -12,7 +12,7 @@ const two = (n: number) => String(n).padStart(2, '0')
 
 /**
  * V1.5: a client's birthday, month and day only. With their agreement to hear from the studio it
- * brings a birthday email; it is never shown to practitioners.
+ * brings a birthday draft to approve (4 November 2026); it is never shown to practitioners.
  */
 export function ClientBirthday({ client }: { client: Client }) {
   const { state, commit, blocked, role } = useStore()
@@ -88,8 +88,8 @@ export function ClientBirthday({ client }: { client: Client }) {
         <p className="subtle">
           Month and day only, never the year.{' '}
           {client.marketingConsent
-            ? 'They agreed to hear from you, so they get a birthday email on the day.'
-            : 'They have not agreed to hear from you, so no birthday email goes.'}
+            ? 'They agreed to hear from you, so a birthday draft waits in the Inbox the week before, for you to approve.'
+            : 'They have not agreed to hear from you, so no birthday email is written.'}
         </p>
         <ErrorMessage error={valid ? error : 'That date does not exist. Choose another day.'} />
         <p className="ops-save-note" role="status">

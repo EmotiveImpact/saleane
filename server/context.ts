@@ -11,7 +11,7 @@ import type { Providers } from './messaging/providers'
 import { providersFromEnv } from './messaging/providers'
 import type { PaymentProvider } from './payments/providers'
 import { paymentProviderFromEnv } from './payments/providers'
-import { aiFromEnv } from './ai'
+import { aiFromEnv, testAi } from './ai'
 import type { AiSupplier } from './ai'
 import { voiceFromEnv } from './voice'
 import { phoneFromEnv } from './phoneLine'
@@ -188,6 +188,25 @@ export type ApiOptions = {
    * Omitted reads OPENAI_PROJECT_ID and OPENAI_WEBHOOK_SECRET; unset or null answers no calls.
    */
   phone?: PhoneLine | null
+  /**
+   * Keeps everything written so far before SALEANE reaches an outside service (a message, a card,
+   * a webhook). On a computer the database file is already lasting, so this is left out. Hosted
+   * (server/hosted.ts), it keeps the copy in Neon and answers false when another instance kept one
+   * first: then nothing may be sent or charged, as the mark saying so was not kept.
+   */
+  durable?: () => Promise<boolean>
+  /** Bookings by message through the gateway; read from SALEANE_GATEWAY when left out. */
+  gateway?: import('./gateway').GatewayOptions
+}
+
+/** Thrown when the mark made before an outside call could not be kept; nothing was sent. */
+export class NotKept extends HttpError {
+  constructor() {
+    super(
+      503,
+      'SALEANE was busy saving another change, so nothing was sent or charged. Please try again.',
+    )
+  }
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -210,7 +229,17 @@ export function createContext(options: ApiOptions) {
   const messaging = options.providers ?? providersFromEnv(process.env, allowedOrigin)
   const paymentProvider =
     options.paymentProvider ?? paymentProviderFromEnv(process.env, allowedOrigin)
-  const ai = options.ai ?? aiFromEnv(process.env)
+  // A wrong AI setting turns the AI off with a logged reason; it never stops sign-in, bookings or
+  // the diary for every studio (4 November 2026: a mistyped price took the whole app down).
+  let aiProblem: string | undefined
+  let ai: AiSupplier
+  try {
+    ai = options.ai ?? aiFromEnv(process.env)
+  } catch (error) {
+    aiProblem = error instanceof Error ? error.message : String(error)
+    console.error(`SALEANE AI is off: ${aiProblem}`)
+    ai = testAi
+  }
   const voice = options.voice ?? voiceFromEnv(process.env)
   // The voice only listens and speaks; Claude answers. A voice without Claude would have nothing to say.
   if (voice.live && !ai.live)
@@ -622,10 +651,18 @@ export function createContext(options: ApiOptions) {
     audit(org, accountId, 'invitation.accepted', accountId)
     return org.id
   }
+  /**
+   * Called just before each outside call, once its "about to send or charge" mark is written.
+   * Throws NotKept when that mark could not be kept, so the call is never made.
+   */
+  const beforeOutside = async () => {
+    if (options.durable && !(await options.durable())) throw new NotKept()
+  }
   return {
     options,
     origin,
     allowedOrigin,
+    beforeOutside,
     db,
     now,
     dummyHash,
@@ -636,6 +673,7 @@ export function createContext(options: ApiOptions) {
     messaging,
     paymentProvider,
     ai,
+    aiProblem,
     voice,
     phone,
     transcriber,

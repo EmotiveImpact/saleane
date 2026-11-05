@@ -507,6 +507,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       return { bill, row, key }
     })
     if (!claimed) return invoice(id)?.status ?? 'void'
+    // Hosted: the bill's "charging" claim and its key are kept before the card is tried.
+    if (provider.name !== 'test') await ctx.beforeOutside()
     return ask(claimed.key, claimed.bill, claimed.row, actorId)
   }
   async function ask(key: string, bill: InvoiceRow, row: PlanRow, actorId: string | null) {

@@ -3,7 +3,15 @@ import { z } from 'zod'
 import { checkPassword, digest, passwordHash } from '../auth'
 import { COOKIE, fail, sessionToken } from '../http'
 import { createWorkspace, workspaceInput } from '../workspace'
-import { claimLink, linkInLog, mailLink, mailNotice, openLink, tooManyLinks } from '../accountMail'
+import {
+  claimLink,
+  linkInLog,
+  mailLink,
+  mailNotice,
+  onThisComputer,
+  openLink,
+  tooManyLinks,
+} from '../accountMail'
 import {
   CHALLENGE_TRIES,
   matchStep,
@@ -76,7 +84,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     reply(200, {
       ok: true,
       database: 'sqlite',
-      localOnly: true,
+      localOnly: onThisComputer(ctx),
       passkeysHere: !!passkeys,
       services: {
         email: ctx.messaging.email.live || ctx.messaging.sms.live,
@@ -84,6 +92,8 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         ai: ctx.ai.live,
         voice: ctx.voice.live,
       },
+      // No setting values here: only that the AI settings could not be read.
+      aiSettingsValid: !ctx.aiProblem,
     })
     return true
   }
@@ -109,7 +119,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
       csrf: actor.csrf,
       passkeysHere: !!passkeys,
       workspaces: memberships(actor),
-      localOnly: true,
+      localOnly: onThisComputer(ctx),
       services: {
         email: ctx.messaging.email.live || ctx.messaging.sms.live,
         payments: ctx.paymentProvider.live,

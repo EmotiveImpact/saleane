@@ -2,6 +2,29 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-11-04 · Bookings by message, safer saves online, and follow-ups to approve
+
+**Status: in progress on 4 November 2026, on draft PR #129. Not merged and not deployed. Checked with automated tests and fictional data on a local server only; no Keiki, iMessage, WhatsApp or card service was called.**
+
+- Keep-then-call online: before any outside call (a message, a card charge or refund, the SALEANE bill, a connection), the record of it is kept in Neon first. If that save fails, nothing is sent or charged and the person is asked to try again. One instance at a time runs the timed work, by a lease in Neon. Saves now go one at a time, and a change made while a save is on its way stays unsaved until a later save carries it.
+- Ending a card-paid membership with a refund now keeps the started refund before the card service is asked, so a lost save can never lead to a second refund.
+- The messaging gateway (`/api/gateway/mcp`, off unless `SALEANE_GATEWAY=on` with a long key): one server-to-server connection for carriers such as Keiki, using SALEANE's own booking tools. The studio and location come from the line and the guest, never from the AI. A studio with several locations needs the guest's own choice first. A line becomes one studio's own only after the carrier sets it up for that studio, and no guest's choice on a shared line is ever removed. A booked visit carries its reference, and a retried message returns the same visit.
+- Keiki can be the AI supplier through its Anthropic-compatible gateway, with a price ceiling that must be set.
+- Birthday emails no longer send by themselves (owner decision, 4 November 2026). A week before a guest's birthday, and around dated life events a guest shared (a wedding, a new job), SALEANE can write a draft that waits in the Inbox for approval. Only the owner can add a gentle offer. Life events refuse health, medical and bereavement words, and follow-ups never read notes or consultations. The screens to record life events and list what is coming up are not built yet.
+
+## 2026-11-04 · SALEANE online, in test mode
+
+**Status: in progress on 4 November 2026. Deployed on the owner's "get the app working online now" to https://saleane-app.vercel.app (Vercel project `saleane-app`, London), with its data in Neon (project `saleane-app`, London). Every provider stays in test mode: no card payments, texts or emails go out, and Ask SALEANE uses its test answers until a Claude key is added.**
+
+- The app runs on Vercel: the pages as plain files, and one function answering every `/api` path with the same server and the same rules as on a computer. Its single database is kept as a whole compressed copy in Neon, and an answer that changed something is only sent once that copy is kept, so nothing a person was told was saved can be lost between visits. See [Hosting on Vercel with Neon](server/README.md#hosting-on-vercel-with-neon-4-november-2026) for how, and for its limits.
+- Run online, the sign-in page, About this version and Who can sign in no longer say records are saved "on this computer": they say SALEANE is online in test mode, ask for made-up client details for now, and explain that invitation and password emails are not sent yet. On a computer the words are unchanged. `/api/health` and `/api/session` now report `localOnly: false` at a public address.
+- Deploys are chosen, never automatic: `vercel.json` turns off deploys on every push, and `npm run build:vercel` builds what Vercel serves.
+- Online, the sign-in page's "Explore the fictional demo" opens the made-up studio on the website at https://saleane.vercel.app/demo in a new tab, with a line saying it creates no account; `/account?create` (the website's "Start free") opens straight on making a studio; and a signed-out visitor's "back" and the SALEANE name go to the website rather than the in-browser preview. Inside a real studio the notice says "Your studio" rather than "Local studio".
+- The sign-in page no longer shows "Face ID sign-in did not work" as soon as it opens in a browser that says it can offer saved passkeys and then cannot. That quiet offer now speaks up only when SALEANE itself refuses a passkey someone picked.
+- After a demo booking, "View in the workspace" opens the calendar on the booked day rather than the demo's today.
+- The missed-call booking tests now hold the clock on 6 October 2026: their fixed dates had passed, so they failed on every branch since 13 October.
+- Checked live on 4 November 2026 (production 55d8b72, Neon linked, Chromium): a new studio with sample clients signed up in about 5.5 s; a desk booking two weeks out was kept, was still there after signing out and in again, and showed on that day's calendar; Today, Clients, Money and Settings opened at 1440 px and Today and Calendar at 390 px. A second, empty studio signed up in a separate browser saw only itself, and asking for or changing the first studio's records was refused with "That studio was not found" (404); the first studio's visit was unchanged.
+
 ## 2026-11-03 · Clean white, a background a studio can choose
 
 **Status: built locally on 3 November 2026 and checked in Chromium at 1440 and 390 px, not yet in Safari or Firefox. Not merged; it waits for the owner's "merge". Nothing deployed.** [Evidence](docs/evidence/CLEAN-WHITE.md).

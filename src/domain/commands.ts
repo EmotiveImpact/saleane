@@ -79,6 +79,7 @@ import { offerInviteUnchanged, offerToBook, runOfferInvite } from './quietInvite
 import { runRetentionCommand, stampRetentionActors } from './retentionDue'
 import { offerPrices } from './quietOffers'
 import { twoStepForEveryone } from './twoStepRule'
+import { followUpUnchanged, runFollowUpCommand } from './followUps'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -904,6 +905,14 @@ export function execute(
       const same = offerInviteUnchanged(s, command)
       if (same) return { ok: true, state: s, recordId: same }
       recordId = runOfferInvite(next, command, now, makeId, addEvent)
+    } else if (
+      command.type === 'life-event' ||
+      command.type === 'life-event-remove' ||
+      command.type === 'follow-up-draft'
+    ) {
+      const same = followUpUnchanged(s, command, now)
+      if (same) return { ok: true, state: s, recordId: same }
+      recordId = runFollowUpCommand(next, command, now, makeId, addEvent)
     } else if (command.type === 'quiet-offers') {
       const known = new Set(s.services.map((service) => service.id))
       if (command.settings.leftOutIds.some((id) => !known.has(id)))

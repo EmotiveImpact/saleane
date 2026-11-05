@@ -33,7 +33,7 @@ type Team = {
   }[]
 }
 export function AccessPanel() {
-  const { state, role, mode } = useStore()
+  const { state, role, mode, session } = useStore()
   const base = `/api/workspaces/${state.organisation.id}`
   const [team, setTeam] = useState<Team | null>(null),
     [error, setError] = useState(''),
@@ -119,8 +119,10 @@ export function AccessPanel() {
         <div>
           <h2 id="access-title">Who can sign in</h2>
           <p>
-            Each person signs in with their own account. Invitation links open on this computer for
-            now, and no email is sent.
+            Each person signs in with their own account.{' '}
+            {session?.localOnly === false
+              ? 'Email is not connected yet, so copy each invitation link and send it yourself.'
+              : 'Invitation links open on this computer for now, and no email is sent.'}
           </p>
         </div>
         <KeyRound size={21} aria-hidden="true" />

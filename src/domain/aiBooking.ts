@@ -352,6 +352,8 @@ export function bookedAnswer(
   const data = {
     booked: true,
     visit: {
+      /** The visit's own reference, the same on a retry, so a caller can check it booked once. */
+      reference: visit.id,
       treatment: name,
       date: visit.date,
       start: clockText(visit.startMinutes),

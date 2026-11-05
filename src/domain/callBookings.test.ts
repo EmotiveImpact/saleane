@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { seed } from './seed'
 import { dispatch, execute, slots } from './commands'
 import type { Command } from './commands'
@@ -13,6 +13,13 @@ const makeId = () => `callbook-${++sequence}`
 // 10:00 in London on 6 October.
 const AT = '2026-10-06T09:00:00.000Z'
 const DAY = '2026-10-13'
+// The sample studio and the booking rules read today's date, so the clock stays on 6 October.
+beforeAll(() => {
+  vi.useFakeTimers({ now: new Date(AT), toFake: ['Date'] })
+})
+afterAll(() => {
+  vi.useRealTimers()
+})
 function run(s: BusinessState, command: Command, now = AT) {
   const result = execute(s, command, now, makeId)
   if (!result.ok) throw new Error(result.error)

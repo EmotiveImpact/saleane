@@ -5,6 +5,7 @@ import {
   receptionistSettingsSchema,
 } from './receptionistSchema'
 import { aiBookingSchema } from './aiBookingSchema'
+import { LIFE_EVENT_LIMIT, followUpMarkSchema, lifeEventSchema } from './followUpsSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import {
@@ -373,6 +374,8 @@ export const operationsSchema = z.object({
        * A guest books it only through the private link in their email, once.
        */
       offer: messageOfferSchema.optional(),
+      /** 4 November 2026: the birthday or life event a follow-up marks, and any gentle offer. */
+      followUp: followUpMarkSchema.optional(),
     }),
   ),
   refunds: z.array(
@@ -433,6 +436,8 @@ export const operationsSchema = z.object({
   googleBooking: googleBookingSchema.optional(),
   /** Stage 5: whether guests can book through ChatGPT or Claude. Absent means it is off. */
   aiBooking: aiBookingSchema.optional(),
+  /** 4 November 2026: dated life events guests shared, for follow-ups (followUps.ts). */
+  lifeEvents: z.array(lifeEventSchema).max(LIFE_EVENT_LIMIT).optional(),
   /** V5: locations grouped into regions, and each location's monthly takings target. */
   regions: z.array(regionSchema).max(REGION_LIMIT).optional(),
   targets: z.array(targetSchema).max(TARGET_LIMIT).optional(),
@@ -693,7 +698,7 @@ export function stock(s: BusinessState, productId: string, locationId?: string) 
     )
     .reduce((sum, m) => sum + m.quantity, 0)
 }
-export function permissionFor(command: { type: string; approve?: boolean }) {
+export function permissionFor(command: { type: string; approve?: boolean; percent?: number }) {
   // Writing and approving in one step needs the right to approve.
   if (command.type === 'message' && command.approve) return 'message.queue'
   if (['service', 'staff', 'guest-notes', 'offer'].includes(command.type)) return 'catalogue'
@@ -729,6 +734,10 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   // Stage 5: an invitation to a quiet time at a lower price is written by whoever writes messages;
   // the lower price itself is the owner's setting.
   if (command.type === 'offer-invite') return 'message'
+  // 4 November 2026: life events are noted by anyone who notes things about a guest; a follow-up
+  // is written by whoever writes messages, and only the owner adds a gentle offer to one.
+  if (command.type === 'life-event' || command.type === 'life-event-remove') return 'note'
+  if (command.type === 'follow-up-draft') return command.percent ? 'quiet-offers' : 'message'
   // Stage 6: deleting or keeping records at the end of their period is one decision.
   if (command.type === 'retention-delete' || command.type === 'retention-keep') return 'retention'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'

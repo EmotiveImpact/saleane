@@ -590,7 +590,11 @@ export function createOutbox(ctx: Context, providers: Providers) {
       const claimed = claim(candidate)
       if (!claimed) continue
       const { row, message } = claimed
-      const result = await providerFor(providers, row.channel).send(message)
+      const provider = providerFor(providers, row.channel)
+      // Hosted: the "unknown" mark is kept in Neon before anything leaves. If it cannot be kept,
+      // nothing goes, and the pass stops; the next one starts from the kept copy.
+      if (provider.name !== 'test') await ctx.beforeOutside()
+      const result = await provider.send(message)
       if (result.outcome === 'test') {
         finish(row, 'test', { detail: null })
         // Stage 5: with email in test mode the private link went nowhere, so it is shown here for

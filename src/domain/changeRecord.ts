@@ -207,6 +207,10 @@ const commandWords: Record<Command['type'], Words> = {
   'retention-keep': ['clients', 'Kept records past the end of their keeping period'],
   // Stage 6: asking everyone in the studio to use two-step sign-in.
   'two-step-rule': ['access', 'Changed whether everyone must use two-step sign-in'],
+  // 4 November 2026: life events guests shared, and the follow-ups that mark them.
+  'life-event': ['clients', 'Recorded a client’s life event'],
+  'life-event-remove': ['clients', 'Removed a client’s life event'],
+  'follow-up-draft': ['messages', 'Wrote a birthday or life event follow-up'],
 }
 
 /** Changes the server makes or records itself. */
@@ -273,6 +277,10 @@ const serverWords: Record<string, Words> = {
   'ai-booking.chatgpt': ['visits', 'Booked through ChatGPT'],
   'ai-booking.claude': ['visits', 'Booked through Claude'],
   'ai-booking.assistant': ['visits', 'Booked through an AI assistant'],
+  'ai-booking.imessage': ['visits', 'Booked by message on iMessage'],
+  'ai-booking.whatsapp': ['visits', 'Booked by message on WhatsApp'],
+  'gateway.line': ['settings', 'Added a messaging line for booking by message'],
+  'gateway.line-removed': ['settings', 'Removed a messaging line'],
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
   'phone.answered': ['messages', 'Answered a call'],
   'inbox.reply': ['messages', 'A message came in'],
@@ -318,6 +326,8 @@ export function automaticSource(action: string) {
   if (action === 'ai-booking.chatgpt') return 'A guest, through ChatGPT'
   if (action === 'ai-booking.claude') return 'A guest, through Claude'
   if (action === 'ai-booking.assistant') return 'A guest, through an AI assistant'
+  if (action === 'ai-booking.imessage') return 'A guest, by message on iMessage'
+  if (action === 'ai-booking.whatsapp') return 'A guest, by message on WhatsApp'
   if (action.startsWith('payment.')) return 'A guest paying by card'
   if (action === 'phone.missed-call') return 'The studio phone line'
   if (action === 'phone.answered') return 'The AI receptionist, on the phone'

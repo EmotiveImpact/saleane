@@ -16,12 +16,14 @@ export const LINKS_PER_HOUR = 5
 const PATH: Record<LinkKind, string> = { reset: '/reset-password', confirm: '/confirm-email' }
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]'])
 
+/** Whether SALEANE answers this computer alone, rather than a public address. */
+export const onThisComputer = (ctx: Pick<Context, 'origin'>) => LOOPBACK.has(ctx.origin.hostname)
+
 /**
  * With email in test mode, the link is written in the server log, but only when SALEANE runs for
  * this computer alone. Anywhere else a log can be read by others, so the link is never written.
  */
-export const linkInLog = (ctx: Context) =>
-  !ctx.messaging.email.live && LOOPBACK.has(ctx.origin.hostname)
+export const linkInLog = (ctx: Context) => !ctx.messaging.email.live && onThisComputer(ctx)
 
 /**
  * Makes a new link. Earlier links of the same kind keep working until they expire or one of them

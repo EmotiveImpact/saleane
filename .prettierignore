@@ -6,3 +6,4 @@ output
 docs/archive
 package-lock.json
 *.tsbuildinfo
+.vercel

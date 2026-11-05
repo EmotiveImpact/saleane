@@ -423,6 +423,7 @@ export function createConnections(ctx: Context, transport: ConnectionTransport) 
       })
       if (!claimed) continue
       const { row, connection } = claimed
+      if (transport.mode === 'live') await ctx.beforeOutside()
       const timestamp = Math.floor(now() / 1000)
       const result = await transport.post(
         connection.url,

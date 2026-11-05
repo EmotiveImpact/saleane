@@ -585,7 +585,8 @@ describe('appointment messages (PILOT-01)', () => {
     })
   })
 
-  it('wishes a guest who agreed a happy birthday once, from no visit in particular', async () => {
+  it('sends no birthday email by itself; an approved birthday draft goes once', async () => {
+    // Owner decision, 4 November 2026: birthdays are drafts to approve, like life events.
     const { serviceId, staffId, slug, owner } = await localStudio()
     const keen = { ...contact, marketingConsent: true }
     await book(slug, serviceId, staffId, '2026-10-08', keen)
@@ -594,37 +595,40 @@ describe('appointment messages (PILOT-01)', () => {
     const guest = state.clients.find((c) => c.email === keen.email)!
     await run(owner, { type: 'client-birthday', clientId: guest.id, birthday: '10-07' })
     sent = []
-    // 7 October, 09:30 in London.
+    // 7 October, 09:30 in London: the birthday itself.
     clock = Date.parse('2026-10-07T08:30:00.000Z')
     await signIn(owner)
     await api.outbox.tick()
-    expect(sent.map((m) => [m.subject, m.to])).toEqual([
-      ['Happy birthday from Linden Studio', keen.email],
-    ])
-    // Already booked for tomorrow, so simply a happy birthday with no invitation.
-    expect(sent[0].body).toContain('We look forward to seeing you soon.')
-    expect(sent[0].body).not.toContain('{{')
-    expect(sent[0].stream).toBe('broadcast')
-    expect(rows().find((r) => r.kind === 'birthday')).toMatchObject({
-      appointment_id: '',
-      client_id: guest.id,
-      slot: '2026',
+    expect(sent).toEqual([])
+    expect(rows().find((r) => r.kind === 'birthday')).toBeUndefined()
+    // The owner writes the draft and approves it: it goes once, to the guest.
+    const draftId = await run(owner, {
+      type: 'follow-up-draft',
+      clientId: guest.id,
+      about: 'birthday',
     })
-    sent = []
-    clock = Date.parse('2026-10-07T12:00:00.000Z')
+    await run(owner, { type: 'message-queue', messageId: draftId })
     await api.outbox.tick()
-    expect(sent.map((m) => m.subject)).not.toContain('Happy birthday from Linden Studio')
+    await api.outbox.tick()
+    const wishes = sent.filter((m) => m.subject.startsWith('Happy birthday'))
+    expect(wishes.map((m) => m.to)).toEqual([keen.email])
+    expect(wishes[0].body).toContain('You are hearing this because you said we could keep in touch')
   })
 
   it('sends no automatic marketing email once the month’s marketing emails are used', async () => {
     const { serviceId, staffId, slug, owner } = await localStudio()
+    await withReturnWeeks(owner, serviceId)
     const keen = { ...contact, marketingConsent: true }
-    await book(slug, serviceId, staffId, '2026-10-08', keen)
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06', keen)
     await api.outbox.tick()
-    const { state } = await workspace(owner)
-    const guest = state.clients.find((c) => c.email === keen.email)!
-    await run(owner, { type: 'client-birthday', clientId: guest.id, birthday: '10-07' })
-    // NEXT-14: the location's 2,000 for October have gone already.
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    await api.outbox.tick()
+    clock = Date.parse('2026-11-14T10:00:00.000Z')
+    // NEXT-14: the location's 2,000 for November have gone already.
     api.database.run(
       `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<2000)
        INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
@@ -635,20 +639,13 @@ describe('appointment messages (PILOT-01)', () => {
       clock,
     )
     sent = []
-    clock = Date.parse('2026-10-07T08:30:00.000Z')
     await signIn(owner)
     await api.outbox.tick()
-    expect(sent.map((m) => m.subject)).not.toContain('Happy birthday from Linden Studio')
-    expect(rows().find((r) => r.kind === 'birthday')).toMatchObject({
+    expect(sent.map((m) => m.subject)).not.toContain('Time for your next visit to Linden Studio?')
+    expect(rows().find((r) => r.kind === 'due_back')).toMatchObject({
       status: 'skipped',
       detail: 'Not sent: this month’s marketing emails were all used.',
     })
-    // Messages about a visit never count and still go.
-    expect(
-      rows()
-        .filter((r) => r.kind === 'confirmation')
-        .map((r) => r.status),
-    ).not.toContain('skipped')
   })
 
   it('skips a we miss you note when the guest books before it goes', async () => {

@@ -15,6 +15,7 @@ import {
   planMessages,
 } from './reminders'
 import type { RecordedMessage } from './reminders'
+import { followUpsDue } from './followUps'
 
 // V1.5: a birthday email and a "we miss you" email, for guests who agreed to hear.
 let sequence = 0
@@ -41,18 +42,12 @@ describe('birthday email', () => {
     expect(birthdayIn('10-09', 2026)).toBe('2026-10-09')
   })
 
-  it('goes once on the day, in the daytime, to a guest who agreed', () => {
+  it('no longer goes by itself: it is a draft to approve (owner decision, 4 November 2026)', () => {
     const s = local()
-    expect(birthdayDue(s, noor(s), '2026-10-08T12:00:00.000Z')).toBe(false)
-    expect(birthdayDue(s, noor(s), '2026-10-09T06:00:00.000Z')).toBe(false)
-    const plan = planMessages(s, birthday, []).filter((m) => m.kind === 'birthday')
-    expect(plan.map((m) => [m.clientId, m.slot, m.appointmentId])).toEqual([
-      ['client-1', '2026', ''],
-    ])
-    expect(plan[0].subject).toBe(`Happy birthday from ${s.organisation.name}`)
-    expect(plan[0].body).toContain('To stop these, reply to this email')
-    const recorded: RecordedMessage[] = plan.map((m) => ({ ...m, status: 'skipped' }))
-    expect(kinds(s, '2026-10-09T12:00:00.000Z', recorded)).not.toContain('client-1:birthday:2026')
+    expect(birthdayDue(s, noor(s), birthday)).toBe(true)
+    expect(planMessages(s, birthday, []).filter((m) => m.kind === 'birthday')).toEqual([])
+    const due = followUpsDue(s, '2026-10-06T12:00:00.000Z').filter((f) => f.kind === 'birthday')
+    expect(due.map((f) => [f.clientId, f.date])).toEqual([['client-1', '2026-10-09']])
   })
 
   it('only wishes a happy birthday, with no invitation, when a visit is already booked', () => {
@@ -75,9 +70,11 @@ describe('birthday email', () => {
     expect(birthdayDue(declined, noor(declined), birthday)).toBe(false)
     const twin = structuredClone(s)
     twin.clients.push({ ...noor(s), id: 'client-z' })
-    expect(kinds(twin, birthday).filter((k) => k.includes('birthday'))).toEqual([
-      'client-1:birthday:2026',
-    ])
+    expect(
+      followUpsDue(twin, '2026-10-06T12:00:00.000Z')
+        .filter((f) => f.kind === 'birthday')
+        .map((f) => f.clientId),
+    ).toEqual(['client-1'])
   })
 
   it('lets reception record a birthday, month and day only, and refuses a date that cannot exist', () => {
