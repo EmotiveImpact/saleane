@@ -8,17 +8,22 @@ import { StoreProvider } from './state/StoreProvider'
 import { App } from './App'
 import { DaySheetGate } from './components/DaySheetGate'
 import { StudioLanding } from './components/StudioLanding'
+import { movedAddress } from './state/online'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <StoreProvider>
-        <DaySheetGate>
-          <StudioLanding>
-            <App />
-          </StudioLanding>
-        </DaySheetGate>
-      </StoreProvider>
-    </BrowserRouter>
-  </StrictMode>,
-)
+// SALEANE has one address: the hosting address sends people to the website's, which forwards here.
+const moved = movedAddress(window.location)
+if (moved) window.location.replace(moved)
+else
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <BrowserRouter>
+        <StoreProvider>
+          <DaySheetGate>
+            <StudioLanding>
+              <App />
+            </StudioLanding>
+          </DaySheetGate>
+        </StoreProvider>
+      </BrowserRouter>
+    </StrictMode>,
+  )

@@ -142,6 +142,11 @@ export const HOLD_LIMITS = {
 
 export type ApiOptions = {
   origin: string
+  /**
+   * Other host names this server also answers as, such as its own hosting address when the
+   * public address forwards to it. Pages, links, passkeys and the origin check use `origin`.
+   */
+  alsoHosts?: string[]
   databasePath?: string
   database?: LocalDatabase
   now?: () => number

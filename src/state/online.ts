@@ -17,6 +17,11 @@ export function runsOnline(): Promise<boolean> {
   return known
 }
 
+/** A first guess before the server answers: any address other than this computer is online. */
+export function seemsOnline() {
+  return !LOOPBACK.has(globalThis.location?.hostname ?? 'localhost')
+}
+
 /** The same as a hook: false (this computer) until the answer comes. */
 export function useRunsOnline() {
   const [online, setOnline] = useState(false)
@@ -30,4 +35,13 @@ export function useRunsOnline() {
     }
   }, [])
   return online
+}
+
+/** Hosting addresses that are not where people should be, and the one address that is. */
+const MOVED: Record<string, string> = { 'saleane-app.vercel.app': 'https://saleane.vercel.app' }
+
+/** Where to send a visitor who reached SALEANE by its hosting address, keeping the page. */
+export function movedAddress(place: Pick<Location, 'hostname' | 'pathname' | 'search' | 'hash'>) {
+  const home = MOVED[place.hostname]
+  return home ? `${home}${place.pathname}${place.search}${place.hash}` : null
 }

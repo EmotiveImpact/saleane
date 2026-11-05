@@ -229,7 +229,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       response.end(JSON.stringify(body))
     }
     try {
-      if (header(request, 'host') !== origin.host)
+      const host = header(request, 'host')
+      if (host !== origin.host && !options.alsoHosts?.includes(host ?? ''))
         fail(403, 'This request must use the configured SALEANE address.')
       const method = request.method ?? 'GET'
       const url = new URL(request.url!, allowedOrigin)
