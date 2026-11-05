@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Account } from './Account'
@@ -11,11 +11,12 @@ vi.mock('../state/api', async (importOriginal) => ({
 const where = { online: false }
 vi.mock('../state/online', () => ({ useRunsOnline: () => where.online }))
 const enterDemo = vi.fn()
+const openWorkspace = vi.fn()
 vi.mock('../state/context', () => ({
   useStore: () => ({
     session: null,
     refreshSession: async () => null,
-    openWorkspace: vi.fn(),
+    openWorkspace,
     state: { organisation: { locale: 'en-GB' } },
     enterDemo,
     logout: vi.fn(),
@@ -37,15 +38,18 @@ function signIn() {
   )
 }
 
-test('online, the fictional demo opens its own Vercel site in a new tab', async () => {
+test('online, the demo opens the visitor’s own sample studio with the real AI', async () => {
   where.online = true
   signIn()
-  const demo = await screen.findByRole('link', { name: /Explore the fictional demo/ })
-  expect(demo).toHaveAttribute('href', 'https://saleane.vercel.app/demo')
-  expect(demo).toHaveAttribute('target', '_blank')
-  expect(demo).toHaveAttribute('rel', 'noopener noreferrer')
-  expect(demo).toHaveAccessibleName(/opens in a new tab/)
-  expect(screen.getByText(/made-up studio with fictional clients/)).toBeInTheDocument()
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === '/api/demo') return { orgId: 'demo-org' }
+    throw new ApiError('Sign in to continue.', 401)
+  })
+  const demo = await screen.findByRole('button', { name: 'Try the demo, with the AI' })
+  expect(screen.getByText(/uses the real AI/)).toBeInTheDocument()
+  demo.click()
+  await waitFor(() => expect(api).toHaveBeenCalledWith('/api/demo', { method: 'POST', body: {} }))
+  await waitFor(() => expect(openWorkspace).toHaveBeenCalledWith('demo-org'))
   expect(enterDemo).not.toHaveBeenCalled()
 })
 
