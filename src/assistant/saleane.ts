@@ -28,6 +28,8 @@ import {
 } from '../domain/insights'
 import { GUEST_CANCEL_CUTOFF_HOURS, visitStart } from '../domain/guest'
 import { holdings, planStanding } from '../domain/plans'
+import { places } from '../domain/locations'
+import { openingOn } from './receptionist'
 import { dueTasks, openTasks } from '../domain/tasks'
 import { searchHelp } from '../domain/help'
 import { clientUsualSkill } from './usualSkills'
@@ -234,6 +236,35 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
             .filter((p) => !p.archived)
             .map((p) => ({ staffId: p.id, name: p.name, serviceIds: p.serviceIds })),
         }
+      },
+    }),
+    readSkill<AskContext, { from?: string; days?: number }>({
+      name: 'opening_hours',
+      description:
+        'When the studio is open on each day from a date (today unless given), for up to 14 days: each location\'s hours that day after any closure, or "Closed". Use for questions about opening hours, closures or whether the studio is open.',
+      input: z
+        .object({ from: isoDate.optional(), days: z.number().int().min(1).max(14).optional() })
+        .strict(),
+      allowed: studio,
+      run(ctx, { from, days }) {
+        const start = from ?? ctx.today
+        const open = places(ctx.state)
+        return Array.from({ length: days ?? 7 }, (_, i) => {
+          const date = addDays(start, i)
+          return {
+            date,
+            day: dateLabel(date, ctx.state.organisation.locale),
+            places: open.map((p) => {
+              const spans = openingOn(ctx.state, date, p.id)
+              return {
+                location: p.name,
+                open: spans.length
+                  ? spans.map((s) => `${time(ctx, s.open)} to ${time(ctx, s.close)}`)
+                  : 'Closed',
+              }
+            }),
+          }
+        })
       },
     }),
     readSkill<AskContext, { time: number; date?: string }>({

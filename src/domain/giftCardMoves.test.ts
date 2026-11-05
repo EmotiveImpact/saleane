@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { dispatch, execute } from './commands'
 import type { Command } from './commands'
 import type { BusinessState } from './model'
@@ -21,6 +21,14 @@ import { otherReceipts } from './receipt'
 // Stage 4: moving a gift card to another location.
 const now = '2026-10-06T08:00:00.000Z'
 const later = '2026-10-08T15:00:00.000Z'
+// Some rules read the real clock, so it stays on 6 October for this file only. Without this the
+// file started failing on 5 November 2026, on main too.
+beforeAll(() => {
+  vi.useFakeTimers({ now: new Date(now), toFake: ['Date'] })
+})
+afterAll(() => {
+  vi.useRealTimers()
+})
 let sequence = 0
 /** A real studio with the sample team, a second location (Shoreditch) and a room there. */
 function studio() {
