@@ -303,6 +303,20 @@ describe('Ask SALEANE with Claude', () => {
     expect(answer.json()).toMatchObject({ status: 'answered' })
     expect(requests).toHaveLength(1)
   })
+
+  it('lets a sample studio’s booking page chat use the real AI, so visitors can try it', async () => {
+    const { requests, fetcher } = anthropic([words('We have a facial free at 2pm today.')])
+    start(claude(fetcher))
+    const login = await register(true)
+    const { slug } = await workspace(login)
+    const chat = await api.inject({
+      method: 'POST',
+      url: `/api/public/${slug}/receptionist`,
+      payload: { text: 'Do you have anything this afternoon?' },
+    })
+    expect(chat.statusCode, chat.body).toBe(200)
+    expect(requests).toHaveLength(1)
+  })
 })
 
 describe('the receptionist with Claude', () => {

@@ -79,18 +79,18 @@ const used = (login: Login) =>
     .then((r) => r.json<{ usage?: { used: { guestChats: number } } }>())
 
 describe('the AI receptionist on the booking page', () => {
-  it('is off until the owner or manager turns it on', async () => {
+  it('is on in a sample studio (the demo), and the owner or manager can turn it off', async () => {
     const login = await register()
     const { slug } = await studio(login)
     const shown = await api.inject({ url: `/api/public/${slug}/receptionist` })
-    expect(shown.json()).toMatchObject({ available: false })
-    expect((await say(slug, 'Hello')).statusCode).toBe(404)
+    expect(shown.json()).toMatchObject({ available: true, studio: 'Reference Studio' })
     expect(
-      (await run(login, { type: 'receptionist', settings: { enabled: true, handOver: true } }))
+      (await run(login, { type: 'receptionist', settings: { enabled: false, handOver: true } }))
         .statusCode,
     ).toBe(200)
     const after = await api.inject({ url: `/api/public/${slug}/receptionist` })
-    expect(after.json()).toMatchObject({ available: true, studio: 'Reference Studio' })
+    expect(after.json()).toMatchObject({ available: false })
+    expect((await say(slug, 'Hello')).statusCode).toBe(404)
   })
 
   it('offers a free time that comes back for the page to book, only to the same visitor', async () => {
