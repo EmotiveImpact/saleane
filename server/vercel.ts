@@ -53,8 +53,25 @@ export function visitorAddress(request: IncomingMessage) {
   return first || request.socket?.remoteAddress || 'unknown'
 }
 
+/**
+ * The one address people use (5 November 2026): the website forwards every path it does not
+ * serve itself to this app, so the app answers as the website's address. SALEANE_PUBLIC_ORIGIN
+ * replaces it once SALEANE has its own domain.
+ */
+export const PUBLIC_ORIGIN = 'https://saleane.vercel.app'
+
+/** The address pages, links and passkeys use, and the hosting address still accepted. */
+export function addresses(env: NodeJS.ProcessEnv = process.env) {
+  const own = env.APP_ORIGIN?.trim()
+  if (!own) return null
+  const origin = env.SALEANE_PUBLIC_ORIGIN?.trim() || PUBLIC_ORIGIN
+  const alsoHosts = [new URL(own).host].filter((host) => host !== new URL(origin).host)
+  return { origin, alsoHosts }
+}
+
 export default async function handler(request: IncomingMessage, response: ServerResponse) {
-  const origin = process.env.APP_ORIGIN?.trim()
+  const place = addresses()
+  const origin = place?.origin
   const connection = process.env.DATABASE_URL?.trim()
   if (!origin || !connection) {
     refuse(response, 503, 'SALEANE is being set up. Try again shortly.')
@@ -76,7 +93,8 @@ export default async function handler(request: IncomingMessage, response: Server
       (store) =>
         createHostedApp({
           store,
-          origin,
+          origin: place!.origin,
+          api: { alsoHosts: place!.alsoHosts },
           directory: join(tmpdir(), 'saleane'),
           // In test mode nothing leaves SALEANE, so a request can simply run again on the newer copy.
           retries: allTestMode() ? 2 : 0,

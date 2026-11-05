@@ -2,6 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-11-05 · One address, no demo by accident
+
+**Status: on this branch on 5 November 2026; deployed only on Edem's word.**
+
+- One address: `saleane.vercel.app` is the website and the app. `/app` opens sign-in; every path the website does not serve itself is forwarded to the app, which answers as that address. Visitors who reach the hosting address are moved to it, keeping the page.
+- Online, a signed-out visitor is sent to sign in or create a studio, never to the fictional demo kept in the browser (a new visitor was landing in "Atelier House" with sample AI answers). The fictional demo stays at `/demo`.
+- Ask SALEANE can read opening hours for up to 14 days, for studio roles only.
+- The website folder (`web/`) now lives on main, with its sign-in links pointing at the same address.
+
 ## 2026-11-04 · Bookings by message, safer saves online, and follow-ups to approve
 
 **Status: in progress on 4 November 2026, on draft PR #129. Not merged and not deployed. Checked with automated tests and fictional data on a local server only; no Keiki, iMessage, WhatsApp or card service was called.**

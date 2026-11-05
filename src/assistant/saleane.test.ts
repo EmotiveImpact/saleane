@@ -192,3 +192,43 @@ describe('Ask Saleane skills', () => {
     expect(cost(ALLOWANCES.plus) - cost(ALLOWANCES.included)).toBeLessThanOrEqual(3900 / 2)
   })
 })
+
+describe('opening hours for the team', () => {
+  it("answers each day's hours, closed days and part-day closures", () => {
+    const studio = structuredClone(s)
+    const o = studio.operations!
+    o.closures = [
+      ...o.closures,
+      {
+        id: 'close-1',
+        date: '2026-10-07',
+        startMinutes: 12 * 60,
+        endMinutes: 14 * 60,
+        reason: 'Training',
+      },
+    ] as typeof o.closures
+    const days = run('opening_hours', askContext(studio, 'owner'), { days: 7 }) as {
+      date: string
+      places: { location: string; open: string[] | 'Closed' }[]
+    }[]
+    expect(days.map((d) => d.date)).toEqual([
+      '2026-10-06',
+      '2026-10-07',
+      '2026-10-08',
+      '2026-10-09',
+      '2026-10-10',
+      '2026-10-11',
+      '2026-10-12',
+    ])
+    const on = (date: string) => days.find((d) => d.date === date)!.places[0].open
+    expect(Array.isArray(on('2026-10-06'))).toBe(true)
+    // The part-day closure splits that day in two.
+    expect(on('2026-10-07')).toHaveLength(2)
+    expect(days.some((d) => d.places[0].open === 'Closed')).toBe(true)
+  })
+
+  it('is not offered to practitioners', () => {
+    const k = skill('opening_hours')
+    expect(k.allowed(askContext(s, 'practitioner'))).toBe(false)
+  })
+})

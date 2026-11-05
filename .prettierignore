@@ -7,3 +7,7 @@ docs/archive
 package-lock.json
 *.tsbuildinfo
 .vercel
+# Generated single-file pages
+web/index.html
+web/app/index.html
+web/demo/index.html

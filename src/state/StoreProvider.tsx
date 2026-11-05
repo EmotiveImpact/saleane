@@ -21,6 +21,7 @@ import type { SavedDaySheet } from './daySheet'
 import type { Store } from './context'
 import { rememberStudio, scopedHome, signedInHere, startingStudio } from './lastStudio'
 import { readOnlyMessage } from '../domain/billing'
+import { seemsOnline } from './online'
 
 const OFFLINE_RETRY_MS = 15000
 const PAUSED = 'Offline. Changes are paused until SALEANE reconnects and checks your access.'
@@ -67,6 +68,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<Session | null>(null)
   // A signed-in person stays in the fictional demo only when they chose it.
   const [demoChosen, setDemoChosen] = useState(false)
+  // Online, the fictional demo lives on the website, never in this app: visitors sign in instead.
+  const [publicAddress] = useState(seemsOnline)
   // Someone signed in on this browser before, but the session could not be checked at start.
   const [unsure, setUnsure] = useState(false)
   // Stage 6: a studio holding this person until they set up two-step sign-in.
@@ -395,10 +398,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    * the account page to choose a studio. Workspace pages send them there instead of the demo.
    */
   let landing: string | null = null
-  if (!loading && !remote && !demoChosen) {
+  if (!loading && !remote && (!demoChosen || publicAddress)) {
     const studio = session && startingStudio(session)
     if (studio) landing = scopedHome(studio) ?? '/account'
-    else if (session || unsure) landing = '/account'
+    else if (session || unsure || publicAddress) landing = '/account'
   }
   return (
     <StoreContext.Provider
