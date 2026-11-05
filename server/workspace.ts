@@ -96,6 +96,9 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
   for (const visit of state.operations.branchVisits ?? []) visit.locationId = locationId
   // Stage 4: so are the sample's requests for a sign-off.
   for (const request of state.operations.requests ?? []) request.locationId = locationId
+  // The demo (5 November 2026): the booking page chat is on, so visitors can try booking as a
+  // guest with the AI. Texts and calls stay off.
+  state.operations.receptionist = { enabled: true, handOver: true }
   state.revision = 0
   return parseState(state, input.region)
 }

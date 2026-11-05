@@ -14,7 +14,7 @@ import { digest } from '../auth'
 import { canonical, fail } from '../http'
 import type { Context, Route } from '../context'
 import { dispatch } from '../../src/domain/commands'
-import { businessDate } from '../../src/domain/operations'
+import { businessDate, operations } from '../../src/domain/operations'
 import { callerNumber } from '../../src/domain/missedCalls'
 import { CHAT_HISTORY_TURNS, isOn, listedTimes } from '../../src/assistant/receptionist'
 import { askReceptionist, receptionUse } from '../../src/assistant/receptionistAsk'
@@ -53,7 +53,10 @@ export function receptionistRoutes() {
         .object({ text: z.string().trim().min(1).max(500), chat: z.uuid().optional() })
         .strict()
         .parse(body)
-      const brain = ctx.ai.brainFor(org.state, 'reception')
+      // The demo: a sample studio's booking page chat uses the real AI too (see `sampleReception`).
+      const brain =
+        ctx.ai.brainFor(org.state, 'reception') ??
+        (operations(org.state).mode === 'sandbox' ? ctx.ai.sampleReception : undefined)
       // Only a chat this server started with this visitor carries on, with the lines kept here; a
       // guest's own word that a chat is under way is not taken, so the monthly allowance cannot be
       // stepped round.

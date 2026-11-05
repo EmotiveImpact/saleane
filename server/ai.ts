@@ -18,10 +18,12 @@ export type AiSupplier = {
   brainFor(state: BusinessState, use: AiUse): Brain | undefined
   /**
    * The demo (5 November 2026): typed Ask SALEANE in a sample studio uses the real AI, so visitors
-   * can try it. Its records are made up. Nothing else in a sample studio (guest chats, texts,
-   * calls, voice) reaches an AI, and its messages and payments stay simulated.
+   * can try it. Its records are made up. Texts, calls and voice in a sample studio never reach an
+   * AI, and its messages and payments stay simulated.
    */
   sampleAsk?: Brain
+  /** The demo: the booking page's chat in a sample studio, so visitors can try booking as a guest. */
+  sampleReception?: Brain
 }
 
 export const testAi: AiSupplier = { name: 'test', live: false, brainFor: () => undefined }
@@ -90,6 +92,7 @@ export function aiFromEnv(
     model,
     brainFor: (state, use) => (operations(state).mode === 'sandbox' ? undefined : brains[use]),
     sampleAsk: brains.ask,
+    sampleReception: brains.reception,
   }
 }
 
@@ -134,6 +137,7 @@ function keikiFromEnv(env: Record<string, string | undefined>, fetcher?: typeof 
     model,
     brainFor: (state, use) => (operations(state).mode === 'sandbox' ? undefined : brains[use]),
     sampleAsk: brains.ask,
+    sampleReception: brains.reception,
   }
 }
 
