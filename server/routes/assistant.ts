@@ -51,8 +51,7 @@ export function assistantRoutes() {
     // NEXT-12: a real AI answers once SALEANE has its key, except in a sample studio.
     const real = ctx.ai.brainFor(org.state, 'ask')
     // The demo: a sample studio's typed questions reach the real AI too (see `sampleAsk`).
-    const brain =
-      real ?? (operations(org.state).mode === 'sandbox' ? ctx.ai.sampleAsk : undefined)
+    const brain = real ?? (operations(org.state).mode === 'sandbox' ? ctx.ai.sampleAsk : undefined)
     // NEXT-12 part 2: talking needs both the voice and Claude, which does the thinking.
     const talk = !!real && ctx.voice.live
     if (path.length === 4 && method === 'GET') {
