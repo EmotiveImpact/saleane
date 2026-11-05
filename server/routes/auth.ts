@@ -92,6 +92,8 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         ai: ctx.ai.live,
         voice: ctx.voice.live,
       },
+      // No setting values here: only that the AI settings could not be read.
+      aiSettingsValid: !ctx.aiProblem,
     })
     return true
   }

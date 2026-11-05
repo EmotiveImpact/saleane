@@ -11,7 +11,7 @@ import type { Providers } from './messaging/providers'
 import { providersFromEnv } from './messaging/providers'
 import type { PaymentProvider } from './payments/providers'
 import { paymentProviderFromEnv } from './payments/providers'
-import { aiFromEnv } from './ai'
+import { aiFromEnv, testAi } from './ai'
 import type { AiSupplier } from './ai'
 import { voiceFromEnv } from './voice'
 import { phoneFromEnv } from './phoneLine'
@@ -229,7 +229,17 @@ export function createContext(options: ApiOptions) {
   const messaging = options.providers ?? providersFromEnv(process.env, allowedOrigin)
   const paymentProvider =
     options.paymentProvider ?? paymentProviderFromEnv(process.env, allowedOrigin)
-  const ai = options.ai ?? aiFromEnv(process.env)
+  // A wrong AI setting turns the AI off with a logged reason; it never stops sign-in, bookings or
+  // the diary for every studio (4 November 2026: a mistyped price took the whole app down).
+  let aiProblem: string | undefined
+  let ai: AiSupplier
+  try {
+    ai = options.ai ?? aiFromEnv(process.env)
+  } catch (error) {
+    aiProblem = error instanceof Error ? error.message : String(error)
+    console.error(`SALEANE AI is off: ${aiProblem}`)
+    ai = testAi
+  }
   const voice = options.voice ?? voiceFromEnv(process.env)
   // The voice only listens and speaks; Claude answers. A voice without Claude would have nothing to say.
   if (voice.live && !ai.live)
@@ -663,6 +673,7 @@ export function createContext(options: ApiOptions) {
     messaging,
     paymentProvider,
     ai,
+    aiProblem,
     voice,
     phone,
     transcriber,
